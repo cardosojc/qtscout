@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer'
 import fs from 'fs'
 import path from 'path'
 import type { Meeting } from '@/types/meeting'
+import { pdfConfig } from '@/lib/pdf-config'
 
 export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
   const browser = await puppeteer.launch({
@@ -12,20 +13,23 @@ export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
   try {
     const page = await browser.newPage()
 
-    const html = await generateMeetingHTML(meeting)
+    const leftImageBase64 = loadImageBase64(pdfConfig.header.leftImage)
+    const rightImageBase64 = loadImageBase64(pdfConfig.header.rightImage)
+
+    const html = await generateMeetingHTML(meeting, leftImageBase64, rightImageBase64)
 
     await page.setContent(html, { waitUntil: 'networkidle0' })
-    
+
     const pdf = await page.pdf({
       format: 'A4',
       margin: {
-        top: '3.5cm',
+        top: '1cm',
         right: '2cm',
         bottom: '2.5cm',
         left: '2cm'
       },
       displayHeaderFooter: true,
-      headerTemplate: generateHeader(),
+      headerTemplate: '<span></span>',
       footerTemplate: generateFooter(),
       printBackground: true
     })
@@ -36,29 +40,22 @@ export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
   }
 }
 
-function generateHeader(): string {
-  return `
-    <div style="font-size: 10px; width: 100%; text-align: center; margin-top: 10px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
-        <div style="text-align: left;">
-          <strong>Agrupamento 61 - Santa Maria dos Olivais</strong><br>
-          <span>agrupamento61@cne-escutismo.pt</span>
-        </div>
-        <div style="text-align: center;">
-          <!-- Logo space removed -->
-        </div>
-        <div style="text-align: right; font-size: 8px; color: #666;">
-          Página <span class="pageNumber"></span> de <span class="totalPages"></span>
-        </div>
-      </div>
-    </div>
-  `
+function loadImageBase64(relativePath: string): string {
+  try {
+    const imagePath = path.join(process.cwd(), relativePath)
+    const imageBuffer = fs.readFileSync(imagePath)
+    const ext = path.extname(relativePath).slice(1).toLowerCase()
+    const mime = ext === 'jpg' ? 'jpeg' : ext
+    return `data:image/${mime};base64,${imageBuffer.toString('base64')}`
+  } catch (error) {
+    console.error(`Error loading image ${relativePath}:`, error)
+    return ''
+  }
 }
 
 function generateFooter(): string {
   return `
     <div style="font-size: 8px; width: 100%; text-align: center; margin-bottom: 10px; color: #666;">
-      <hr style="margin: 0 20px; border: none; border-top: 1px solid #ddd;">
       <div style="margin-top: 5px;">
         CNE - instituição de utilidade pública
       </div>
@@ -66,7 +63,7 @@ function generateFooter(): string {
   `
 }
 
-async function generateMeetingHTML(meeting: Meeting): Promise<string> {
+async function generateMeetingHTML(meeting: Meeting, leftImageDataUri: string, rightImageDataUri: string): Promise<string> {
   const formatDate = (dateInput: string) => {
     const date = new Date(dateInput)
     return date.toLocaleDateString('pt-PT', {
@@ -101,9 +98,6 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
     secretario = agendaObj?.secretario || ''
   }
 
-  // Get background image
-  const backgroundImageBase64 = await getBackgroundImageBase64()
-
   return `
     <!DOCTYPE html>
     <html lang="pt">
@@ -111,6 +105,7 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Ata de Reunião - ${meeting.identifier}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
       <style>
         @page {
           size: A4;
@@ -118,37 +113,61 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
         }
 
         body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-family: 'Lato', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
           line-height: 1.6;
           color: #333;
           margin: 0;
           padding: 0 40px;
-          background: white url('data:image/jpeg;base64,${backgroundImageBase64}') no-repeat;
-          background-size: 40% auto;
-          background-position: 50% 50%;
-          background-attachment: fixed;
+          background: white;
           min-height: 100vh;
-          position: relative;
         }
 
-        body::before {
-          content: '';
-          position: fixed;
-          left: 20px;
-          top: 0;
-          height: 100%;
-          width: 60px;
-          background: linear-gradient(to bottom, #1e40af 0%, #3b82f6 25%, #60a5fa 50%, #93c5fd 75%, #dbeafe 100%);
-          border-radius: 30px;
-          z-index: -1;
+        .page-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .page-table thead td {
+          padding: 0;
+        }
+
+        .page-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 15px 0;
+          margin-bottom: 20px;
+        }
+
+        .header-left, .header-right {
+          width: 70px;
+          height: 70px;
+          flex-shrink: 0;
+        }
+
+        .header-left img, .header-right img {
+          width: 70px;
+          height: 70px;
+          object-fit: contain;
+        }
+
+        .header-center {
+          flex: 1;
+          text-align: center;
+        }
+
+        .header-center strong {
+          font-size: 16px;
+          color: #1e40af;
+        }
+
+        .header-center span {
+          font-size: 12px;
+          color: #555;
         }
 
         .content {
-          background: rgba(255, 255, 255, 0.95);
-          margin-left: 80px;
           padding: 30px;
-          border-radius: 10px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         h1 {
@@ -255,8 +274,6 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
         .content-section {
           background: white;
           padding: 20px;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
           margin: 15px 0;
         }
         
@@ -277,19 +294,19 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
           page-break-before: always;
         }
         
-        table {
+        .content table {
           width: 100%;
           border-collapse: collapse;
           margin: 15px 0;
         }
-        
-        th, td {
+
+        .content th, .content td {
           border: 1px solid #e5e7eb;
           padding: 8px 12px;
           text-align: left;
         }
-        
-        th {
+
+        .content th {
           background: #f8fafc;
           font-weight: bold;
           color: #374151;
@@ -297,9 +314,29 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
       </style>
     </head>
     <body>
+      <table class="page-table">
+        <thead>
+          <tr>
+            <td>
+              <div class="page-header">
+                <div class="header-left">
+                  ${leftImageDataUri ? `<img src="${leftImageDataUri}" />` : ''}
+                </div>
+                <div class="header-center">
+                  <strong>${pdfConfig.header.line1}</strong><br>
+                  <span>${pdfConfig.header.line2}</span>
+                </div>
+                <div class="header-right">
+                  ${rightImageDataUri ? `<img src="${rightImageDataUri}" />` : ''}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
       <div class="content">
-        <h1>ATA DE REUNIÃO</h1>
-        
         <div class="meeting-info">
           <div class="meeting-info-grid">
             <div>
@@ -375,6 +412,10 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
 
         ${meeting.meetingType.code === 'CA' ? generateSignaturePage(attendeeNames, chefeAgrupamento, secretario) : ''}
       </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </body>
     </html>
   `
@@ -383,8 +424,6 @@ async function generateMeetingHTML(meeting: Meeting): Promise<string> {
 function generateSignaturePage(attendeeNames: string[], chefeAgrupamento: string, secretario: string): string {
   return `
     <div class="page-break">
-      <h1 style="margin-top: 40px;">Folha de Assinaturas</h1>
-
       <div style="margin: 40px 0; text-align: center;">
         <p style="font-size: 16px; color: #374151; margin-bottom: 30px;">
           <strong>Conselho de Agrupamento</strong><br>
@@ -477,20 +516,3 @@ function generateSignatureLines(attendeeNames: string[], chefeAgrupamento: strin
   return signatureRows.join('')
 }
 
-async function getBackgroundImageBase64(): Promise<string> {
-  try {
-    const imagePath = path.join(process.cwd(), 'public', 'images', 'scouthouse61.jpeg')
-    const imageBuffer = fs.readFileSync(imagePath)
-    return imageBuffer.toString('base64')
-  } catch (error) {
-    console.error('Error loading background image:', error)
-    // Fallback to simple SVG
-    const svg = `
-      <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="100" cy="100" r="80" fill="none" stroke="#1e40af" stroke-width="4" opacity="0.1"/>
-        <text x="100" y="110" text-anchor="middle" font-size="60" fill="#1e40af" opacity="0.1">🏕️</text>
-      </svg>
-    `
-    return Buffer.from(svg).toString('base64')
-  }
-}
