@@ -5,6 +5,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useRouter, useParams } from 'next/navigation'
 import { Navbar } from '@/components/ui/navbar'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form'
 import type { AgendaItem } from '@/types/meeting'
 
@@ -157,6 +158,11 @@ export default function EditMeetingPage() {
       <Navbar />
 
       <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumbs items={[
+          { label: 'Reuniões', href: '/meetings' },
+          { label: meetingId, href: `/meetings/${meetingId}` },
+          { label: 'Editar' },
+        ]} />
         <MeetingForm
           title="Editar Reunião"
           submitLabel="Atualizar Reunião"

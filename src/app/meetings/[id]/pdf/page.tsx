@@ -5,6 +5,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
 export default function MeetingPDFPage() {
   const { user: session } = useAuth()
@@ -78,6 +79,11 @@ export default function MeetingPDFPage() {
       <Navbar />
       
       <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumbs items={[
+          { label: 'Reuniões', href: '/meetings' },
+          { label: meetingId, href: `/meetings/${meetingId}` },
+          { label: 'PDF' },
+        ]} />
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center transition-colors">
           <div className="mb-6">
             <div className="w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 flex items-center justify-center">

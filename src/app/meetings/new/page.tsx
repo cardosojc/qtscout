@@ -4,6 +4,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/ui/navbar'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form'
 
 export default function NewMeetingPage() {
@@ -62,6 +63,10 @@ export default function NewMeetingPage() {
       <Navbar />
 
       <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumbs items={[
+          { label: 'Reuniões', href: '/meetings' },
+          { label: 'Nova Reunião' },
+        ]} />
         <MeetingForm
           title="Nova Reunião"
           submitLabel="Criar Reunião"

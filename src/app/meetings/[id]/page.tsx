@@ -20,6 +20,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import type { Meeting } from '@/types/meeting'
 
 export default function MeetingDetailPage() {
@@ -140,6 +141,10 @@ export default function MeetingDetailPage() {
       <Navbar />
       
       <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumbs items={[
+          { label: 'Reuniões', href: '/meetings' },
+          { label: meeting.identifier },
+        ]} />
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors">
           {/* Header */}
           <div className="border-b border-gray-200 dark:border-gray-700 p-6">
