@@ -20,7 +20,7 @@
     "@tiptap/pm": "^3.4.2",
     "@tiptap/react": "^3.4.2",
     "@tiptap/starter-kit": "^3.4.2",
-    "next": "15.5.3",
+    "next": "15.5.9",
     "prisma": "^6.16.1",
     "puppeteer": "^24.20.0",
     "react": "19.1.0",
