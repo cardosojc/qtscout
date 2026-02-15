@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -130,7 +129,7 @@ export async function POST(request: NextRequest) {
       await prisma.meeting.update({
         where: { id: meeting.id },
         data: {
-          agenda: agendaData as unknown as Prisma.InputJsonValue
+          agenda: JSON.parse(JSON.stringify(agendaData))
         }
       })
     }
