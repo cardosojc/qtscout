@@ -3,6 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
+import { DashboardSkeleton } from '@/components/ui/skeleton'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -26,7 +27,7 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="text-gray-500 dark:text-gray-400" aria-busy="true" role="status">Carregando...</div>
+            <DashboardSkeleton />
           ) : user ? (
             <div className="space-y-6">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">

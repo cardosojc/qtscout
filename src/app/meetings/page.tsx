@@ -5,6 +5,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
+import { MeetingListSkeleton } from '@/components/ui/skeleton'
 import type { Meeting, MeetingResponse } from '@/types/meeting'
 
 export default function MeetingsPage() {
@@ -109,9 +110,7 @@ export default function MeetingsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-8" aria-busy="true" role="status">
-            <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
-          </div>
+          <MeetingListSkeleton />
         ) : meetings.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
             <p className="text-gray-500 dark:text-gray-400 mb-4">Ainda não há reuniões criadas.</p>
