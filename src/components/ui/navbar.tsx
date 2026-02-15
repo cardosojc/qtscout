@@ -35,6 +35,12 @@ export function Navbar() {
                 <Link href="/meetings/new" className="hover:text-blue-200 dark:hover:text-gray-300">
                   Nova Reunião
                 </Link>
+                <Link href="/search" className="hover:text-blue-200 dark:hover:text-gray-300 flex items-center gap-1.5">
+                  Pesquisar
+                  <kbd className="hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded bg-white/20 font-sans">
+                    ⌘K
+                  </kbd>
+                </Link>
                 <ThemeToggle />
                 <div className="flex items-center space-x-2">
                   <span className="text-sm">
