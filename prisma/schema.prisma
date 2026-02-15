@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  name      String
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  meetings         Meeting[]
+  meetingAttendees MeetingAttendee[]
+  scoutProfile     Scout?
+  scoutLeaders     ScoutLeader[]
+
+  @@map("profiles")
+}
+
+model MeetingType {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  meetings Meeting[]
+
+  @@map("meeting_types")
+}
+
+model Meeting {
+  id          String       @id @default(cuid())
+  identifier  String       @unique
+  date        DateTime
+  startTime   String?
+  endTime     String?
+  location    String?
+  agenda      Json
+  content     String
+  decisions   Json?
+  actionItems Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  meetingTypeId String
+  meetingType   MeetingType @relation(fields: [meetingTypeId], references: [id])
+  createdById   String
+  createdBy     Profile     @relation(fields: [createdById], references: [id])
+  attendees     MeetingAttendee[]
+
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  id        String   @id @default(cuid())
+  present   Boolean  @default(true)
+  role      String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  @@unique([meetingId, profileId])
+  @@map("meeting_attendees")
+}
+
+model Scout {
+  id          String       @id @default(cuid())
+  profileId   String?      @unique
+  name        String
+  dateOfBirth DateTime
+  section     ScoutSection
+  joinedAt    DateTime     @default(now())
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  profile Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  leaders ScoutLeader[]
+
+  @@map("scouts")
+}
+
+model ScoutLeader {
+  id         String   @id @default(cuid())
+  scoutId    String
+  leaderId   String
+  assignedAt DateTime @default(now())
+
+  // Relations
+  scout  Scout   @relation(fields: [scoutId], references: [id], onDelete: Cascade)
+  leader Profile @relation(fields: [leaderId], references: [id], onDelete: Cascade)
+
+  @@unique([scoutId, leaderId])
+  @@map("scout_leaders")
+}
+
+enum ScoutSection {
+  LOBITOS
+  EXPLORADORES
+  PIONEIROS
+  CAMINHEIROS
+}
+
+enum UserRole {
+  ADMIN
+  LEADER
+  MEMBER
+}
