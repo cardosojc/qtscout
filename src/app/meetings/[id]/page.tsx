@@ -139,7 +139,7 @@ export default function MeetingDetailPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <Navbar />
       
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors">
           {/* Header */}
           <div className="border-b border-gray-200 dark:border-gray-700 p-6">

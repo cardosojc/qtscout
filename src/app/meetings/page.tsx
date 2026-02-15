@@ -97,7 +97,7 @@ export default function MeetingsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <Navbar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reuniões</h1>
           <Link
@@ -109,7 +109,7 @@ export default function MeetingsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-8">
+          <div className="text-center py-8" aria-busy="true" role="status">
             <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
           </div>
         ) : meetings.length === 0 ? (

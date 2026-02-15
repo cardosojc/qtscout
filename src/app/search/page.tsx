@@ -154,7 +154,7 @@ export default function SearchPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <Navbar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Pesquisar Reuniões</h1>
           
@@ -279,8 +279,9 @@ export default function SearchPage() {
         </div>
 
         {/* Search Results */}
+        <div aria-live="polite" aria-atomic="true">
         {loading && (
-          <div className="text-center py-8">
+          <div className="text-center py-8" aria-busy="true" role="status">
             <div className="text-gray-500 dark:text-gray-400">Pesquisando...</div>
           </div>
         )}
@@ -357,6 +358,7 @@ export default function SearchPage() {
             ))}
           </div>
         )}
+        </div>
       </main>
     </div>
   )

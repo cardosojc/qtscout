@@ -11,7 +11,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
           <div className="mb-8">
             <div className="w-24 h-24 bg-blue-600 dark:bg-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -26,7 +26,7 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
+            <div className="text-gray-500 dark:text-gray-400" aria-busy="true" role="status">Carregando...</div>
           ) : user ? (
             <div className="space-y-6">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
