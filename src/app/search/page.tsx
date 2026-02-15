@@ -95,7 +95,7 @@ export default function SearchPage() {
     if (!query.trim()) return text
     
     const regex = new RegExp(`(${query.trim()})`, 'gi')
-    return text.replace(regex, '<mark class="bg-yellow-200">$1</mark>')
+    return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-100">$1</mark>')
   }
 
   const formatDate = (dateString: string) => {
@@ -162,7 +162,7 @@ export default function SearchPage() {
             <form onSubmit={handleSearch} className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Pesquisar por texto
                   </label>
                   <input
@@ -170,18 +170,18 @@ export default function SearchPage() {
                     value={filters.query}
                     onChange={(e) => setFilters({ ...filters, query: e.target.value })}
                     placeholder="Procurar no conteúdo, agenda, ações..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tipo de Reunião
                   </label>
                   <select
                     value={filters.meetingType}
                     onChange={(e) => setFilters({ ...filters, meetingType: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                   >
                     <option value="">Todos os tipos</option>
                     {meetingTypes.map((type) => (
@@ -195,37 +195,37 @@ export default function SearchPage() {
 
               <div className="grid md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Data inicial
                   </label>
                   <input
                     type="date"
                     value={filters.dateFrom}
                     onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Data final
                   </label>
                   <input
                     type="date"
                     value={filters.dateTo}
                     onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Ordenar por
                   </label>
                   <select
                     value={filters.sortBy}
                     onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'date' | 'identifier' })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                   >
                     <option value="date">Data</option>
                     <option value="identifier">Identificador</option>
@@ -233,13 +233,13 @@ export default function SearchPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Ordem
                   </label>
                   <select
                     value={filters.sortOrder}
                     onChange={(e) => setFilters({ ...filters, sortOrder: e.target.value as 'asc' | 'desc' })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                   >
                     <option value="desc">Descendente</option>
                     <option value="asc">Ascendente</option>
@@ -269,7 +269,7 @@ export default function SearchPage() {
                     })
                     setResults([])
                   }}
-                  className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200"
+                  className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-6 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Limpar
                 </button>
@@ -281,32 +281,32 @@ export default function SearchPage() {
         {/* Search Results */}
         {loading && (
           <div className="text-center py-8">
-            <div className="text-gray-500">Pesquisando...</div>
+            <div className="text-gray-500 dark:text-gray-400">Pesquisando...</div>
           </div>
         )}
 
         {!loading && results.length === 0 && filters.query && (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-500">Nenhuma reunião encontrada com os critérios especificados.</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+            <p className="text-gray-500 dark:text-gray-400">Nenhuma reunião encontrada com os critérios especificados.</p>
           </div>
         )}
 
         {!loading && results.length > 0 && (
           <div className="space-y-4">
-            <div className="text-sm text-gray-600 mb-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Encontradas {results.length} reuniões
             </div>
             
             {results.map((meeting) => (
-              <div key={meeting.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+              <div key={meeting.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-xl font-semibold text-blue-600 mb-2">
+                    <h3 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-2">
                       <Link href={`/meetings/${meeting.id}`} className="hover:underline">
                         {meeting.identifier}
                       </Link>
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 mb-2">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {meeting.meetingType.name}
                       </span>
@@ -327,13 +327,13 @@ export default function SearchPage() {
                   <div className="flex gap-2">
                     <Link
                       href={`/meetings/${meeting.id}`}
-                      className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200"
+                      className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       Ver
                     </Link>
                     <Link
                       href={`/meetings/${meeting.id}/pdf`}
-                      className="bg-green-100 text-green-700 px-3 py-1 rounded text-sm hover:bg-green-200"
+                      className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 px-3 py-1 rounded text-sm hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
                     >
                       PDF
                     </Link>
@@ -341,7 +341,7 @@ export default function SearchPage() {
                 </div>
                 
                 {meeting.content && (
-                  <div className="text-gray-700 text-sm">
+                  <div className="text-gray-700 dark:text-gray-300 text-sm">
                     <p
                       dangerouslySetInnerHTML={{
                         __html: highlightText(getContentPreview(meeting.content, filters.query), filters.query)
@@ -350,7 +350,7 @@ export default function SearchPage() {
                   </div>
                 )}
                 
-                <div className="mt-3 text-xs text-gray-500">
+                <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                   Criado por {meeting.createdBy.name || meeting.createdBy.email}
                 </div>
               </div>
