@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
@@ -65,19 +65,21 @@ export default function SearchPage() {
     }
   }
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const executeSearch = useCallback(async (currentFilters: SearchFilters) => {
     if (!session) return
+    if (!currentFilters.query && !currentFilters.meetingType && !currentFilters.dateFrom && !currentFilters.dateTo) return
 
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (filters.query) params.append('q', filters.query)
-      if (filters.meetingType) params.append('type', filters.meetingType)
-      if (filters.dateFrom) params.append('from', filters.dateFrom)
-      if (filters.dateTo) params.append('to', filters.dateTo)
-      params.append('sortBy', filters.sortBy)
-      params.append('sortOrder', filters.sortOrder)
+      if (currentFilters.query) params.append('q', currentFilters.query)
+      if (currentFilters.meetingType) params.append('type', currentFilters.meetingType)
+      if (currentFilters.dateFrom) params.append('from', currentFilters.dateFrom)
+      if (currentFilters.dateTo) params.append('to', currentFilters.dateTo)
+      params.append('sortBy', currentFilters.sortBy)
+      params.append('sortOrder', currentFilters.sortOrder)
 
       const response = await fetch(`/api/search/meetings?${params.toString()}`)
       if (response.ok) {
@@ -89,6 +91,20 @@ export default function SearchPage() {
     } finally {
       setLoading(false)
     }
+  }, [session])
+
+  // Debounce search when query text changes
+  useEffect(() => {
+    if (!filters.query.trim()) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => executeSearch(filters), 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [filters.query]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    await executeSearch(filters)
   }
 
   const highlightText = (text: string, query: string) => {
