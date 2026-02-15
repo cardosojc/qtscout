@@ -1,5 +1,20 @@
 'use client'
 
+interface AgendaActionItem {
+  id?: string
+  description?: string
+  responsible?: string
+  dueDate?: string
+}
+
+interface AgendaItem {
+  id?: string
+  title: string
+  description?: string
+  content?: string
+  actionItems?: AgendaActionItem[]
+}
+
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useParams } from 'next/navigation'
@@ -107,15 +122,15 @@ export default function MeetingDetailPage() {
   }
 
   // Handle both old and new agenda format
-  let agendaItems = []
-  let attendeeNames = []
+  let agendaItems: AgendaItem[] = []
+  let attendeeNames: string[] = []
 
   if (Array.isArray(meeting.agenda)) {
     // Old format - just agenda items
     agendaItems = meeting.agenda
   } else {
     // New format - object with items and attendee data
-    const agendaObj = meeting.agenda as { items?: any[], attendeeNames?: string[] }
+    const agendaObj = meeting.agenda as { items?: AgendaItem[], attendeeNames?: string[] }
     agendaItems = agendaObj?.items || []
     attendeeNames = agendaObj?.attendeeNames || []
   }
@@ -240,7 +255,7 @@ export default function MeetingDetailPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ordem de Trabalhos</h3>
                 <div className="space-y-4">
-                  {agendaItems.map((item: { id?: string; title: string; description?: string; content?: string; actionItems?: { id?: string; description?: string; responsible?: string; dueDate?: string }[] }, index: number) => (
+                  {agendaItems.map((item: AgendaItem, index: number) => (
                     <div key={item.id || index} className="border-l-4 border-blue-500 pl-4">
                       <h4 className="font-medium text-gray-900 dark:text-white">
                         {index + 1}. {item.title}

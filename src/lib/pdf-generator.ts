@@ -4,6 +4,19 @@ import path from 'path'
 import type { Meeting } from '@/types/meeting'
 import { pdfConfig } from '@/lib/pdf-config'
 
+interface PdfAgendaActionItem {
+  description?: string
+  responsible?: string
+  dueDate?: string
+}
+
+interface PdfAgendaItem {
+  title: string
+  description?: string
+  content?: string
+  actionItems?: PdfAgendaActionItem[]
+}
+
 export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
   const browser = await puppeteer.launch({
     headless: true,
@@ -78,11 +91,9 @@ async function generateMeetingHTML(meeting: Meeting, leftImageDataUri: string, r
     return timeString.slice(0, 5)
   }
 
-  const actionItems = Array.isArray(meeting.actionItems) ? meeting.actionItems : []
-
   // Handle both old and new agenda format
-  let agendaItems = []
-  let attendeeNames = []
+  let agendaItems: PdfAgendaItem[] = []
+  let attendeeNames: string[] = []
   let chefeAgrupamento = ''
   let secretario = ''
 
@@ -91,7 +102,7 @@ async function generateMeetingHTML(meeting: Meeting, leftImageDataUri: string, r
     agendaItems = meeting.agenda
   } else {
     // New format - object with items and attendee data
-    const agendaObj = meeting.agenda as { items?: any[], attendeeNames?: string[], chefeAgrupamento?: string, secretario?: string }
+    const agendaObj = meeting.agenda as { items?: PdfAgendaItem[], attendeeNames?: string[], chefeAgrupamento?: string, secretario?: string }
     agendaItems = agendaObj?.items || []
     attendeeNames = agendaObj?.attendeeNames || []
     chefeAgrupamento = agendaObj?.chefeAgrupamento || ''
@@ -382,7 +393,7 @@ async function generateMeetingHTML(meeting: Meeting, leftImageDataUri: string, r
         
         ${agendaItems.length > 0 ? `
           <h2>Ordem de Trabalhos</h2>
-          ${agendaItems.map((item: { title: string; description?: string; content?: string; actionItems?: { description?: string; responsible?: string; dueDate?: string }[] }, index: number) => `
+          ${agendaItems.map((item: PdfAgendaItem, index: number) => `
             <div class="agenda-item">
               <h4>${index + 1}. ${item.title}</h4>
               ${item.description ? `<p>${item.description}</p>` : ''}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useRouter, useParams } from 'next/navigation'
 import { Navbar } from '@/components/ui/navbar'
@@ -110,14 +110,7 @@ export default function EditMeetingPage() {
   const [newAgendaTitle, setNewAgendaTitle] = useState('')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (meetingId) {
-      fetchMeeting()
-      fetchMeetingTypes()
-    }
-  }, [meetingId])
-
-  const fetchMeeting = async () => {
+  const fetchMeeting = useCallback(async () => {
     try {
       const response = await fetch(`/api/meetings/${meetingId}`)
       if (response.ok) {
@@ -132,7 +125,7 @@ export default function EditMeetingPage() {
         setLocation(meetingData.location || '')
 
         // Extract agenda items and attendee data from meeting agenda
-        const agendaObj = meetingData.agenda as { items?: any[], attendeeNames?: string[], chefeAgrupamento?: string, secretario?: string } | any[]
+        const agendaObj = meetingData.agenda as { items?: AgendaItem[], attendeeNames?: string[], chefeAgrupamento?: string, secretario?: string } | AgendaItem[]
 
         // Check if agenda is an array (old format) or object (new format with attendees)
         let loadedItems: AgendaItem[] = []
@@ -160,7 +153,14 @@ export default function EditMeetingPage() {
     } finally {
       setInitialLoading(false)
     }
-  }
+  }, [meetingId, router])
+
+  useEffect(() => {
+    if (meetingId) {
+      fetchMeeting()
+      fetchMeetingTypes()
+    }
+  }, [meetingId, fetchMeeting])
 
   const fetchMeetingTypes = async () => {
     try {

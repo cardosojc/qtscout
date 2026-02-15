@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
     if (attendees && attendees.length > 0 || chefeAgrupamento || secretario) {
       // For this MVP, we'll store attendees as metadata in the meeting
       // Preserve existing agenda items if they exist
-      const currentAgenda = meeting.agenda as any
+      const currentAgenda = meeting.agenda as Record<string, unknown> | unknown[]
       const agendaItems = Array.isArray(currentAgenda) ? currentAgenda : []
 
       const agendaData = {
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
       await prisma.meeting.update({
         where: { id: meeting.id },
         data: {
-          agenda: agendaData
+          agenda: agendaData as unknown as Prisma.InputJsonValue
         }
       })
     }

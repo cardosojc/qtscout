@@ -50,7 +50,7 @@ export default function MeetingPDFPage() {
     } finally {
       setLoading(false)
     }
-  }, [session, meetingId])
+  }, [session, meetingId, loading])
 
   useEffect(() => {
     // Auto-download PDF when page loads - only run once when session becomes available

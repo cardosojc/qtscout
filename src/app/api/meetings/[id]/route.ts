@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(
   request: NextRequest,
@@ -87,7 +88,7 @@ export async function PUT(
     // In production, you might want to add role-based permissions
 
     // If meeting type or date changed, regenerate identifier
-    let updateData: any = {
+    const updateData: Record<string, unknown> = {
       meetingTypeId: meetingTypeId || undefined,
       date: date ? new Date(date) : undefined,
       startTime,
@@ -136,10 +137,10 @@ export async function PUT(
     // Update attendees and special roles in agenda
     if (attendees !== undefined || chefeAgrupamento !== undefined || secretario !== undefined || agenda !== undefined) {
       // Get current agenda data and update with new roles, attendees, and agenda items
-      const currentAgenda = updateData.agenda || updatedMeeting.agenda as any
+      const currentAgenda = (updateData.agenda || updatedMeeting.agenda) as Record<string, unknown>
 
-      let existingItems = []
-      let existingAttendees = []
+      let existingItems: unknown[] = []
+      let existingAttendees: string[] = []
       let existingChefe = ''
       let existingSecretario = ''
 
@@ -147,10 +148,10 @@ export async function PUT(
       if (Array.isArray(currentAgenda)) {
         existingItems = currentAgenda
       } else if (currentAgenda && typeof currentAgenda === 'object') {
-        existingItems = currentAgenda.items || []
-        existingAttendees = currentAgenda.attendeeNames || []
-        existingChefe = currentAgenda.chefeAgrupamento || ''
-        existingSecretario = currentAgenda.secretario || ''
+        existingItems = (currentAgenda.items as unknown[]) || []
+        existingAttendees = (currentAgenda.attendeeNames as string[]) || []
+        existingChefe = (currentAgenda.chefeAgrupamento as string) || ''
+        existingSecretario = (currentAgenda.secretario as string) || ''
       }
 
       const agendaData = {
@@ -163,7 +164,7 @@ export async function PUT(
       await prisma.meeting.update({
         where: { id },
         data: {
-          agenda: agendaData
+          agenda: agendaData as unknown as Prisma.InputJsonValue
         }
       })
     }
