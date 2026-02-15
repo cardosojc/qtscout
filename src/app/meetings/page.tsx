@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useToast } from '@/components/ui/toast'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
 import type { Meeting, MeetingResponse } from '@/types/meeting'
 
 export default function MeetingsPage() {
   const { user: session } = useAuth()
+  const { showToast, showConfirm } = useToast()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -54,9 +56,12 @@ export default function MeetingsPage() {
   }
 
   const deleteMeeting = async (meetingId: string, meetingIdentifier: string) => {
-    if (!confirm(`Tem certeza que deseja eliminar a reunião "${meetingIdentifier}"? Esta ação não pode ser desfeita.`)) {
-      return
-    }
+    const confirmed = await showConfirm({
+      title: 'Eliminar reunião',
+      message: `Tem certeza que deseja eliminar a reunião "${meetingIdentifier}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Eliminar',
+    })
+    if (!confirmed) return
 
     try {
       const response = await fetch(`/api/meetings/${meetingId}`, {
@@ -64,14 +69,14 @@ export default function MeetingsPage() {
       })
 
       if (response.ok) {
-        // Refresh meetings list
+        showToast('Reunião eliminada com sucesso', 'success')
         await fetchMeetings(currentPage)
       } else {
-        alert('Erro ao eliminar reunião')
+        showToast('Erro ao eliminar reunião', 'error')
       }
     } catch (error) {
       console.error('Error deleting meeting:', error)
-      alert('Erro ao eliminar reunião')
+      showToast('Erro ao eliminar reunião', 'error')
     }
   }
 

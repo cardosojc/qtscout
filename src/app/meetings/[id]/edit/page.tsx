@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useToast } from '@/components/ui/toast'
 import { useRouter, useParams } from 'next/navigation'
 import { Navbar } from '@/components/ui/navbar'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
@@ -85,6 +86,7 @@ function AgendaActionItems({ agendaId, actions, onAdd, onRemove }: {
 
 export default function EditMeetingPage() {
   const { user: session } = useAuth()
+  const { showToast } = useToast()
   const router = useRouter()
   const params = useParams()
   const meetingId = params.id as string
@@ -262,13 +264,14 @@ export default function EditMeetingPage() {
       })
 
       if (response.ok) {
+        showToast('Reunião atualizada com sucesso', 'success')
         router.push(`/meetings/${meetingId}`)
       } else {
-        alert('Erro ao atualizar reunião')
+        showToast('Erro ao atualizar reunião', 'error')
       }
     } catch (error) {
       console.error('Error updating meeting:', error)
-      alert('Erro ao atualizar reunião')
+      showToast('Erro ao atualizar reunião', 'error')
     } finally {
       setLoading(false)
     }

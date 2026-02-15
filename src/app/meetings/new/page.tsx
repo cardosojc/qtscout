@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useToast } from '@/components/ui/toast'
 import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/ui/navbar'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
@@ -85,8 +86,9 @@ function AgendaActionItems({ agendaId, actions, onAdd, onRemove }: {
 
 export default function NewMeetingPage() {
   const { user: session } = useAuth()
+  const { showToast } = useToast()
   const router = useRouter()
-  
+
   const [meetingTypes, setMeetingTypes] = useState<ExtendedMeetingType[]>([])
   const [loading, setLoading] = useState(false)
   
@@ -211,13 +213,14 @@ export default function NewMeetingPage() {
 
       if (response.ok) {
         const meeting = await response.json()
+        showToast('Reunião criada com sucesso', 'success')
         router.push(`/meetings/${meeting.id}`)
       } else {
-        alert('Erro ao criar reunião')
+        showToast('Erro ao criar reunião', 'error')
       }
     } catch (error) {
       console.error('Error creating meeting:', error)
-      alert('Erro ao criar reunião')
+      showToast('Erro ao criar reunião', 'error')
     } finally {
       setLoading(false)
     }
