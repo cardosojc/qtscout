@@ -62,12 +62,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Build order clause
-    const orderBy: Record<string, unknown> = {}
-    if (sortBy === 'date') {
-      orderBy.date = sortOrder
-    } else if (sortBy === 'identifier') {
-      orderBy.identifier = sortOrder
-    }
+    const orderBy = sortBy === 'identifier'
+      ? { identifier: sortOrder as 'asc' | 'desc' }
+      : { date: sortOrder as 'asc' | 'desc' }
 
     const meetings = await prisma.meeting.findMany({
       where,
