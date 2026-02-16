@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
+import chromium from '@sparticuz/chromium-min'
 import fs from 'fs'
 import path from 'path'
 import type { Meeting } from '@/types/meeting'
@@ -21,7 +21,9 @@ interface PdfAgendaItem {
 export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
   const browser = await puppeteer.launch({
     args: chromium.args,
-    executablePath: await chromium.executablePath(),
+    executablePath: await chromium.executablePath(
+      'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar'
+    ),
     headless: true,
   })
 
