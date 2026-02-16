@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +18,8 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
     // Build the where clause
-    const where: Prisma.MeetingWhereInput = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {}
 
     // Text search across content, agenda, and action items
     if (query) {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Date range filter
     if (dateFrom || dateTo) {
-      const dateFilter: Prisma.DateTimeFilter = {}
+      const dateFilter: { gte?: Date; lte?: Date } = {}
       if (dateFrom) {
         dateFilter.gte = new Date(dateFrom)
       }
@@ -82,25 +82,25 @@ export async function GET(request: NextRequest) {
     // If we have a text query, we can do additional filtering on JSON fields
     let filteredMeetings = meetings
     if (query) {
-      filteredMeetings = meetings.filter(meeting => {
+      filteredMeetings = meetings.filter((meeting: typeof meetings[number]) => {
         const searchText = query.toLowerCase()
-        
+
         // Search in content (already handled by Prisma)
         if (meeting.content?.toLowerCase().includes(searchText)) {
           return true
         }
-        
+
         // Search in agenda items
         if (meeting.agenda) {
           const agendaItems = Array.isArray(meeting.agenda) ? meeting.agenda : []
           for (const item of agendaItems) {
-            if (item && typeof item === 'object' && 
-                ((item as { title?: string }).title?.toLowerCase().includes(searchText) || 
+            if (item && typeof item === 'object' &&
+                ((item as { title?: string }).title?.toLowerCase().includes(searchText) ||
                  (item as { description?: string }).description?.toLowerCase().includes(searchText))) {
               return true
             }
           }
-          
+
           // Search in attendee names
           const agendaObj = meeting.agenda as { attendeeNames?: string[] }
           const attendeeNames = agendaObj?.attendeeNames || []
@@ -110,19 +110,19 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-        
+
         // Search in action items
         if (meeting.actionItems) {
           const actionItems = Array.isArray(meeting.actionItems) ? meeting.actionItems : []
           for (const item of actionItems) {
             if (item && typeof item === 'object' &&
-                ((item as { description?: string }).description?.toLowerCase().includes(searchText) || 
+                ((item as { description?: string }).description?.toLowerCase().includes(searchText) ||
                  (item as { responsible?: string }).responsible?.toLowerCase().includes(searchText))) {
               return true
             }
           }
         }
-        
+
         return false
       })
     }
