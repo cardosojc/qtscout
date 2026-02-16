@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 import fs from 'fs'
 import path from 'path'
 import type { Meeting } from '@/types/meeting'
@@ -19,8 +20,9 @@ interface PdfAgendaItem {
 
 export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
   const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
   })
 
   try {

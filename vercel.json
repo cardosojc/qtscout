@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "src/app/api/meetings/[id]/pdf/route.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  }
+}
