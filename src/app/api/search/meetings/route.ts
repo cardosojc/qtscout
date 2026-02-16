@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
     // Build the where clause
-    const where: Record<string, unknown> = {}
+    const where: Prisma.MeetingWhereInput = {}
 
     // Text search across content, agenda, and action items
     if (query) {
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Date range filter
     if (dateFrom || dateTo) {
-      const dateFilter: Record<string, unknown> = {}
+      const dateFilter: Prisma.DateTimeFilter = {}
       if (dateFrom) {
         dateFilter.gte = new Date(dateFrom)
       }
