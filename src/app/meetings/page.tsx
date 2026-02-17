@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
+import { useLoading } from '@/components/ui/loading-overlay'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
 import { MeetingListSkeleton } from '@/components/ui/skeleton'
@@ -11,6 +12,7 @@ import type { Meeting, MeetingResponse } from '@/types/meeting'
 export default function MeetingsPage() {
   const { user: session } = useAuth()
   const { showToast, showConfirm } = useToast()
+  const { startLoading, stopLoading } = useLoading()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -64,6 +66,7 @@ export default function MeetingsPage() {
     })
     if (!confirmed) return
 
+    startLoading('A eliminar...')
     try {
       const response = await fetch(`/api/meetings/${meetingId}`, {
         method: 'DELETE'
@@ -78,6 +81,8 @@ export default function MeetingsPage() {
     } catch (error) {
       console.error('Error deleting meeting:', error)
       showToast('Erro ao eliminar reunião', 'error')
+    } finally {
+      stopLoading()
     }
   }
 

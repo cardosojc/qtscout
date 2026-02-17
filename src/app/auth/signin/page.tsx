@@ -5,21 +5,22 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useLoading } from '@/components/ui/loading-overlay'
 
 export default function SignInPage() {
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
+  const { startLoading, stopLoading } = useLoading()
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) return
 
-    setLoading(true)
+    startLoading('A entrar...')
     setError('')
 
     try {
@@ -40,7 +41,7 @@ export default function SignInPage() {
       console.error('Sign in error:', error)
       setError('Erro ao fazer login')
     } finally {
-      setLoading(false)
+      stopLoading()
     }
   }
 
@@ -112,10 +113,10 @@ export default function SignInPage() {
             <div>
               <button
                 type="submit"
-                disabled={loading || !email.trim() || !password.trim()}
+                disabled={!email.trim() || !password.trim()}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                Entrar
               </button>
             </div>
           </form>

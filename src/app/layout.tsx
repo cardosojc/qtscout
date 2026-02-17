@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { ToastProvider } from "@/components/ui/toast";
+import { LoadingProvider } from "@/components/ui/loading-overlay";
 import { KeyboardShortcuts } from "@/components/ui/keyboard-shortcuts";
 
 const lato = Lato({
@@ -36,8 +37,10 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>
-              <KeyboardShortcuts />
-              {children}
+              <LoadingProvider>
+                <KeyboardShortcuts />
+                {children}
+              </LoadingProvider>
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>

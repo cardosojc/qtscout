@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import Link from 'next/link'
+import { useLoading } from '@/components/ui/loading-overlay'
 
 export default function ForgotPasswordPage() {
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const { startLoading, stopLoading } = useLoading()
   const [success, setSuccess] = useState(false)
   const [email, setEmail] = useState('')
 
@@ -14,7 +15,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     if (!email.trim()) return
 
-    setLoading(true)
+    startLoading('A enviar...')
     setError('')
     setSuccess(false)
 
@@ -40,7 +41,7 @@ export default function ForgotPasswordPage() {
       console.error('Forgot password error:', error)
       setError('Erro ao enviar email de redefinição')
     } finally {
-      setLoading(false)
+      stopLoading()
     }
   }
 
@@ -110,10 +111,10 @@ export default function ForgotPasswordPage() {
               <div>
                 <button
                   type="submit"
-                  disabled={loading || !email.trim()}
+                  disabled={!email.trim()}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {loading ? 'Enviando...' : 'Enviar link de redefinição'}
+                  Enviar link de redefinição
                 </button>
               </div>
             </form>

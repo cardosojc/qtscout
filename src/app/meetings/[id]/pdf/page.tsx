@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useLoading } from '@/components/ui/loading-overlay'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/ui/navbar'
@@ -12,14 +13,14 @@ export default function MeetingPDFPage() {
   const params = useParams()
   const meetingId = params.id as string
 
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const downloadInitiated = useRef(false)
+  const { startLoading, stopLoading } = useLoading()
 
   const handleDownloadPDF = useCallback(async () => {
-    if (!session || loading) return
+    if (!session) return
 
-    setLoading(true)
+    startLoading('A gerar PDF...')
     setError(null)
 
     try {
@@ -49,9 +50,9 @@ export default function MeetingPDFPage() {
       console.error('Error downloading PDF:', error)
       setError('Erro ao fazer download do PDF')
     } finally {
-      setLoading(false)
+      stopLoading()
     }
-  }, [session, meetingId, loading])
+  }, [session, meetingId, startLoading, stopLoading])
 
   useEffect(() => {
     // Auto-download PDF when page loads - only run once when session becomes available
@@ -94,20 +95,13 @@ export default function MeetingPDFPage() {
             </h1>
           </div>
 
-          {loading && (
-            <div className="mb-6">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p className="text-gray-600">Gerando PDF...</p>
-            </div>
-          )}
-
           {error && (
             <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
               {error}
             </div>
           )}
 
-          {!loading && !error && (
+          {!error && (
             <div className="mb-6">
               <p className="text-gray-600 mb-4">
                 O PDF será descarregado automaticamente. Se não começar, clique no botão abaixo.
@@ -121,10 +115,9 @@ export default function MeetingPDFPage() {
                 downloadInitiated.current = false
                 handleDownloadPDF()
               }}
-              disabled={loading}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
             >
-              {loading ? 'Gerando...' : 'Descarregar PDF'}
+              Descarregar PDF
             </button>
             
             <Link

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
+import { useLoading } from '@/components/ui/loading-overlay'
 import type { MeetingType, AgendaItem, ActionItem } from '@/types/meeting'
 
 interface ExtendedMeetingType extends MeetingType {
@@ -103,7 +104,7 @@ function AgendaActionItems({ agendaId, actions, onAdd, onRemove }: {
 
 export function MeetingForm({ title, submitLabel, submittingLabel, initialData, onSubmit, onCancel }: MeetingFormProps) {
   const [meetingTypes, setMeetingTypes] = useState<ExtendedMeetingType[]>([])
-  const [loading, setLoading] = useState(false)
+  const { startLoading, stopLoading } = useLoading()
 
   const [selectedMeetingType, setSelectedMeetingType] = useState(initialData?.meetingTypeId ?? '')
   const [date, setDate] = useState(initialData?.date ?? '')
@@ -206,7 +207,7 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
     e.preventDefault()
     if (!selectedMeetingType || !date) return
 
-    setLoading(true)
+    startLoading('A guardar...')
     try {
       await onSubmit({
         meetingTypeId: selectedMeetingType,
@@ -220,7 +221,7 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
         secretario,
       })
     } finally {
-      setLoading(false)
+      stopLoading()
     }
   }
 
@@ -441,10 +442,10 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
         <div className="flex gap-4">
           <button
             type="submit"
-            disabled={loading || !selectedMeetingType || !date}
+            disabled={!selectedMeetingType || !date}
             className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
           >
-            {loading ? submittingLabel : submitLabel}
+            {submitLabel}
           </button>
           <button
             type="button"

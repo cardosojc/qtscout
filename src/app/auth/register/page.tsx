@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { createClient } from '@/lib/supabase/client'
+import { useLoading } from '@/components/ui/loading-overlay'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { startLoading, stopLoading } = useLoading()
 
   const [formData, setFormData] = useState({
     username: '',
@@ -29,7 +30,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    startLoading('A criar conta...')
     setError('')
     setSuccess('')
 
@@ -61,7 +62,7 @@ export default function RegisterPage() {
       console.error('Registration error:', error)
       setError('Erro ao criar conta')
     } finally {
-      setLoading(false)
+      stopLoading()
     }
   }
 
@@ -196,10 +197,9 @@ export default function RegisterPage() {
             <div>
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
-                {loading ? 'Criando conta...' : 'Criar Conta'}
+                Criar Conta
               </button>
             </div>
           </form>
