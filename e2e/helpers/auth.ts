@@ -1,8 +1,8 @@
 import { Page } from '@playwright/test'
 
 export const TEST_USER = {
-  email: 'e2e-test@qtscout.test',
-  password: 'TestPassword123!',
+  email: process.env.E2E_TEST_EMAIL ?? 'e2e-test@qtscout.test',
+  password: process.env.E2E_TEST_PASSWORD ?? 'TestPassword123!',
   username: 'e2e-tester',
   name: 'E2E Tester',
   role: 'ADMIN',
