@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useRouter, useParams } from 'next/navigation'
-import { Navbar } from '@/components/ui/navbar'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form'
 import type { AgendaItem } from '@/types/meeting'
@@ -116,12 +115,9 @@ export default function EditMeetingPage() {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center" aria-busy="true" role="status">
-            <p className="text-gray-600 dark:text-gray-300">Carregando...</p>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center" aria-busy="true" role="status">
+          <p className="text-gray-600 dark:text-gray-300">Carregando...</p>
         </div>
       </div>
     )
@@ -129,12 +125,9 @@ export default function EditMeetingPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <p>Precisa fazer login para editar reuniões.</p>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p>Precisa fazer login para editar reuniões.</p>
         </div>
       </div>
     )
@@ -142,36 +135,29 @@ export default function EditMeetingPage() {
 
   if (!meetingFound) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <p>Reunião não encontrada.</p>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p>Reunião não encontrada.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <Navbar />
-
-      <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Breadcrumbs items={[
-          { label: 'Reuniões', href: '/meetings' },
-          { label: meetingId, href: `/meetings/${meetingId}` },
-          { label: 'Editar' },
-        ]} />
-        <MeetingForm
-          title="Editar Reunião"
-          submitLabel="Atualizar Reunião"
-          submittingLabel="Atualizando..."
-          initialData={initialData}
-          onSubmit={handleSubmit}
-          onCancel={() => router.push(`/meetings/${meetingId}`)}
-        />
-      </main>
-    </div>
+    <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Breadcrumbs items={[
+        { label: 'Reuniões', href: '/meetings' },
+        { label: meetingId, href: `/meetings/${meetingId}` },
+        { label: 'Editar' },
+      ]} />
+      <MeetingForm
+        title="Editar Reunião"
+        submitLabel="Atualizar Reunião"
+        submittingLabel="Atualizando..."
+        initialData={initialData}
+        onSubmit={handleSubmit}
+        onCancel={() => router.push(`/meetings/${meetingId}`)}
+      />
+    </main>
   )
 }

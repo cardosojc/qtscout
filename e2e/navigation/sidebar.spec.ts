@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { TEST_USER } from '../helpers/auth'
 
-test.describe('Navbar', () => {
+test.describe('Sidebar', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
   })
 
-  test('all navbar links work', async ({ page }) => {
+  test('all sidebar links work', async ({ page }) => {
     // "Reuniões" link
     const reunioesLink = page.getByRole('navigation').getByRole('link', { name: 'Reuniões' })
     await expect(reunioesLink).toBeVisible()
@@ -24,8 +24,8 @@ test.describe('Navbar', () => {
     await expect(pesquisarLink).toHaveAttribute('href', '/search')
   })
 
-  test('shows user greeting', async ({ page }) => {
-    await expect(page.getByText(`Olá, ${TEST_USER.name}`)).toBeVisible()
+  test('shows user name', async ({ page }) => {
+    await expect(page.getByText(TEST_USER.name)).toBeVisible()
   })
 
   test('shows ⌘K badge on search link', async ({ page }) => {
