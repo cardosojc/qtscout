@@ -15,25 +15,27 @@ const navItems = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
     ),
-  },
-  {
-    href: '/meetings/new',
-    label: 'Nova Reunião',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-      </svg>
-    ),
-  },
-  {
-    href: '/search',
-    label: 'Pesquisar',
-    badge: '⌘K',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    ),
+    children: [
+      {
+        href: '/meetings/new',
+        label: 'Nova Reunião',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        ),
+      },
+      {
+        href: '/search',
+        label: 'Pesquisar',
+        badge: '⌘K',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        ),
+      },
+    ],
   },
 ]
 
@@ -50,7 +52,13 @@ export function Sidebar() {
 
   const isActive = (href: string) => {
     if (href === '/meetings') return pathname === '/meetings'
+    if (href === '/search') return pathname.startsWith('/search')
     return pathname.startsWith(href)
+  }
+
+  const isSectionActive = (item: typeof navItems[number]) => {
+    if (pathname === item.href || pathname.startsWith(item.href + '/')) return true
+    return item.children?.some(child => isActive(child.href)) ?? false
   }
 
   const sidebarContent = (
@@ -76,26 +84,51 @@ export function Sidebar() {
         ) : user ? (
           navItems.map((item) => {
             const active = isActive(item.href)
+            const sectionOpen = isSectionActive(item)
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-blue-700 dark:bg-gray-700 text-white'
-                    : 'text-blue-100 dark:text-gray-300 hover:bg-blue-500 dark:hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                {item.icon}
-                {item.label}
-                {item.badge && (
-                  <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/20 font-sans">
-                    {item.badge}
-                  </kbd>
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-blue-700 dark:bg-gray-700 text-white'
+                      : 'text-blue-100 dark:text-gray-300 hover:bg-blue-500 dark:hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+                {item.children && sectionOpen && (
+                  <div className="ml-4 mt-1 space-y-0.5 border-l border-blue-400/30 dark:border-gray-600/50 pl-2">
+                    {item.children.map((child) => {
+                      const childActive = isActive(child.href)
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          aria-current={childActive ? 'page' : undefined}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                            childActive
+                              ? 'bg-blue-700 dark:bg-gray-700 text-white'
+                              : 'text-blue-200 dark:text-gray-400 hover:bg-blue-500 dark:hover:bg-gray-700 hover:text-white'
+                          }`}
+                        >
+                          {child.icon}
+                          {child.label}
+                          {child.badge && (
+                            <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/20 font-sans">
+                              {child.badge}
+                            </kbd>
+                          )}
+                        </Link>
+                      )
+                    })}
+                  </div>
                 )}
-              </Link>
+              </div>
             )
           })
         ) : (

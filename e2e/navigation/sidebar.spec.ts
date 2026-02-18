@@ -7,30 +7,32 @@ test.describe('Sidebar', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('all sidebar links work', async ({ page }) => {
-    // "Reuniões" link
+  test('shows top-level Reuniões link', async ({ page }) => {
     const reunioesLink = page.getByRole('navigation').getByRole('link', { name: 'Reuniões' })
     await expect(reunioesLink).toBeVisible()
     await expect(reunioesLink).toHaveAttribute('href', '/meetings')
+  })
 
-    // "Nova Reunião" link
+  test('shows sub-items when in meetings section', async ({ page }) => {
+    // Navigate to meetings to expand sub-items
+    await page.getByRole('navigation').getByRole('link', { name: 'Reuniões' }).click()
+    await page.waitForLoadState('networkidle')
+
+    // "Nova Reunião" sub-item
     const novaLink = page.getByRole('navigation').getByRole('link', { name: 'Nova Reunião' })
     await expect(novaLink).toBeVisible()
     await expect(novaLink).toHaveAttribute('href', '/meetings/new')
 
-    // "Pesquisar" link
+    // "Pesquisar" sub-item with ⌘K badge
     const pesquisarLink = page.getByRole('navigation').getByRole('link', { name: /Pesquisar/ })
     await expect(pesquisarLink).toBeVisible()
     await expect(pesquisarLink).toHaveAttribute('href', '/search')
+
+    const kbd = page.getByRole('navigation').locator('kbd')
+    await expect(kbd).toHaveText('⌘K')
   })
 
   test('shows user name', async ({ page }) => {
     await expect(page.getByText(TEST_USER.name)).toBeVisible()
-  })
-
-  test('shows ⌘K badge on search link', async ({ page }) => {
-    const kbd = page.getByRole('navigation').locator('kbd')
-    // Badge may be hidden on small screens, check it exists
-    await expect(kbd).toHaveText('⌘K')
   })
 })
