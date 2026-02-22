@@ -8,6 +8,8 @@ import { useToast } from '@/components/ui/toast'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import Link from 'next/link'
 import { DOCUMENT_TYPE_LABELS, type Document } from '@/types/document'
+import { OrdemServicoView } from '@/components/documents/ordem-servico-view'
+import { parseOrdemServicoData } from '@/types/ordem-servico'
 
 export default function DocumentDetailPage() {
   const { user: session } = useAuth()
@@ -20,6 +22,7 @@ export default function DocumentDetailPage() {
   const [document, setDocument] = useState<Document | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
   const fetchDocument = useCallback(async () => {
     startLoading('A carregar documento...')
@@ -119,7 +122,29 @@ export default function DocumentDetailPage() {
                 {DOCUMENT_TYPE_LABELS[document.type]}
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={async () => {
+                  if (pdfUrl) { setPdfUrl(null); return }
+                  startLoading('A gerar PDF...')
+                  try {
+                    const res = await fetch(`/api/documents/${document.id}/pdf`)
+                    if (res.ok) {
+                      const blob = await res.blob()
+                      setPdfUrl(URL.createObjectURL(blob))
+                    } else {
+                      showToast('Erro ao gerar PDF', 'error')
+                    }
+                  } catch {
+                    showToast('Erro ao gerar PDF', 'error')
+                  } finally {
+                    stopLoading()
+                  }
+                }}
+                className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-4 py-2 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+              >
+                {pdfUrl ? 'Fechar PDF' : 'Gerar PDF'}
+              </button>
               <Link
                 href={`/documents/${document.id}/edit`}
                 className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
@@ -138,6 +163,26 @@ export default function DocumentDetailPage() {
           </div>
         </div>
 
+        {/* Inline PDF Viewer */}
+        {pdfUrl && (
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Pré-visualização</h3>
+              <a
+                href={`/api/documents/${document.id}/pdf?download=true`}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                Descarregar PDF
+              </a>
+            </div>
+            <iframe
+              src={pdfUrl}
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
+              style={{ height: '80vh' }}
+            />
+          </div>
+        )}
+
         <div className="p-6 space-y-6">
           {/* Meta */}
           <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
@@ -149,7 +194,9 @@ export default function DocumentDetailPage() {
           </div>
 
           {/* Content */}
-          {document.content && document.content.trim() !== '' && document.content !== '<p></p>' ? (
+          {document.type === 'ORDEM_SERVICO' && document.content?.trimStart().startsWith('{') ? (
+            <OrdemServicoView data={parseOrdemServicoData(document.content)} />
+          ) : document.content && document.content.trim() !== '' && document.content !== '<p></p>' ? (
             <div
               className="prose dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: document.content }}

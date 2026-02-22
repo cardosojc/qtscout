@@ -8,6 +8,8 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { DOCUMENT_TYPE_LABELS, type Document } from '@/types/document'
+import { OrdemServicoForm } from '@/components/documents/ordem-servico-form'
+import { parseOrdemServicoData, type OrdemServicoData } from '@/types/ordem-servico'
 
 export default function EditDocumentPage() {
   const { user: session } = useAuth()
@@ -19,6 +21,8 @@ export default function EditDocumentPage() {
 
   const [document, setDocument] = useState<Document | null>(null)
   const [content, setContent] = useState('')
+  const [osMode, setOsMode] = useState<'form' | 'text'>('form')
+  const [osData, setOsData] = useState<OrdemServicoData | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -29,7 +33,17 @@ export default function EditDocumentPage() {
       if (res.ok) {
         const doc = await res.json()
         setDocument(doc)
-        setContent(doc.content)
+        if (doc.type === 'ORDEM_SERVICO') {
+          const isJson = doc.content?.trimStart().startsWith('{')
+          setOsMode(isJson ? 'form' : 'text')
+          if (isJson) {
+            setOsData(parseOrdemServicoData(doc.content))
+          } else {
+            setContent(doc.content ?? '')
+          }
+        } else {
+          setContent(doc.content)
+        }
       }
     } catch {
       showToast('Erro ao carregar documento', 'error')
@@ -53,7 +67,7 @@ export default function EditDocumentPage() {
       const res = await fetch(`/api/documents/${docId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: document?.type === 'ORDEM_SERVICO' && osMode === 'form' ? JSON.stringify(osData) : content }),
       })
 
       if (res.ok) {
@@ -105,19 +119,54 @@ export default function EditDocumentPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Conteúdo
-            </label>
             {document.type === 'ORDEM_SERVICO' ? (
-              <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900">
-                Conteúdo em breve
+              <div className="space-y-4">
+                <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setOsMode('form')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      osMode === 'form'
+                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Formulário estruturado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOsMode('text')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      osMode === 'text'
+                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Texto livre
+                  </button>
+                </div>
+
+                {osMode === 'form' ? (
+                  <OrdemServicoForm data={osData} onChange={setOsData} />
+                ) : (
+                  <RichTextEditor
+                    content={content}
+                    onChange={setContent}
+                    placeholder="Escreva o conteúdo da ordem de serviço..."
+                  />
+                )}
               </div>
             ) : (
-              <RichTextEditor
-                content={content}
-                onChange={setContent}
-                placeholder={`Escreva o conteúdo do ${DOCUMENT_TYPE_LABELS[document.type].toLowerCase()}...`}
-              />
+              <>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Conteúdo
+                </label>
+                <RichTextEditor
+                  content={content}
+                  onChange={setContent}
+                  placeholder={`Escreva o conteúdo do ${DOCUMENT_TYPE_LABELS[document.type].toLowerCase()}...`}
+                />
+              </>
             )}
           </div>
 

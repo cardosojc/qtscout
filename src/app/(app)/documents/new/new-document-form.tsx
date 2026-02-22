@@ -8,6 +8,8 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/document'
+import { OrdemServicoForm } from '@/components/documents/ordem-servico-form'
+import { defaultOrdemServicoData, type OrdemServicoData } from '@/types/ordem-servico'
 
 interface NewDocumentFormProps {
   enabledTypes: { oficio: boolean; circular: boolean; ordem: boolean }
@@ -33,6 +35,8 @@ export function NewDocumentForm({ enabledTypes }: NewDocumentFormProps) {
 
   const [type, setType] = useState<DocumentType>(initialType)
   const [content, setContent] = useState('')
+  const [osMode, setOsMode] = useState<'form' | 'text'>('form')
+  const [osData, setOsData] = useState<OrdemServicoData>(defaultOrdemServicoData())
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +49,7 @@ export function NewDocumentForm({ enabledTypes }: NewDocumentFormProps) {
       const res = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, content }),
+        body: JSON.stringify({ type, content: type === 'ORDEM_SERVICO' && osMode === 'form' ? JSON.stringify(osData) : content }),
       })
 
       if (res.ok) {
@@ -108,19 +112,55 @@ export function NewDocumentForm({ enabledTypes }: NewDocumentFormProps) {
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Conteúdo
-            </label>
             {type === 'ORDEM_SERVICO' ? (
-              <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900">
-                Conteúdo em breve
+              <div className="space-y-4">
+                {/* Mode toggle */}
+                <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setOsMode('form')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      osMode === 'form'
+                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Formulário estruturado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOsMode('text')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      osMode === 'text'
+                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Texto livre
+                  </button>
+                </div>
+
+                {osMode === 'form' ? (
+                  <OrdemServicoForm data={osData} onChange={setOsData} />
+                ) : (
+                  <RichTextEditor
+                    content={content}
+                    onChange={setContent}
+                    placeholder="Escreva o conteúdo da ordem de serviço..."
+                  />
+                )}
               </div>
             ) : (
-              <RichTextEditor
-                content={content}
-                onChange={setContent}
-                placeholder={`Escreva o conteúdo do ${DOCUMENT_TYPE_LABELS[type].toLowerCase()}...`}
-              />
+              <>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Conteúdo
+                </label>
+                <RichTextEditor
+                  content={content}
+                  onChange={setContent}
+                  placeholder={`Escreva o conteúdo do ${DOCUMENT_TYPE_LABELS[type].toLowerCase()}...`}
+                />
+              </>
             )}
           </div>
 
