@@ -135,7 +135,7 @@ export default function SettingsPage() {
                   <div className="text-right">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Próximo documento</p>
                     <p className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400">
-                      {nextIdentifierPreview(s.type, s.startingNumber)}
+                      {nextIdentifierPreview(s.type, Math.max(1, s.startingNumber - 1))}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
