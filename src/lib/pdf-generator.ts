@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import type { Meeting } from '@/types/meeting'
+import type { OrdemServicoData, OSAtividade, OSNomeacao, OSNoitesMilestone } from '@/types/ordem-servico'
 import { pdfConfig } from '@/lib/pdf-config'
 
 interface PdfAgendaActionItem {
@@ -16,52 +17,76 @@ interface PdfAgendaItem {
   actionItems?: PdfAgendaActionItem[]
 }
 
-export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
-  let browser
+interface DocumentForPDF {
+  type: string
+  content: string
+  identifier: string
+  createdAt: string
+  createdBy: { name?: string | null; email: string }
+}
 
+// ─── Shared browser launch ────────────────────────────────────────────────────
+
+async function launchBrowser() {
   if (process.env.VERCEL) {
-    // Production: use puppeteer-core + serverless Chromium
     const [{ default: puppeteerCore }, { default: chromium }] = await Promise.all([
       import('puppeteer-core'),
       import('@sparticuz/chromium-min'),
     ])
-    browser = await puppeteerCore.launch({
+    return puppeteerCore.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(
         'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar'
       ),
       headless: true,
     })
-  } else {
-    // Local development: use full puppeteer with bundled Chromium
-    const { default: puppeteer } = await import('puppeteer')
-    browser = await puppeteer.launch({ headless: true })
   }
+  const { default: puppeteer } = await import('puppeteer')
+  return puppeteer.launch({ headless: true })
+}
 
+// ─── Meeting PDF ──────────────────────────────────────────────────────────────
+
+export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
+  const browser = await launchBrowser()
   try {
     const page = await browser.newPage()
-
     const leftImageBase64 = loadImageBase64(pdfConfig.header.leftImage)
     const rightImageBase64 = loadImageBase64(pdfConfig.header.rightImage)
-
     const html = await generateMeetingHTML(meeting, leftImageBase64, rightImageBase64)
-
     await page.setContent(html, { waitUntil: 'networkidle0' })
-
     const pdf = await page.pdf({
       format: 'A4',
-      margin: {
-        top: '1cm',
-        right: '2cm',
-        bottom: '2.5cm',
-        left: '2cm'
-      },
+      margin: { top: '1cm', right: '2cm', bottom: '2.5cm', left: '2cm' },
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
       footerTemplate: generateFooter(),
-      printBackground: true
+      printBackground: true,
     })
+    return Buffer.from(pdf)
+  } finally {
+    await browser.close()
+  }
+}
 
+// ─── Document PDF ─────────────────────────────────────────────────────────────
+
+export async function generateDocumentPDF(document: DocumentForPDF): Promise<Buffer> {
+  const browser = await launchBrowser()
+  try {
+    const page = await browser.newPage()
+    const leftImageBase64 = loadImageBase64(pdfConfig.header.leftImage)
+    const rightImageBase64 = loadImageBase64(pdfConfig.header.rightImage)
+    const html = generateDocumentHTML(document, leftImageBase64, rightImageBase64)
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top: '1cm', right: '2cm', bottom: '2.5cm', left: '2cm' },
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      footerTemplate: generateFooter(),
+      printBackground: true,
+    })
     return Buffer.from(pdf)
   } finally {
     await browser.close()
@@ -542,3 +567,296 @@ function generateSignatureLines(attendeeNames: string[], chefeAgrupamento: strin
   return signatureRows.join('')
 }
 
+// ─── Document HTML generation ─────────────────────────────────────────────────
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  OFICIO: 'Ofício',
+  CIRCULAR: 'Circular',
+  ORDEM_SERVICO: 'Ordem de Serviço',
+}
+
+const SECCAO_LABELS: Record<string, string> = {
+  alcateia: 'Alcateia',
+  expedicao: 'Expedição',
+  comunidade: 'Comunidade',
+  cla: 'Clã',
+}
+const SECCOES = ['alcateia', 'expedicao', 'comunidade', 'cla'] as const
+
+function docNadaConsta(items: unknown[]): string {
+  if (items.length === 0) return '<p style="color:#9ca3af;font-style:italic;margin:4px 0 4px 16px;">Nada consta</p>'
+  return ''
+}
+
+function renderStrList(items: string[]): string {
+  if (items.length === 0) return '<p style="color:#9ca3af;font-style:italic;margin:4px 0 4px 16px;">Nada consta</p>'
+  return `<ul style="margin:4px 0 4px 16px;padding-left:18px;">${items.map(i => `<li style="margin:2px 0;">${i}</li>`).join('')}</ul>`
+}
+
+function renderAtivList(items: OSAtividade[]): string {
+  if (items.length === 0) return '<p style="color:#9ca3af;font-style:italic;margin:4px 0 4px 16px;">Nada consta</p>'
+  return `<ul style="margin:4px 0 4px 16px;padding-left:18px;">${items.map(a =>
+    `<li style="margin:2px 0;">${a.nome}${a.datas ? ` — ${a.datas}` : ''}${a.local ? ` — ${a.local}` : ''}</li>`
+  ).join('')}</ul>`
+}
+
+function renderNomList(items: OSNomeacao[]): string {
+  if (items.length === 0) return '<p style="color:#9ca3af;font-style:italic;margin:4px 0 4px 16px;">Nada consta</p>'
+  return `<ul style="margin:4px 0 4px 16px;padding-left:18px;">${items.map(n =>
+    `<li style="margin:2px 0;">${n.nome}${n.cargo ? ` — ${n.cargo}` : ''}</li>`
+  ).join('')}</ul>`
+}
+
+function renderNoitesList(items: OSNoitesMilestone[]): string {
+  if (items.length === 0) return '<p style="color:#9ca3af;font-style:italic;margin:4px 0 4px 16px;">Nada consta</p>'
+  return items.map(m => `
+    <div style="margin:4px 0 4px 16px;">
+      <p style="font-weight:600;margin:0 0 2px 0;">${m.count} noites de campo</p>
+      ${m.membros.length === 0
+        ? '<p style="color:#9ca3af;font-style:italic;margin:2px 0 2px 16px;">Nenhum membro</p>'
+        : `<ul style="margin:2px 0 2px 16px;padding-left:18px;">${m.membros.map(nome => `<li style="margin:1px 0;">${nome}</li>`).join('')}</ul>`
+      }
+    </div>
+  `).join('')
+}
+
+function osSecTitle(text: string): string {
+  return `<h2 style="font-size:13px;font-weight:700;color:#1e40af;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:16px 0 6px 0;">${text}</h2>`
+}
+
+function osSubTitle(text: string): string {
+  return `<h3 style="font-size:12px;font-weight:600;color:#374151;margin:10px 0 3px 0;">${text}</h3>`
+}
+
+function osSubSubTitle(text: string): string {
+  return `<p style="font-size:11px;font-weight:500;color:#6b7280;margin:6px 0 2px 8px;">${text}</p>`
+}
+
+function generateOSContent(data: OrdemServicoData): string {
+  return `
+    ${osSecTitle('Determinações')}
+    ${osSubTitle('Resoluções do Conselho de Agrupamento')}
+    ${renderStrList(data.determinacoes.resolucoes)}
+    ${osSubTitle('Determinações do Conselho de Agrupamento')}
+    ${renderStrList(data.determinacoes.determinacoes)}
+
+    ${osSecTitle('Atividades')}
+    ${osSubTitle('Agrupamento')}
+    ${renderAtivList(data.atividades.agrupamento)}
+    ${osSubTitle('Unidades')}
+    ${SECCOES.map(key => `
+      ${osSubSubTitle(SECCAO_LABELS[key])}
+      ${renderAtivList(data.atividades[key])}
+    `).join('')}
+
+    ${osSecTitle('Criação/Extinção de Unidades, Bandos, Patrulhas, Equipas, Tribos e Departamentos')}
+    ${SECCOES.map(key => `
+      ${osSubTitle(SECCAO_LABELS[key])}
+      ${renderStrList(data.criacaoExtincao[key])}
+    `).join('')}
+
+    ${osSecTitle('Nomeações e Exonerações')}
+    ${osSubTitle('Dirigentes')}
+    ${renderNomList(data.nomeacoes.dirigentes)}
+    ${osSubTitle('Secções')}
+    ${SECCOES.map(key => `
+      ${osSubSubTitle(SECCAO_LABELS[key])}
+      ${renderNomList(data.nomeacoes[key])}
+    `).join('')}
+    ${osSubTitle('Departamentos')}
+    ${renderStrList(data.nomeacoes.departamentos)}
+
+    ${osSecTitle('Efetivo')}
+    ${([
+      ['admissao', 'Admissão de Associados'],
+      ['readmissao', 'Readmissão de Associados'],
+      ['transferencia', 'Transferência de Associados'],
+      ['passagens', 'Passagens de Secção'],
+      ['investiduras', 'Investiduras'],
+    ] as const).map(([sub, label]) => `
+      ${osSubTitle(label)}
+      ${SECCOES.map(key => `
+        ${osSubSubTitle(SECCAO_LABELS[key])}
+        ${renderStrList((data.efetivo[sub] as Record<string, string[]>)[key])}
+      `).join('')}
+    `).join('')}
+    ${osSubTitle('Saída do Ativo de Associados')}
+    ${osSubSubTitle('Dirigentes')}
+    ${renderStrList(data.efetivo.saidaAtivo.dirigentes)}
+    ${SECCOES.map(key => `
+      ${osSubSubTitle(SECCAO_LABELS[key])}
+      ${renderStrList(data.efetivo.saidaAtivo[key])}
+    `).join('')}
+
+    ${osSecTitle('Sistema de Progresso')}
+    ${SECCOES.map(key => `
+      ${osSubTitle(SECCAO_LABELS[key])}
+      ${renderStrList(data.sistemaProgresso[key])}
+    `).join('')}
+
+    ${osSecTitle('Noites de Campo')}
+    ${SECCOES.map(key => `
+      ${osSubTitle(SECCAO_LABELS[key])}
+      ${renderNoitesList(data.noitesCampo[key])}
+    `).join('')}
+
+    ${osSecTitle('Justiça e Disciplina')}
+    ${osSubTitle('Acções Disciplinares')}
+    ${renderStrList(data.justicaDisciplina.accoesDisicplinares)}
+    ${osSubTitle('Distinções e Prémios')}
+    ${data.justicaDisciplina.distincoesPremios.trim()
+      ? `<p style="margin:4px 0 4px 16px;font-style:italic;white-space:pre-wrap;">${data.justicaDisciplina.distincoesPremios}</p>`
+      : '<p style="color:#9ca3af;font-style:italic;margin:4px 0 4px 16px;">Nada consta</p>'
+    }
+
+    ${osSecTitle('Retificações')}
+    ${renderStrList(data.retificacoes)}
+
+    ${(data.localData || data.chefeAgrupamento || data.secretarioAgrupamento) ? `
+      <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
+        ${data.localData ? `<p style="margin:0 0 20px 0;">${data.localData}</p>` : ''}
+        <div style="display:flex;justify-content:space-between;gap:40px;margin-top:30px;">
+          ${data.chefeAgrupamento ? `
+            <div>
+              <p style="font-size:11px;color:#6b7280;margin:0;">Chefe de Agrupamento</p>
+              <p style="font-weight:600;margin:4px 0 0 0;">${data.chefeAgrupamento}</p>
+            </div>
+          ` : '<div></div>'}
+          ${data.secretarioAgrupamento ? `
+            <div style="text-align:right;">
+              <p style="font-size:11px;color:#6b7280;margin:0;">Secretário de Agrupamento</p>
+              <p style="font-weight:600;margin:4px 0 0 0;">${data.secretarioAgrupamento}</p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    ` : ''}
+  `
+}
+
+function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rightImageDataUri: string): string {
+  const formatDate = (s: string) =>
+    new Date(s).toLocaleDateString('pt-PT', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const isJson = doc.content?.trimStart().startsWith('{')
+  let bodyContent: string
+
+  if (doc.type === 'ORDEM_SERVICO' && isJson) {
+    try {
+      const data: OrdemServicoData = JSON.parse(doc.content)
+      bodyContent = generateOSContent(data)
+    } catch {
+      bodyContent = `<div class="doc-content">${doc.content}</div>`
+    }
+  } else {
+    bodyContent = `<div class="doc-content">${doc.content || ''}</div>`
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html lang="pt">
+    <head>
+      <meta charset="UTF-8">
+      <title>${doc.identifier}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+      <style>
+        @page { size: A4; margin: 0; }
+        body {
+          font-family: 'Lato', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-size: 13px;
+          line-height: 1.6;
+          color: #333;
+          margin: 0;
+          padding: 0 40px;
+          background: white;
+        }
+        .page-table { width: 100%; border-collapse: collapse; }
+        .page-table thead td { padding: 0; }
+        .page-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 15px 0;
+          margin-bottom: 20px;
+        }
+        .header-left, .header-right { width: 70px; height: 70px; flex-shrink: 0; }
+        .header-left img, .header-right img { width: 70px; height: 70px; object-fit: contain; }
+        .header-center { flex: 1; text-align: center; }
+        .header-center strong { font-size: 16px; color: #1e40af; }
+        .header-center span { font-size: 12px; color: #555; }
+        .doc-meta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+          padding-bottom: 12px;
+          border-bottom: 2px solid #1e40af;
+        }
+        .doc-identifier {
+          font-size: 22px;
+          font-weight: 700;
+          color: #1e40af;
+        }
+        .doc-type-badge {
+          display: inline-block;
+          background: #dbeafe;
+          color: #1e40af;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 10px;
+        }
+        .doc-info-line {
+          font-size: 11px;
+          color: #6b7280;
+          margin-left: auto;
+        }
+        .doc-content { margin-top: 16px; line-height: 1.7; }
+        .doc-content p { margin: 8px 0; }
+        .doc-content h1, .doc-content h2, .doc-content h3 { color: #1e40af; margin: 16px 0 8px 0; }
+        .doc-content ul, .doc-content ol { padding-left: 24px; margin: 8px 0; }
+        .doc-content li { margin: 4px 0; }
+        .doc-content strong { font-weight: 700; }
+        .doc-content em { font-style: italic; }
+      </style>
+    </head>
+    <body>
+      <table class="page-table">
+        <thead>
+          <tr>
+            <td>
+              <div class="page-header">
+                <div class="header-left">
+                  ${leftImageDataUri ? `<img src="${leftImageDataUri}" />` : ''}
+                </div>
+                <div class="header-center">
+                  <strong>${pdfConfig.header.line1}</strong><br>
+                  <span>${pdfConfig.header.line2}</span>
+                </div>
+                <div class="header-right">
+                  ${rightImageDataUri ? `<img src="${rightImageDataUri}" />` : ''}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="doc-meta">
+                <span class="doc-identifier">${doc.identifier}</span>
+                <span class="doc-type-badge">${DOC_TYPE_LABELS[doc.type] ?? doc.type}</span>
+                <span class="doc-info-line">
+                  ${formatDate(doc.createdAt)} &nbsp;·&nbsp; ${doc.createdBy.name || doc.createdBy.email}
+                </span>
+              </div>
+              ${bodyContent}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `
+}
