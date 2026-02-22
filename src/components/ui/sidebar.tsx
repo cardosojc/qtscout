@@ -9,6 +9,7 @@ import { ThemeToggle } from './theme-toggle'
 const meetingsNavItem = {
   href: '/meetings',
   label: 'Reuniões',
+  badge: undefined,
   icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -18,23 +19,26 @@ const meetingsNavItem = {
     {
       href: '/meetings/new',
       label: 'Nova Reunião',
+      badge: undefined as string | undefined,
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       ),
     },
-    {
-      href: '/search',
-      label: 'Pesquisar',
-      badge: '⌘K',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-      ),
-    },
   ],
+}
+
+const searchNavItem = {
+  href: '/search',
+  label: 'Pesquisar',
+  badge: '⌘K',
+  icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  ),
+  children: undefined,
 }
 
 const docTypeIcon = (
@@ -81,6 +85,7 @@ function buildDocumentsNavItem(enabledDocTypes: EnabledDocTypes) {
   return {
     href: '/documents',
     label: 'Documentos',
+    badge: undefined as string | undefined,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -112,6 +117,7 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
   const settingsNavItem = {
     href: '/settings',
     label: 'Definições',
+    badge: undefined as string | undefined,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -127,6 +133,7 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
   const navItems = [
     meetingsNavItem,
     ...(anyDocEnabled ? [buildDocumentsNavItem(enabledDocTypes)] : []),
+    searchNavItem,
     ...(user?.role === 'ADMIN' ? [settingsNavItem] : []),
   ]
 
@@ -192,6 +199,11 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
                 >
                   {item.icon}
                   {item.label}
+                  {item.badge && (
+                    <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/20 font-sans">
+                      {item.badge}
+                    </kbd>
+                  )}
                 </Link>
                 {item.children && sectionOpen && (
                   <div className="ml-4 mt-1 space-y-0.5 border-l border-blue-400/30 dark:border-gray-600/50 pl-2">
