@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
@@ -12,6 +13,7 @@ export default function MeetingsPage() {
   const { user: session } = useAuth()
   const { showToast, showConfirm } = useToast()
   const { startLoading, stopLoading } = useLoading()
+  const router = useRouter()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -123,7 +125,11 @@ export default function MeetingsPage() {
       ) : (
         <div className="space-y-4">
           {meetings.map((meeting) => (
-            <div key={meeting.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div
+              key={meeting.id}
+              onClick={() => router.push(`/meetings/${meeting.id}`)}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -155,25 +161,14 @@ export default function MeetingsPage() {
 
                 <div className="flex gap-2">
                   <Link
-                    href={`/meetings/${meeting.id}`}
-                    className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg transition-colors"
-                  >
-                    Ver
-                  </Link>
-                  <Link
-                    href={`/meetings/${meeting.id}/edit`}
-                    className="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-200 px-4 py-2 rounded-lg transition-colors"
-                  >
-                    Editar
-                  </Link>
-                  <Link
                     href={`/meetings/${meeting.id}/pdf`}
+                    onClick={(e) => e.stopPropagation()}
                     className="bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-200 px-4 py-2 rounded-lg transition-colors"
                   >
                     PDF
                   </Link>
                   <button
-                    onClick={() => deleteMeeting(meeting.id, meeting.identifier)}
+                    onClick={(e) => { e.stopPropagation(); deleteMeeting(meeting.id, meeting.identifier) }}
                     className="bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-200 px-4 py-2 rounded-lg transition-colors"
                   >
                     Eliminar
