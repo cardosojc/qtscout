@@ -90,6 +90,16 @@ export function OrdemServicoView({ data }: { data: OrdemServicoData }) {
   return (
     <div className="text-sm leading-relaxed">
 
+      {/* Período */}
+      {(data.periodo?.de || data.periodo?.ate) && (
+        <p className="mb-4 text-sm text-gray-700 dark:text-gray-300">
+          <span className="font-semibold">Período: </span>
+          {data.periodo.de && <>De {data.periodo.de}</>}
+          {data.periodo.de && data.periodo.ate && <> a </>}
+          {data.periodo.ate && <>até {data.periodo.ate}</>}
+        </p>
+      )}
+
       {/* 1. Determinações */}
       <SectionTitle>Determinações</SectionTitle>
       <SubTitle>Resoluções do Conselho de Agrupamento</SubTitle>

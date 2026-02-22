@@ -43,6 +43,10 @@ export type OSNoitesSeccoes = {
 }
 
 export type OrdemServicoData = {
+  periodo: {
+    de: string
+    ate: string
+  }
   determinacoes: {
     resolucoes: string[]
     determinacoes: string[]
@@ -84,6 +88,7 @@ const emptySeccoes = (): OSSeccoes => ({
 
 export function defaultOrdemServicoData(): OrdemServicoData {
   return {
+    periodo: { de: '', ate: '' },
     determinacoes: { resolucoes: [], determinacoes: [] },
     atividades: {
       agrupamento: [],

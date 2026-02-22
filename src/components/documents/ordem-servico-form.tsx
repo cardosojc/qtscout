@@ -313,6 +313,29 @@ export function OrdemServicoForm({
 
   return (
     <div className="space-y-3">
+      {/* Período */}
+      <div className="flex flex-wrap gap-4 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <span className="text-sm font-semibold text-blue-800 dark:text-blue-300 self-center">Período</span>
+        <div className="flex items-center gap-2 flex-1 min-w-48">
+          <label className="text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap">De</label>
+          <input
+            value={data.periodo.de}
+            onChange={(e) => setNested('periodo', 'de', e.target.value)}
+            placeholder="ex: 1 de Janeiro de 2026"
+            className="flex-1 text-sm px-3 py-1.5 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex items-center gap-2 flex-1 min-w-48">
+          <label className="text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap">Até</label>
+          <input
+            value={data.periodo.ate}
+            onChange={(e) => setNested('periodo', 'ate', e.target.value)}
+            placeholder="ex: 28 de Fevereiro de 2026"
+            className="flex-1 text-sm px-3 py-1.5 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
       {/* 1. Determinações */}
       <Section title="1. Determinações" defaultOpen>
         <SubSection title="Resoluções do Conselho de Agrupamento">

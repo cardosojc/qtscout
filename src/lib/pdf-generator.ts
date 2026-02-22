@@ -633,7 +633,17 @@ function osSubSubTitle(text: string): string {
 }
 
 function generateOSContent(data: OrdemServicoData): string {
+  const periodoLine = (data.periodo?.de || data.periodo?.ate)
+    ? `<p style="margin:0 0 20px 0;font-size:13px;color:#374151;">
+        <strong>Período:</strong>
+        ${data.periodo?.de ? `De ${data.periodo.de}` : ''}
+        ${data.periodo?.de && data.periodo?.ate ? ' a ' : ''}
+        ${data.periodo?.ate ? `até ${data.periodo.ate}` : ''}
+      </p>`
+    : ''
+
   return `
+    ${periodoLine}
     ${osSecTitle('Determinações')}
     ${osSubTitle('Resoluções do Conselho de Agrupamento')}
     ${renderStrList(data.determinacoes.resolucoes)}
