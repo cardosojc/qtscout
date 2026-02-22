@@ -102,6 +102,30 @@ function AgendaActionItems({ agendaId, actions, onAdd, onRemove }: {
   )
 }
 
+const FIXED_BEFORE: AgendaItem = {
+  id: 'fixed-before',
+  title: 'Período antes da ordem do dia',
+  description: '',
+  content: '',
+  actionItems: [],
+  fixed: true,
+}
+
+const FIXED_AFTER: AgendaItem = {
+  id: 'fixed-after',
+  title: 'Período após a ordem do dia',
+  description: '',
+  content: '',
+  actionItems: [],
+  fixed: true,
+}
+
+function ensureFixedItems(items: AgendaItem[]): AgendaItem[] {
+  const withBefore = items[0]?.id === 'fixed-before' ? items : [FIXED_BEFORE, ...items]
+  const last = withBefore[withBefore.length - 1]
+  return last?.id === 'fixed-after' ? withBefore : [...withBefore, FIXED_AFTER]
+}
+
 export function MeetingForm({ title, submitLabel, submittingLabel, initialData, onSubmit, onCancel }: MeetingFormProps) {
   const [meetingTypes, setMeetingTypes] = useState<ExtendedMeetingType[]>([])
   const { startLoading, stopLoading } = useLoading()
@@ -116,7 +140,9 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
   const [chefeAgrupamento, setChefeAgrupamento] = useState(initialData?.chefeAgrupamento ?? '')
   const [secretario, setSecretario] = useState(initialData?.secretario ?? '')
 
-  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>(initialData?.agendaItems ?? [])
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>(
+    ensureFixedItems(initialData?.agendaItems ?? [])
+  )
   const [newAgendaTitle, setNewAgendaTitle] = useState('')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
@@ -138,7 +164,7 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
       setAttendees(initialData.attendees)
       setChefeAgrupamento(initialData.chefeAgrupamento)
       setSecretario(initialData.secretario)
-      setAgendaItems(initialData.agendaItems)
+      setAgendaItems(ensureFixedItems(initialData.agendaItems))
     }
   }, [initialData])
 
@@ -177,13 +203,15 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
         content: '',
         actionItems: []
       }
-      setAgendaItems([...agendaItems, newItem])
+      // Insert before the last fixed item ("Período após a ordem do dia")
+      setAgendaItems(prev => [...prev.slice(0, -1), newItem, prev[prev.length - 1]])
       setExpandedItems(prev => new Set(prev).add(newItem.id))
       setNewAgendaTitle('')
     }
   }
 
   const removeAgendaItem = (id: string) => {
+    if (agendaItems.find(item => item.id === id)?.fixed) return
     setAgendaItems(agendaItems.filter(item => item.id !== id))
   }
 
@@ -393,10 +421,26 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
 
           <div className="space-y-3">
             {agendaItems.map((item, index) => (
-              <div key={item.id} className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700">
+              <div
+                key={item.id}
+                className={`border rounded-lg overflow-hidden ${
+                  item.fixed
+                    ? 'border-blue-200 dark:border-blue-800'
+                    : 'border-gray-200 dark:border-gray-600'
+                }`}
+              >
+                <div className={`flex items-center gap-3 p-3 ${
+                  item.fixed
+                    ? 'bg-blue-50 dark:bg-blue-950/40'
+                    : 'bg-gray-50 dark:bg-gray-700'
+                }`}>
                   <span className="font-medium text-gray-600 dark:text-gray-300">{index + 1}.</span>
                   <h4 className="flex-1 font-medium text-gray-900 dark:text-white">{item.title}</h4>
+                  {item.fixed && (
+                    <span className="text-xs text-blue-500 dark:text-blue-400 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-700">
+                      fixo
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => toggleExpanded(item.id)}
@@ -404,13 +448,15 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
                   >
                     {expandedItems.has(item.id) ? 'Recolher' : 'Escrever'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => removeAgendaItem(item.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    &times;
-                  </button>
+                  {!item.fixed && (
+                    <button
+                      type="button"
+                      onClick={() => removeAgendaItem(item.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      &times;
+                    </button>
+                  )}
                 </div>
                 {expandedItems.has(item.id) && (
                   <div className="p-3 border-t border-gray-200 dark:border-gray-600 space-y-3">

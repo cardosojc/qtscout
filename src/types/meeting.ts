@@ -11,6 +11,7 @@ export interface AgendaItem {
   description: string
   content?: string
   actionItems?: ActionItem[]
+  fixed?: boolean
 }
 
 export interface MeetingType {
