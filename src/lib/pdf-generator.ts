@@ -1,5 +1,3 @@
-import puppeteer from 'puppeteer-core'
-import chromium from '@sparticuz/chromium-min'
 import fs from 'fs'
 import path from 'path'
 import type { Meeting } from '@/types/meeting'
@@ -19,13 +17,26 @@ interface PdfAgendaItem {
 }
 
 export async function generateMeetingPDF(meeting: Meeting): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(
-      'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar'
-    ),
-    headless: true,
-  })
+  let browser
+
+  if (process.env.VERCEL) {
+    // Production: use puppeteer-core + serverless Chromium
+    const [{ default: puppeteerCore }, { default: chromium }] = await Promise.all([
+      import('puppeteer-core'),
+      import('@sparticuz/chromium-min'),
+    ])
+    browser = await puppeteerCore.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(
+        'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar'
+      ),
+      headless: true,
+    })
+  } else {
+    // Local development: use full puppeteer with bundled Chromium
+    const { default: puppeteer } = await import('puppeteer')
+    browser = await puppeteer.launch({ headless: true })
+  }
 
   try {
     const page = await browser.newPage()
