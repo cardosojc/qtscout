@@ -3,45 +3,101 @@
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
 
-const navItems = [
-  {
-    href: '/meetings',
-    label: 'Reuniões',
+const meetingsNavItem = {
+  href: '/meetings',
+  label: 'Reuniões',
+  icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+  ),
+  children: [
+    {
+      href: '/meetings/new',
+      label: 'Nova Reunião',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      ),
+    },
+    {
+      href: '/search',
+      label: 'Pesquisar',
+      badge: '⌘K',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      ),
+    },
+  ],
+}
+
+const docTypeIcon = (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+)
+
+const newDocIcon = (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+)
+
+interface EnabledDocTypes {
+  oficio: boolean
+  circular: boolean
+  ordem: boolean
+}
+
+function buildDocumentsNavItem(enabledDocTypes: EnabledDocTypes) {
+  const { oficio, circular, ordem } = enabledDocTypes
+  const firstEnabled = oficio ? 'OFICIO' : circular ? 'CIRCULAR' : ordem ? 'ORDEM_SERVICO' : null
+
+  const children: Array<{ href: string; label: string; icon: React.ReactNode; badge?: string }> = []
+
+  if (oficio) {
+    children.push({ href: '/documents?type=OFICIO', label: 'Ofício', icon: docTypeIcon })
+  }
+  if (circular) {
+    children.push({ href: '/documents?type=CIRCULAR', label: 'Circular', icon: docTypeIcon })
+  }
+  if (ordem) {
+    children.push({ href: '/documents?type=ORDEM_SERVICO', label: 'Ordem de Serviço', icon: docTypeIcon })
+  }
+  if (firstEnabled) {
+    children.push({
+      href: `/documents/new?type=${firstEnabled}`,
+      label: 'Novo Documento',
+      icon: newDocIcon,
+    })
+  }
+
+  return {
+    href: '/documents',
+    label: 'Documentos',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
     ),
-    children: [
-      {
-        href: '/meetings/new',
-        label: 'Nova Reunião',
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        ),
-      },
-      {
-        href: '/search',
-        label: 'Pesquisar',
-        badge: '⌘K',
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        ),
-      },
-    ],
-  },
-]
+    children,
+  }
+}
 
-export function Sidebar() {
+interface SidebarProps {
+  enabledDocTypes: EnabledDocTypes
+}
+
+export function Sidebar({ enabledDocTypes }: SidebarProps) {
   const { user, loading, signOut } = useAuth()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -50,15 +106,36 @@ export function Sidebar() {
     router.push('/auth/signin')
   }
 
+  const { oficio, circular, ordem } = enabledDocTypes
+  const anyDocEnabled = oficio || circular || ordem
+
+  const navItems = [
+    meetingsNavItem,
+    ...(anyDocEnabled ? [buildDocumentsNavItem(enabledDocTypes)] : []),
+  ]
+
   const isActive = (href: string) => {
-    if (href === '/meetings') return pathname === '/meetings'
-    if (href === '/search') return pathname.startsWith('/search')
-    return pathname.startsWith(href)
+    const [hrefPath, hrefQuery] = href.split('?')
+    if (!hrefQuery) {
+      if (href === '/meetings') return pathname === '/meetings'
+      if (href === '/search') return pathname.startsWith('/search')
+      if (href === '/documents') return pathname === '/documents'
+      return pathname.startsWith(hrefPath)
+    }
+    const hrefParams = new URLSearchParams(hrefQuery)
+    if (pathname !== hrefPath) return false
+    for (const [key, val] of hrefParams.entries()) {
+      if (searchParams.get(key) !== val) return false
+    }
+    return true
   }
 
   const isSectionActive = (item: typeof navItems[number]) => {
     if (pathname === item.href || pathname.startsWith(item.href + '/')) return true
-    return item.children?.some(child => isActive(child.href)) ?? false
+    return item.children?.some(child => {
+      const [childPath] = child.href.split('?')
+      return pathname.startsWith(childPath)
+    }) ?? false
   }
 
   const sidebarContent = (
@@ -152,6 +229,23 @@ export function Sidebar() {
         </div>
         {user && (
           <>
+            {user.role === 'ADMIN' && (
+              <Link
+                href="/settings"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  pathname.startsWith('/settings')
+                    ? 'bg-blue-700 dark:bg-gray-700 text-white'
+                    : 'text-blue-100 dark:text-gray-300 hover:bg-blue-500 dark:hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Definições
+              </Link>
+            )}
             <div className="px-1">
               <p className="text-xs text-blue-200 dark:text-gray-400 truncate">
                 {user.name || user.email}
