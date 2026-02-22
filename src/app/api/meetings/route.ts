@@ -13,9 +13,18 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
+    const fromParam = searchParams.get('from')
+    const toParam   = searchParams.get('to')
+
+    const dateFilter = (fromParam || toParam) ? {
+      ...(fromParam ? { gte: new Date(fromParam) } : {}),
+      ...(toParam   ? { lte: new Date(toParam)   } : {}),
+    } : undefined
+    const where = dateFilter ? { date: dateFilter } : undefined
 
     const [meetings, total] = await Promise.all([
       prisma.meeting.findMany({
+        where,
         include: {
           meetingType: true,
           createdBy: {
@@ -35,7 +44,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit
       }),
-      prisma.meeting.count()
+      prisma.meeting.count({ where })
     ])
 
     return NextResponse.json({

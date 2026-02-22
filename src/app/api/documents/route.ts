@@ -15,9 +15,18 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const typeParam = searchParams.get('type') as DocumentType | null
+    const fromParam = searchParams.get('from')
+    const toParam   = searchParams.get('to')
     const skip = (page - 1) * limit
 
-    const where = typeParam ? { type: typeParam } : {}
+    const dateFilter = (fromParam || toParam) ? {
+      ...(fromParam ? { gte: new Date(fromParam) } : {}),
+      ...(toParam   ? { lte: new Date(toParam)   } : {}),
+    } : undefined
+    const where = {
+      ...(typeParam ? { type: typeParam } : {}),
+      ...(dateFilter ? { createdAt: dateFilter } : {}),
+    }
 
     const [documents, total] = await Promise.all([
       prisma.document.findMany({

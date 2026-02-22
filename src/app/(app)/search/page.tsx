@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/document'
+import { getCurrentAnoEscutista } from '@/lib/ano-escutista'
 
 type Source = 'all' | 'meetings' | 'documents'
 
@@ -81,8 +82,9 @@ export default function SearchPage() {
   const [query, setQuery] = useState('')
   const [meetingTypeId, setMeetingTypeId] = useState('')
   const [documentType, setDocumentType] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const ae = getCurrentAnoEscutista()
+  const [dateFrom, setDateFrom] = useState(ae.from)
+  const [dateTo, setDateTo] = useState(ae.to)
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'identifier'>('relevance')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 

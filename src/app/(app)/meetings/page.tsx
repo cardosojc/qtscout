@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
 import Link from 'next/link'
 import { MeetingListSkeleton } from '@/components/ui/skeleton'
+import { AnoEscutistaSelector } from '@/components/ui/ano-escutista-selector'
+import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@/lib/ano-escutista'
 import type { Meeting, MeetingResponse } from '@/types/meeting'
 
 export default function MeetingsPage() {
@@ -23,17 +25,18 @@ export default function MeetingsPage() {
     total: 0,
     totalPages: 0
   })
+  const [anoEscutista, setAnoEscutista] = useState<number | null>(getCurrentAnoEscutista().startYear)
 
-  useEffect(() => {
-    if (session) {
-      fetchMeetings(currentPage)
-    }
-  }, [session, currentPage])
+  const from = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).from : ''
+  const to   = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).to   : ''
 
-  const fetchMeetings = async (page: number) => {
+  const fetchMeetings = useCallback(async (page: number) => {
     startLoading('A carregar reuniões...')
     try {
-      const response = await fetch(`/api/meetings?page=${page}&limit=10`)
+      const params = new URLSearchParams({ page: String(page), limit: '10' })
+      if (from) params.set('from', from)
+      if (to)   params.set('to', to)
+      const response = await fetch(`/api/meetings?${params}`)
       if (response.ok) {
         const data: MeetingResponse = await response.json()
         setMeetings(data.meetings)
@@ -45,7 +48,21 @@ export default function MeetingsPage() {
       setLoading(false)
       stopLoading()
     }
-  }
+  }, [from, to, startLoading, stopLoading])
+
+  useEffect(() => {
+    if (session) {
+      setLoading(true)
+      setCurrentPage(1)
+      fetchMeetings(1)
+    }
+  }, [session, fetchMeetings])
+
+  useEffect(() => {
+    if (session && currentPage > 1) {
+      fetchMeetings(currentPage)
+    }
+  }, [session, currentPage, fetchMeetings])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-PT', {
@@ -101,7 +118,10 @@ export default function MeetingsPage() {
   return (
     <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reuniões</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reuniões</h1>
+          <AnoEscutistaSelector value={anoEscutista} onChange={setAnoEscutista} />
+        </div>
         <Link
           href="/meetings/new"
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"

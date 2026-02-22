@@ -7,6 +7,8 @@ import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
 import Link from 'next/link'
 import { DOCUMENT_TYPE_LABELS, type DocumentType, type Document } from '@/types/document'
+import { AnoEscutistaSelector } from '@/components/ui/ano-escutista-selector'
+import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@/lib/ano-escutista'
 
 interface DocumentsListProps {
   enabledTypes: { oficio: boolean; circular: boolean; ordem: boolean }
@@ -32,11 +34,18 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 })
+  const [anoEscutista, setAnoEscutista] = useState<number | null>(getCurrentAnoEscutista().startYear)
+
+  const from = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).from : ''
+  const to   = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).to   : ''
 
   const fetchDocuments = useCallback(async (type: DocumentType, page: number) => {
     startLoading('A carregar documentos...')
     try {
-      const res = await fetch(`/api/documents?type=${type}&page=${page}&limit=10`)
+      const params = new URLSearchParams({ type, page: String(page), limit: '10' })
+      if (from) params.set('from', from)
+      if (to)   params.set('to', to)
+      const res = await fetch(`/api/documents?${params}`)
       if (res.ok) {
         const data = await res.json()
         setDocuments(data.documents)
@@ -48,7 +57,7 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
       setLoading(false)
       stopLoading()
     }
-  }, [startLoading, stopLoading])
+  }, [from, to, startLoading, stopLoading])
 
   useEffect(() => {
     if (session) {
@@ -103,7 +112,10 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
   return (
     <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Documentos</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Documentos</h1>
+          <AnoEscutistaSelector value={anoEscutista} onChange={setAnoEscutista} />
+        </div>
         <Link
           href={`/documents/new?type=${activeType}`}
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
