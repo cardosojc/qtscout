@@ -54,6 +54,9 @@ model Meeting {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  // Full-text search
+  contentTsvector Unsupported("tsvector")?
+
   // Relations
   meetingTypeId String
   meetingType   MeetingType @relation(fields: [meetingTypeId], references: [id])
@@ -62,6 +65,7 @@ model Meeting {
   attendees     MeetingAttendee[]
 
   @@map("meetings")
+  @@index([contentTsvector], type: Gin)
 }
 
 model MeetingAttendee {

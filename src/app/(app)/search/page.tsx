@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import Link from 'next/link'
 
@@ -12,6 +13,8 @@ interface SearchResult {
   endTime?: string
   location?: string
   content: string
+  snippet?: string
+  rank?: number
   meetingType: {
     name: string
     code: string
@@ -27,12 +30,13 @@ interface SearchFilters {
   meetingType: string
   dateFrom: string
   dateTo: string
-  sortBy: 'date' | 'identifier'
+  sortBy: 'relevance' | 'date' | 'identifier'
   sortOrder: 'asc' | 'desc'
 }
 
 export default function SearchPage() {
   const { user: session } = useAuth()
+  const router = useRouter()
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [meetingTypes, setMeetingTypes] = useState<{ id: string; name: string; code: string }[]>([])
@@ -42,7 +46,7 @@ export default function SearchPage() {
     meetingType: '',
     dateFrom: '',
     dateTo: '',
-    sortBy: 'date',
+    sortBy: 'relevance',
     sortOrder: 'desc'
   })
 
@@ -108,8 +112,7 @@ export default function SearchPage() {
 
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text
-
-    const regex = new RegExp(`(${query.trim()})`, 'gi')
+    const regex = new RegExp(`(${query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
     return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-100">$1</mark>')
   }
 
@@ -129,14 +132,12 @@ export default function SearchPage() {
   const getContentPreview = (content: string, query: string) => {
     if (!content) return ''
 
-    // Strip HTML tags for preview
     const textContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
     if (!query.trim()) {
       return textContent.length > 200 ? textContent.substring(0, 200) + '...' : textContent
     }
 
-    // Find the query in the content and show context
     const lowerContent = textContent.toLowerCase()
     const lowerQuery = query.toLowerCase().trim()
     const index = lowerContent.indexOf(lowerQuery)
@@ -233,9 +234,10 @@ export default function SearchPage() {
                 </label>
                 <select
                   value={filters.sortBy}
-                  onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'date' | 'identifier' })}
+                  onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as SearchFilters['sortBy'] })}
                   className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
                 >
+                  <option value="relevance">Relevância</option>
                   <option value="date">Data</option>
                   <option value="identifier">Identificador</option>
                 </select>
@@ -273,7 +275,7 @@ export default function SearchPage() {
                     meetingType: '',
                     dateFrom: '',
                     dateTo: '',
-                    sortBy: 'date',
+                    sortBy: 'relevance',
                     sortOrder: 'desc'
                   })
                   setResults([])
@@ -289,84 +291,86 @@ export default function SearchPage() {
 
       {/* Search Results */}
       <div aria-live="polite" aria-atomic="true">
-      {loading && (
-        <div className="text-center py-8" aria-busy="true" role="status">
-          <div className="text-gray-500 dark:text-gray-400">Pesquisando...</div>
-        </div>
-      )}
-
-      {!loading && results.length === 0 && filters.query && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-          <p className="text-gray-500 dark:text-gray-400">Nenhuma reunião encontrada com os critérios especificados.</p>
-        </div>
-      )}
-
-      {!loading && results.length > 0 && (
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Encontradas {results.length} reuniões
+        {loading && (
+          <div className="text-center py-8" aria-busy="true" role="status">
+            <div className="text-gray-500 dark:text-gray-400">Pesquisando...</div>
           </div>
+        )}
 
-          {results.map((meeting) => (
-            <div key={meeting.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                    <Link href={`/meetings/${meeting.id}`} className="hover:underline">
+        {!loading && results.length === 0 && (filters.query || filters.meetingType || filters.dateFrom || filters.dateTo) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+            <p className="text-gray-500 dark:text-gray-400">Nenhuma reunião encontrada com os critérios especificados.</p>
+          </div>
+        )}
+
+        {!loading && results.length > 0 && (
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Encontradas {results.length} reuniões
+            </div>
+
+            {results.map((meeting) => (
+              <div
+              key={meeting.id}
+              onClick={() => router.push(`/meetings/${meeting.id}`)}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            >
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-2">
                       {meeting.identifier}
-                    </Link>
-                  </h3>
-                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 mb-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {meeting.meetingType.name}
-                    </span>
-                    <span>{formatDate(meeting.date)}</span>
-                    {(meeting.startTime || meeting.endTime) && (
-                      <span>
-                        {meeting.startTime && formatTime(meeting.startTime)}
-                        {meeting.startTime && meeting.endTime && ' - '}
-                        {meeting.endTime && formatTime(meeting.endTime)}
+                    </h3>
+                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 mb-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {meeting.meetingType.name}
                       </span>
-                    )}
-                    {meeting.location && (
-                      <span>📍 {meeting.location}</span>
-                    )}
+                      <span>{formatDate(meeting.date)}</span>
+                      {(meeting.startTime || meeting.endTime) && (
+                        <span>
+                          {meeting.startTime && formatTime(meeting.startTime)}
+                          {meeting.startTime && meeting.endTime && ' - '}
+                          {meeting.endTime && formatTime(meeting.endTime)}
+                        </span>
+                      )}
+                      {meeting.location && (
+                        <span>📍 {meeting.location}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/meetings/${meeting.id}/pdf`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 px-3 py-1 rounded text-sm hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+                    >
+                      PDF
+                    </Link>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Link
-                    href={`/meetings/${meeting.id}`}
-                    className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Ver
-                  </Link>
-                  <Link
-                    href={`/meetings/${meeting.id}/pdf`}
-                    className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 px-3 py-1 rounded text-sm hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
-                  >
-                    PDF
-                  </Link>
-                </div>
-              </div>
-
-              {meeting.content && (
                 <div className="text-gray-700 dark:text-gray-300 text-sm">
-                  <p
-                    dangerouslySetInnerHTML={{
-                      __html: highlightText(getContentPreview(meeting.content, filters.query), filters.query)
-                    }}
-                  />
+                  {meeting.snippet ? (
+                    <p
+                      className="[&_mark]:bg-yellow-200 [&_mark]:dark:bg-yellow-800 [&_mark]:dark:text-yellow-100 [&_mark]:rounded-sm [&_mark]:px-0.5"
+                      dangerouslySetInnerHTML={{ __html: meeting.snippet }}
+                    />
+                  ) : (
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: highlightText(getContentPreview(meeting.content, filters.query), filters.query)
+                      }}
+                    />
+                  )}
                 </div>
-              )}
 
-              <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                Criado por {meeting.createdBy.name || meeting.createdBy.email}
+                <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                  Criado por {meeting.createdBy.name || meeting.createdBy.email}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
       </div>
     </main>
   )
