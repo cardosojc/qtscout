@@ -22,6 +22,7 @@ model Profile {
   meetingAttendees MeetingAttendee[]
   scoutProfile     Scout?
   scoutLeaders     ScoutLeader[]
+  documents        Document[]
 
   @@map("profiles")
 }
@@ -127,4 +128,42 @@ enum UserRole {
   ADMIN
   LEADER
   MEMBER
+}
+
+enum DocumentType {
+  OFICIO
+  CIRCULAR
+  ORDEM_SERVICO
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  type        DocumentType
+  number      Int
+  year        Int?
+  content     String       @default("")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  createdById String
+  createdBy   Profile      @relation(fields: [createdById], references: [id])
+
+  @@map("documents")
+}
+
+model DocumentSequence {
+  id            String       @id @default(cuid())
+  type          DocumentType
+  year          Int          @default(0)  // 0 = sentinel for ORDEM_SERVICO (no year reset)
+  currentNumber Int          @default(1)
+
+  @@unique([type, year])
+  @@map("document_sequences")
+}
+
+model DocumentSettings {
+  type           DocumentType @id
+  startingNumber Int          @default(1)
+
+  @@map("document_settings")
 }
