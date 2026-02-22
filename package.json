@@ -16,13 +16,17 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.30",
+    "@ai-sdk/mistral": "^3.0.20",
     "@prisma/client": "^6.16.1",
     "@sparticuz/chromium-min": "^143.0.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
+    "@tailwindcss/typography": "^0.5.19",
     "@tiptap/pm": "^3.4.2",
     "@tiptap/react": "^3.4.2",
     "@tiptap/starter-kit": "^3.4.2",
+    "ai": "^6.0.97",
     "next": "15.5.9",
     "prisma": "^6.16.1",
     "puppeteer-core": "^24.37.3",
@@ -39,6 +43,7 @@
     "dotenv": "^17.3.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "puppeteer": "^24.37.5",
     "tailwindcss": "^4",
     "tsx": "^4.20.5",
     "typescript": "^5"
