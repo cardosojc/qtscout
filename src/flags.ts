@@ -1,9 +1,10 @@
 import { flag } from '@vercel/flags/next'
+import { vercelAdapter } from '@flags-sdk/vercel'
 
 export const oficioEnabled = flag<boolean>({
   key: 'oficio-enabled',
   defaultValue: true,
-  decide: () => true,
+  adapter: vercelAdapter(),
   description: 'Enable/disable the Ofício document type',
   options: [
     { value: true, label: 'On' },
@@ -14,7 +15,7 @@ export const oficioEnabled = flag<boolean>({
 export const circularEnabled = flag<boolean>({
   key: 'circular-enabled',
   defaultValue: true,
-  decide: () => true,
+  adapter: vercelAdapter(),
   description: 'Enable/disable the Circular document type',
   options: [
     { value: true, label: 'On' },
@@ -25,7 +26,7 @@ export const circularEnabled = flag<boolean>({
 export const ordemServicoEnabled = flag<boolean>({
   key: 'ordem-servico-enabled',
   defaultValue: true,
-  decide: () => true,
+  adapter: vercelAdapter(),
   description: 'Enable/disable the Ordem de Serviço document type',
   options: [
     { value: true, label: 'On' },
