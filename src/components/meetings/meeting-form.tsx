@@ -194,6 +194,12 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
     ))
   }
 
+  const updateAgendaItemTitle = (id: string, title: string) => {
+    setAgendaItems(prev => prev.map(item =>
+      item.id === id ? { ...item, title } : item
+    ))
+  }
+
   const addAgendaItem = () => {
     if (newAgendaTitle.trim()) {
       const newItem: AgendaItem = {
@@ -435,7 +441,16 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
                     : 'bg-gray-50 dark:bg-gray-700'
                 }`}>
                   <span className="font-medium text-gray-600 dark:text-gray-300">{index + 1}.</span>
-                  <h4 className="flex-1 font-medium text-gray-900 dark:text-white">{item.title}</h4>
+                  {item.fixed ? (
+                    <h4 className="flex-1 font-medium text-gray-900 dark:text-white">{item.title}</h4>
+                  ) : (
+                    <input
+                      type="text"
+                      value={item.title}
+                      onChange={(e) => updateAgendaItemTitle(item.id, e.target.value)}
+                      className="flex-1 font-medium text-gray-900 dark:text-white bg-transparent border-none outline-none p-0"
+                    />
+                  )}
                   {item.fixed && (
                     <span className="text-xs text-blue-500 dark:text-blue-400 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-700">
                       fixo
