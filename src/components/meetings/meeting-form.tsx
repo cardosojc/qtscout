@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { RichTextEditor } from '@/components/editor/rich-text-editor'
 import { useLoading } from '@/components/ui/loading-overlay'
 import type { MeetingType, AgendaItem, ActionItem } from '@/types/meeting'
@@ -28,6 +28,7 @@ interface MeetingFormProps {
   initialData?: MeetingFormData
   onSubmit: (data: MeetingFormData) => Promise<void>
   onCancel: () => void
+  onAutoSave?: (data: MeetingFormData) => Promise<void>
 }
 
 function AgendaActionItems({ agendaId, actions, onAdd, onRemove }: {
@@ -126,7 +127,7 @@ function ensureFixedItems(items: AgendaItem[]): AgendaItem[] {
   return last?.id === 'fixed-after' ? withBefore : [...withBefore, FIXED_AFTER]
 }
 
-export function MeetingForm({ title, submitLabel, submittingLabel, initialData, onSubmit, onCancel }: MeetingFormProps) {
+export function MeetingForm({ title, submitLabel, submittingLabel, initialData, onSubmit, onCancel, onAutoSave }: MeetingFormProps) {
   const [meetingTypes, setMeetingTypes] = useState<ExtendedMeetingType[]>([])
   const { startLoading, stopLoading } = useLoading()
 
@@ -145,6 +146,12 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
   )
   const [newAgendaTitle, setNewAgendaTitle] = useState('')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+
+  // Autosave
+  const lastSavedRef = useRef<string>('')
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const savedStatusTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   useEffect(() => {
     fetch('/api/meeting-types')
@@ -165,6 +172,10 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
       setChefeAgrupamento(initialData.chefeAgrupamento)
       setSecretario(initialData.secretario)
       setAgendaItems(ensureFixedItems(initialData.agendaItems))
+      lastSavedRef.current = JSON.stringify({
+        ...initialData,
+        agendaItems: ensureFixedItems(initialData.agendaItems),
+      })
     }
   }, [initialData])
 
@@ -237,10 +248,57 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
     ))
   }
 
+  // Debounced autosave
+  useEffect(() => {
+    if (!onAutoSave) return
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const data: MeetingFormData = {
+        meetingTypeId: selectedMeetingType,
+        date,
+        startTime,
+        endTime,
+        location,
+        agendaItems,
+        attendees,
+        chefeAgrupamento,
+        secretario,
+      }
+      const serialized = JSON.stringify(data)
+      if (serialized === lastSavedRef.current) return
+      if (!data.meetingTypeId || !data.date) return
+
+      setAutoSaveStatus('saving')
+      try {
+        await onAutoSave(data)
+        lastSavedRef.current = serialized
+        setAutoSaveStatus('saved')
+        if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current)
+        savedStatusTimerRef.current = setTimeout(() => setAutoSaveStatus('idle'), 3000)
+      } catch {
+        setAutoSaveStatus('error')
+      }
+    }, 2000)
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMeetingType, date, startTime, endTime, location, agendaItems, attendees, chefeAgrupamento, secretario, onAutoSave])
+
+  useEffect(() => {
+    return () => {
+      if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current)
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMeetingType || !date) return
 
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     startLoading('A guardar...')
     try {
       await onSubmit({
@@ -261,7 +319,20 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{title}</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{title}</h1>
+        {onAutoSave && autoSaveStatus !== 'idle' && (
+          <span className={`text-sm ${
+            autoSaveStatus === 'saving' ? 'text-gray-400 dark:text-gray-500' :
+            autoSaveStatus === 'saved' ? 'text-green-600 dark:text-green-400' :
+            'text-red-500 dark:text-red-400'
+          }`}>
+            {autoSaveStatus === 'saving' ? 'A guardar...' :
+             autoSaveStatus === 'saved' ? 'Guardado' :
+             'Erro ao guardar'}
+          </span>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Meeting Type and Basic Info */}

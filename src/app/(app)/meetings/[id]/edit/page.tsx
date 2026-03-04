@@ -81,6 +81,27 @@ export default function EditMeetingPage() {
 
   const initialData = useMemo(() => meetingData ?? undefined, [meetingData])
 
+  const handleAutoSave = useCallback(async (data: MeetingFormData) => {
+    const response = await fetch(`/api/meetings/${meetingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meetingTypeId: data.meetingTypeId,
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        location: data.location,
+        agenda: data.agendaItems,
+        content: '',
+        actionItems: [],
+        attendees: data.attendees,
+        chefeAgrupamento: data.chefeAgrupamento,
+        secretario: data.secretario,
+      }),
+    })
+    if (!response.ok) throw new Error('Failed to save')
+  }, [meetingId])
+
   const handleSubmit = async (data: MeetingFormData) => {
     try {
       const response = await fetch(`/api/meetings/${meetingId}`, {
@@ -156,6 +177,7 @@ export default function EditMeetingPage() {
         submittingLabel="Atualizando..."
         initialData={initialData}
         onSubmit={handleSubmit}
+        onAutoSave={handleAutoSave}
         onCancel={() => router.push(`/meetings/${meetingId}`)}
       />
     </main>
