@@ -28,6 +28,7 @@ export interface Document {
     name?: string | null
     email: string
     signature?: string | null
+    roles?: string[]
   } | null
 }
 

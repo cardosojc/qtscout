@@ -20,7 +20,7 @@ export async function GET(
       where: { id },
       include: {
         createdBy: { select: { name: true, email: true } },
-        signedBy: { select: { name: true, email: true, signature: true } },
+        signedBy: { select: { name: true, email: true, signature: true, roles: true } },
       },
     })
 
@@ -38,7 +38,12 @@ export async function GET(
       createdBy: { name: doc.createdBy.name, email: doc.createdBy.email },
       signedAt: doc.signedAt?.toISOString() ?? null,
       signedBy: doc.signedBy
-        ? { name: doc.signedBy.name, email: doc.signedBy.email, signature: doc.signedBy.signature }
+        ? {
+            name: doc.signedBy.name,
+            email: doc.signedBy.email,
+            signature: doc.signedBy.signature,
+            roles: doc.signedBy.roles,
+          }
         : null,
     })
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lato } from "next/font/google";
+import { Lato, Caveat } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -11,6 +11,12 @@ const lato = Lato({
   variable: "--font-lato",
   subsets: ["latin"],
   weight: ["300", "400", "700", "900"],
+});
+
+const caveat = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin"],
+  weight: ["400", "600"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="pt">
       <body
-        className={`${lato.variable} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors`}
+        className={`${lato.variable} ${caveat.variable} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors`}
       >
         <a
           href="#main-content"

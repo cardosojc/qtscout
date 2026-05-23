@@ -5,6 +5,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
+import { LEADER_ROLES, type LeaderRole } from '@/types/leader-role'
 
 const MAX_WIDTH = 600
 const MAX_HEIGHT = 300
@@ -38,7 +39,7 @@ async function fileToProcessedDataUrl(file: File): Promise<string> {
   return canvas.toDataURL('image/png')
 }
 
-export default function SignaturePage() {
+export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth()
   const { showToast, showConfirm } = useToast()
   const { startLoading, stopLoading } = useLoading()
@@ -46,14 +47,24 @@ export default function SignaturePage() {
 
   const [signature, setSignature] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
+  const [roles, setRoles] = useState<LeaderRole[]>([])
+  const [savedRoles, setSavedRoles] = useState<LeaderRole[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchSignature = useCallback(async () => {
+  const fetchProfile = useCallback(async () => {
     try {
-      const res = await fetch('/api/profile/signature')
-      if (res.ok) {
-        const data = await res.json()
+      const [sigRes, rolesRes] = await Promise.all([
+        fetch('/api/profile/signature'),
+        fetch('/api/profile/roles'),
+      ])
+      if (sigRes.ok) {
+        const data = await sigRes.json()
         setSignature(data.signature)
+      }
+      if (rolesRes.ok) {
+        const data = await rolesRes.json()
+        setRoles(data.roles ?? [])
+        setSavedRoles(data.roles ?? [])
       }
     } finally {
       setLoading(false)
@@ -61,8 +72,8 @@ export default function SignaturePage() {
   }, [])
 
   useEffect(() => {
-    if (user) fetchSignature()
-  }, [user, fetchSignature])
+    if (user) fetchProfile()
+  }, [user, fetchProfile])
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -81,7 +92,7 @@ export default function SignaturePage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSaveSignature = async () => {
     if (!pending) return
     startLoading('A guardar...')
     try {
@@ -104,7 +115,7 @@ export default function SignaturePage() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDeleteSignature = async () => {
     const confirmed = await showConfirm({
       title: 'Remover assinatura',
       message: 'Tem a certeza? Não poderá assinar novos documentos até carregar uma nova.',
@@ -125,6 +136,35 @@ export default function SignaturePage() {
     }
   }
 
+  const toggleRole = (role: LeaderRole) => {
+    setRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]))
+  }
+
+  const handleSaveRoles = async () => {
+    startLoading('A guardar...')
+    try {
+      const res = await fetch('/api/profile/roles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roles }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setRoles(data.roles)
+        setSavedRoles(data.roles)
+        showToast('Funções guardadas', 'success')
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao guardar', 'error')
+      }
+    } finally {
+      stopLoading()
+    }
+  }
+
+  const rolesDirty =
+    roles.length !== savedRoles.length || roles.some((r) => !savedRoles.includes(r))
+
   if (authLoading || !user) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
@@ -134,11 +174,50 @@ export default function SignaturePage() {
   }
 
   return (
-    <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Breadcrumbs items={[{ label: 'Minha Assinatura' }]} />
+    <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <Breadcrumbs items={[{ label: 'Meu Perfil' }]} />
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Minha Assinatura</h1>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Funções</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          Selecione as funções que desempenha no agrupamento. Aparecerão entre parênteses junto à sua
+          assinatura nos documentos.
+        </p>
+
+        {loading ? (
+          <div className="h-40 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse" />
+        ) : (
+          <div className="space-y-2">
+            {LEADER_ROLES.map((role) => (
+              <label
+                key={role}
+                className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={roles.includes(role)}
+                  onChange={() => toggleRole(role)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-800 dark:text-gray-200">{role}</span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={handleSaveRoles}
+            disabled={!rolesDirty || loading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            Guardar Funções
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Assinatura</h2>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
           Carregue uma imagem da sua assinatura (PNG ou JPEG, fundo branco ou transparente).
           Esta assinatura será inserida nos documentos que assinar.
@@ -189,7 +268,7 @@ export default function SignaturePage() {
             {pending && (
               <>
                 <button
-                  onClick={handleSave}
+                  onClick={handleSaveSignature}
                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Guardar
@@ -204,7 +283,7 @@ export default function SignaturePage() {
             )}
             {signature && !pending && (
               <button
-                onClick={handleDelete}
+                onClick={handleDeleteSignature}
                 className="bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 Remover

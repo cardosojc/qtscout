@@ -24,7 +24,7 @@ interface DocumentForPDF {
   createdAt: string
   createdBy: { name?: string | null; email: string }
   signedAt?: string | null
-  signedBy?: { name?: string | null; email: string; signature?: string | null } | null
+  signedBy?: { name?: string | null; email: string; signature?: string | null; roles?: string[] } | null
 }
 
 // ─── Shared browser launch ────────────────────────────────────────────────────
@@ -764,13 +764,17 @@ function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rig
     bodyContent = `<div class="doc-content">${doc.content || ''}</div>`
   }
 
+  const signerName = doc.signedBy?.name || doc.signedBy?.email || ''
+  const signerRoles = doc.signedBy?.roles?.length ? ` (${doc.signedBy.roles.join(', ')})` : ''
+  const signatureMark = doc.signedBy?.signature
+    ? `<img src="${doc.signedBy.signature}" alt="Assinatura" class="signature-img" />`
+    : `<p class="signature-handwritten">${signerName}</p>`
   const signatureBlock = doc.signedBy
     ? `
       <div class="doc-signature">
-        ${doc.signedBy.signature ? `<img src="${doc.signedBy.signature}" alt="Assinatura" class="signature-img" />` : ''}
-        <div class="signature-line"></div>
-        <p class="signature-name">${doc.signedBy.name || doc.signedBy.email}</p>
-        ${doc.signedAt ? `<p class="signature-date">${formatDate(doc.signedAt)}</p>` : ''}
+        <p class="signature-greeting">Saudações Escutistas,</p>
+        ${signatureMark}
+        <p class="signature-name">${signerName}${signerRoles}</p>
       </div>
     `
     : ''
@@ -781,7 +785,7 @@ function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rig
     <head>
       <meta charset="UTF-8">
       <title>${doc.identifier}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
       <style>
         @page { size: A4; margin: 0; }
         body {
@@ -843,31 +847,34 @@ function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rig
         .doc-content strong { font-weight: 700; }
         .doc-content em { font-style: italic; }
         .doc-signature {
-          margin-top: 48px;
-          width: 260px;
+          margin: 48px auto 0;
+          max-width: 360px;
+          text-align: center;
           break-inside: avoid;
+        }
+        .doc-signature .signature-greeting {
+          font-size: 13px;
+          color: #1f2937;
+          margin: 0 0 12px 0;
         }
         .doc-signature .signature-img {
           display: block;
-          max-height: 70px;
-          max-width: 260px;
+          max-height: 80px;
+          max-width: 320px;
           object-fit: contain;
-          margin-bottom: -8px;
+          margin: 0 auto 4px;
         }
-        .doc-signature .signature-line {
-          border-top: 1px solid #374151;
-          margin-top: 4px;
+        .doc-signature .signature-handwritten {
+          font-family: 'Caveat', cursive;
+          font-size: 32px;
+          color: #1f2937;
+          margin: 0 0 4px 0;
+          line-height: 1.1;
         }
         .doc-signature .signature-name {
           font-size: 12px;
-          font-weight: 600;
           color: #1f2937;
-          margin: 6px 0 0 0;
-        }
-        .doc-signature .signature-date {
-          font-size: 11px;
-          color: #6b7280;
-          margin: 2px 0 0 0;
+          margin: 0;
         }
       </style>
     </head>

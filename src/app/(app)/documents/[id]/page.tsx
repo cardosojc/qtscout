@@ -252,17 +252,30 @@ export default function DocumentDetailPage() {
 
           {/* Signature block */}
           {document.signedBy && (
-            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-2">
-                Assinado por {document.signedBy.name || document.signedBy.email}
-                {document.signedAt && ` em ${formatDateTime(document.signedAt)}`}
-              </p>
-              {document.signedBy.signature && (
-                <div className="bg-white rounded p-2 inline-block">
+            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-800 dark:text-gray-200 mb-2">Saudações Escutistas,</p>
+              {document.signedBy.signature ? (
+                <div className="bg-white rounded p-2 inline-block mb-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={document.signedBy.signature} alt="Assinatura" className="max-h-24 object-contain" />
+                  <img src={document.signedBy.signature} alt="Assinatura" className="max-h-24 object-contain mx-auto" />
                 </div>
+              ) : (
+                <p
+                  className="text-4xl text-gray-900 dark:text-white mb-2"
+                  style={{ fontFamily: 'var(--font-caveat), cursive' }}
+                >
+                  {document.signedBy.name || document.signedBy.email}
+                </p>
               )}
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                {document.signedBy.name || document.signedBy.email}
+                {document.signedBy.roles && document.signedBy.roles.length > 0 && (
+                  <span className="font-normal text-gray-600 dark:text-gray-300">
+                    {' '}
+                    ({document.signedBy.roles.join(', ')})
+                  </span>
+                )}
+              </p>
             </div>
           )}
 
