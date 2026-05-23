@@ -116,12 +116,21 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Documentos</h1>
           <AnoEscutistaSelector value={anoEscutista} onChange={setAnoEscutista} />
         </div>
-        <Link
-          href={`/documents/new?type=${activeType}`}
-          className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Novo
-        </Link>
+        {activeType === 'ORDEM_SERVICO' ? (
+          <Link
+            href="/ordem-servico"
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Gerir Itens
+          </Link>
+        ) : (
+          <Link
+            href={`/documents/new?type=${activeType}`}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Novo
+          </Link>
+        )}
       </div>
 
       {/* Tabs */}
@@ -158,10 +167,10 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
             Ainda não há {DOCUMENT_TYPE_LABELS[activeType].toLowerCase()}s criados.
           </p>
           <Link
-            href={`/documents/new?type=${activeType}`}
+            href={activeType === 'ORDEM_SERVICO' ? '/ordem-servico' : `/documents/new?type=${activeType}`}
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
           >
-            Criar Primeiro
+            {activeType === 'ORDEM_SERVICO' ? 'Adicionar Itens' : 'Criar Primeiro'}
           </Link>
         </div>
       ) : (

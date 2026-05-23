@@ -16,6 +16,7 @@ model Profile {
   role      UserRole @default(MEMBER)
   signature String?
   roles     String[] @default([])
+  section   OrdemSection?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -26,6 +27,7 @@ model Profile {
   scoutLeaders     ScoutLeader[]
   documents        Document[]
   signedDocuments  Document[] @relation("DocumentSignedBy")
+  ordemItems       OrdemItem[]
 
   @@map("profiles")
 }
@@ -127,6 +129,13 @@ enum ScoutSection {
   CAMINHEIROS
 }
 
+enum OrdemSection {
+  ALCATEIA
+  EXPEDICAO
+  COMUNIDADE
+  CLA
+}
+
 enum UserRole {
   ADMIN
   LEADER
@@ -155,6 +164,8 @@ model Document {
   signedBy    Profile?     @relation("DocumentSignedBy", fields: [signedById], references: [id])
   signedAt    DateTime?
 
+  sourceItems OrdemItem[]  @relation("OrdemItemsForOs")
+
   @@map("documents")
 }
 
@@ -173,4 +184,25 @@ model DocumentSettings {
   startingNumber Int          @default(1)
 
   @@map("document_settings")
+}
+
+model OrdemItem {
+  id              String        @id @default(cuid())
+  category        String
+  section         OrdemSection?
+  date            DateTime
+  data            Json
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  createdById     String
+  createdBy       Profile       @relation(fields: [createdById], references: [id])
+
+  includedInOsId  String?
+  includedInOs    Document?     @relation("OrdemItemsForOs", fields: [includedInOsId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([section, category, date])
+  @@index([includedInOsId])
+  @@map("ordem_items")
 }

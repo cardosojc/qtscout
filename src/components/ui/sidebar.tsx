@@ -41,6 +41,18 @@ const searchNavItem = {
   children: undefined,
 }
 
+const ordemServicoNavItem = {
+  href: '/ordem-servico',
+  label: 'Ordem de Serviço',
+  badge: undefined,
+  icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  ),
+  children: undefined,
+}
+
 const docTypeIcon = (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -61,7 +73,9 @@ interface EnabledDocTypes {
 
 function buildDocumentsNavItem(enabledDocTypes: EnabledDocTypes) {
   const { oficio, circular, ordem } = enabledDocTypes
-  const firstEnabled = oficio ? 'OFICIO' : circular ? 'CIRCULAR' : ordem ? 'ORDEM_SERVICO' : null
+  // OS is generated from items on its own page, so skip it when picking the
+  // default target for the "Novo Documento" shortcut.
+  const firstEnabledForNew = oficio ? 'OFICIO' : circular ? 'CIRCULAR' : null
 
   const children: Array<{ href: string; label: string; icon: React.ReactNode; badge?: string }> = []
 
@@ -74,9 +88,9 @@ function buildDocumentsNavItem(enabledDocTypes: EnabledDocTypes) {
   if (ordem) {
     children.push({ href: '/documents?type=ORDEM_SERVICO', label: 'Ordem de Serviço', icon: docTypeIcon })
   }
-  if (firstEnabled) {
+  if (firstEnabledForNew) {
     children.push({
-      href: `/documents/new?type=${firstEnabled}`,
+      href: `/documents/new?type=${firstEnabledForNew}`,
       label: 'Novo Documento',
       icon: newDocIcon,
     })
@@ -133,6 +147,7 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
   const navItems = [
     meetingsNavItem,
     ...(anyDocEnabled ? [buildDocumentsNavItem(enabledDocTypes)] : []),
+    ...(ordem ? [ordemServicoNavItem] : []),
     searchNavItem,
     ...(user?.role === 'ADMIN' ? [settingsNavItem] : []),
   ]

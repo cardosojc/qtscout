@@ -6,6 +6,13 @@ import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { LEADER_ROLES, type LeaderRole } from '@/types/leader-role'
+import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@/types/ordem-item'
+
+const SECTION_LEVEL_ROLES: LeaderRole[] = [
+  'Chefe de Unidade',
+  'Chefe de Unidade Adjunto',
+  'Instrutor',
+]
 
 const MAX_WIDTH = 600
 const MAX_HEIGHT = 300
@@ -49,13 +56,16 @@ export default function ProfilePage() {
   const [pending, setPending] = useState<string | null>(null)
   const [roles, setRoles] = useState<LeaderRole[]>([])
   const [savedRoles, setSavedRoles] = useState<LeaderRole[]>([])
+  const [section, setSection] = useState<OrdemSection | ''>('')
+  const [savedSection, setSavedSection] = useState<OrdemSection | ''>('')
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = useCallback(async () => {
     try {
-      const [sigRes, rolesRes] = await Promise.all([
+      const [sigRes, rolesRes, sectionRes] = await Promise.all([
         fetch('/api/profile/signature'),
         fetch('/api/profile/roles'),
+        fetch('/api/profile/section'),
       ])
       if (sigRes.ok) {
         const data = await sigRes.json()
@@ -65,6 +75,11 @@ export default function ProfilePage() {
         const data = await rolesRes.json()
         setRoles(data.roles ?? [])
         setSavedRoles(data.roles ?? [])
+      }
+      if (sectionRes.ok) {
+        const data = await sectionRes.json()
+        setSection(data.section ?? '')
+        setSavedSection(data.section ?? '')
       }
     } finally {
       setLoading(false)
@@ -140,21 +155,38 @@ export default function ProfilePage() {
     setRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]))
   }
 
+  const needsSection = roles.some((r) => SECTION_LEVEL_ROLES.includes(r))
+
   const handleSaveRoles = async () => {
+    if (needsSection && !section) {
+      showToast('Selecione a secção antes de guardar', 'error')
+      return
+    }
     startLoading('A guardar...')
     try {
-      const res = await fetch('/api/profile/roles', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roles }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setRoles(data.roles)
-        setSavedRoles(data.roles)
+      const [rolesRes, sectionRes] = await Promise.all([
+        fetch('/api/profile/roles', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roles }),
+        }),
+        fetch('/api/profile/section', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ section: needsSection ? section : null }),
+        }),
+      ])
+      if (rolesRes.ok && sectionRes.ok) {
+        const rolesData = await rolesRes.json()
+        const sectionData = await sectionRes.json()
+        setRoles(rolesData.roles)
+        setSavedRoles(rolesData.roles)
+        setSection(sectionData.section ?? '')
+        setSavedSection(sectionData.section ?? '')
         showToast('Funções guardadas', 'success')
       } else {
-        const data = await res.json().catch(() => ({}))
+        const errRes = !rolesRes.ok ? rolesRes : sectionRes
+        const data = await errRes.json().catch(() => ({}))
         showToast(data.error || 'Erro ao guardar', 'error')
       }
     } finally {
@@ -163,7 +195,9 @@ export default function ProfilePage() {
   }
 
   const rolesDirty =
-    roles.length !== savedRoles.length || roles.some((r) => !savedRoles.includes(r))
+    roles.length !== savedRoles.length ||
+    roles.some((r) => !savedRoles.includes(r)) ||
+    section !== savedSection
 
   if (authLoading || !user) {
     return (
@@ -187,22 +221,47 @@ export default function ProfilePage() {
         {loading ? (
           <div className="h-40 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse" />
         ) : (
-          <div className="space-y-2">
-            {LEADER_ROLES.map((role) => (
-              <label
-                key={role}
-                className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={roles.includes(role)}
-                  onChange={() => toggleRole(role)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-800 dark:text-gray-200">{role}</span>
-              </label>
-            ))}
-          </div>
+          <>
+            <div className="space-y-2">
+              {LEADER_ROLES.map((role) => (
+                <label
+                  key={role}
+                  className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={roles.includes(role)}
+                    onChange={() => toggleRole(role)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-800 dark:text-gray-200">{role}</span>
+                </label>
+              ))}
+            </div>
+
+            {needsSection && (
+              <div className="mt-6 p-4 border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-100 mb-2">
+                  Secção
+                </label>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mb-3">
+                  As funções de Chefe de Unidade, Adjunto e Instrutor estão associadas a uma secção.
+                </p>
+                <select
+                  value={section}
+                  onChange={(e) => setSection(e.target.value as OrdemSection | '')}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— Selecione —</option>
+                  {ORDEM_SECTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {ORDEM_SECTION_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex justify-end mt-6">

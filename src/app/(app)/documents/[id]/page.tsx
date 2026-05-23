@@ -202,12 +202,14 @@ export default function DocumentDetailPage() {
                   Assinar
                 </button>
               )}
-              <Link
-                href={`/documents/${document.id}/edit`}
-                className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-              >
-                Editar
-              </Link>
+              {document.type !== 'ORDEM_SERVICO' && (
+                <Link
+                  href={`/documents/${document.id}/edit`}
+                  className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                >
+                  Editar
+                </Link>
+              )}
               {session.role === 'ADMIN' && (
                 <button
                   onClick={handleDelete}
