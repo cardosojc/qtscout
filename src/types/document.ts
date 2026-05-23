@@ -22,6 +22,13 @@ export interface Document {
   createdAt: string
   updatedAt: string
   createdBy: { name?: string | null; email: string }
+  signedAt?: string | null
+  signedBy?: {
+    id: string
+    name?: string | null
+    email: string
+    signature?: string | null
+  } | null
 }
 
 export interface DocumentSettings {

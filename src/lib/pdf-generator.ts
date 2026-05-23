@@ -23,6 +23,8 @@ interface DocumentForPDF {
   identifier: string
   createdAt: string
   createdBy: { name?: string | null; email: string }
+  signedAt?: string | null
+  signedBy?: { name?: string | null; email: string; signature?: string | null } | null
 }
 
 // ─── Shared browser launch ────────────────────────────────────────────────────
@@ -762,6 +764,17 @@ function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rig
     bodyContent = `<div class="doc-content">${doc.content || ''}</div>`
   }
 
+  const signatureBlock = doc.signedBy
+    ? `
+      <div class="doc-signature">
+        ${doc.signedBy.signature ? `<img src="${doc.signedBy.signature}" alt="Assinatura" class="signature-img" />` : ''}
+        <div class="signature-line"></div>
+        <p class="signature-name">${doc.signedBy.name || doc.signedBy.email}</p>
+        ${doc.signedAt ? `<p class="signature-date">${formatDate(doc.signedAt)}</p>` : ''}
+      </div>
+    `
+    : ''
+
   return `
     <!DOCTYPE html>
     <html lang="pt">
@@ -829,6 +842,33 @@ function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rig
         .doc-content li { margin: 4px 0; }
         .doc-content strong { font-weight: 700; }
         .doc-content em { font-style: italic; }
+        .doc-signature {
+          margin-top: 48px;
+          width: 260px;
+          break-inside: avoid;
+        }
+        .doc-signature .signature-img {
+          display: block;
+          max-height: 70px;
+          max-width: 260px;
+          object-fit: contain;
+          margin-bottom: -8px;
+        }
+        .doc-signature .signature-line {
+          border-top: 1px solid #374151;
+          margin-top: 4px;
+        }
+        .doc-signature .signature-name {
+          font-size: 12px;
+          font-weight: 600;
+          color: #1f2937;
+          margin: 6px 0 0 0;
+        }
+        .doc-signature .signature-date {
+          font-size: 11px;
+          color: #6b7280;
+          margin: 2px 0 0 0;
+        }
       </style>
     </head>
     <body>
@@ -862,6 +902,7 @@ function generateDocumentHTML(doc: DocumentForPDF, leftImageDataUri: string, rig
                 </span>
               </div>
               ${bodyContent}
+              ${signatureBlock}
             </td>
           </tr>
         </tbody>

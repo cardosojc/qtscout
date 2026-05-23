@@ -19,6 +19,7 @@ export async function GET(
       where: { id },
       include: {
         createdBy: { select: { name: true, email: true } },
+        signedBy: { select: { id: true, name: true, email: true, signature: true } },
       },
     })
 

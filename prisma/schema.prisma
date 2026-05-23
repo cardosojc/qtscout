@@ -14,6 +14,7 @@ model Profile {
   email     String   @unique
   name      String
   role      UserRole @default(MEMBER)
+  signature String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -23,6 +24,7 @@ model Profile {
   scoutProfile     Scout?
   scoutLeaders     ScoutLeader[]
   documents        Document[]
+  signedDocuments  Document[] @relation("DocumentSignedBy")
 
   @@map("profiles")
 }
@@ -147,6 +149,10 @@ model Document {
 
   createdById String
   createdBy   Profile      @relation(fields: [createdById], references: [id])
+
+  signedById  String?
+  signedBy    Profile?     @relation("DocumentSignedBy", fields: [signedById], references: [id])
+  signedAt    DateTime?
 
   @@map("documents")
 }

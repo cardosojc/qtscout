@@ -48,6 +48,46 @@ export default function DocumentDetailPage() {
     if (session && docId) fetchDocument()
   }, [session, docId, fetchDocument])
 
+  const handleSign = async () => {
+    if (!document) return
+    startLoading('A assinar...')
+    try {
+      const res = await fetch(`/api/documents/${document.id}/sign`, { method: 'POST' })
+      if (res.ok) {
+        showToast('Documento assinado', 'success')
+        await fetchDocument()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao assinar', 'error')
+      }
+    } finally {
+      stopLoading()
+    }
+  }
+
+  const handleUnsign = async () => {
+    if (!document) return
+    const confirmed = await showConfirm({
+      title: 'Remover assinatura',
+      message: 'Tem a certeza que deseja remover a assinatura deste documento?',
+      confirmLabel: 'Remover',
+    })
+    if (!confirmed) return
+    startLoading('A remover assinatura...')
+    try {
+      const res = await fetch(`/api/documents/${document.id}/sign`, { method: 'DELETE' })
+      if (res.ok) {
+        showToast('Assinatura removida', 'success')
+        await fetchDocument()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao remover assinatura', 'error')
+      }
+    } finally {
+      stopLoading()
+    }
+  }
+
   const handleDelete = async () => {
     if (!document) return
     const confirmed = await showConfirm({
@@ -145,6 +185,23 @@ export default function DocumentDetailPage() {
               >
                 {pdfUrl ? 'Fechar PDF' : 'Gerar PDF'}
               </button>
+              {document.signedBy ? (
+                (session.id === document.signedBy.id || session.role === 'ADMIN') && (
+                  <button
+                    onClick={handleUnsign}
+                    className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 px-4 py-2 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+                  >
+                    Remover assinatura
+                  </button>
+                )
+              ) : (
+                <button
+                  onClick={handleSign}
+                  className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-4 py-2 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+                >
+                  Assinar
+                </button>
+              )}
               <Link
                 href={`/documents/${document.id}/edit`}
                 className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
@@ -192,6 +249,22 @@ export default function DocumentDetailPage() {
               <p><span className="font-medium">Atualizado em:</span> {formatDateTime(document.updatedAt)}</p>
             )}
           </div>
+
+          {/* Signature block */}
+          {document.signedBy && (
+            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-2">
+                Assinado por {document.signedBy.name || document.signedBy.email}
+                {document.signedAt && ` em ${formatDateTime(document.signedAt)}`}
+              </p>
+              {document.signedBy.signature && (
+                <div className="bg-white rounded p-2 inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={document.signedBy.signature} alt="Assinatura" className="max-h-24 object-contain" />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Content */}
           {document.type === 'ORDEM_SERVICO' && document.content?.trimStart().startsWith('{') ? (

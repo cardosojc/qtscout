@@ -18,7 +18,10 @@ export async function GET(
     const { id } = await params
     const doc = await prisma.document.findUnique({
       where: { id },
-      include: { createdBy: { select: { name: true, email: true } } },
+      include: {
+        createdBy: { select: { name: true, email: true } },
+        signedBy: { select: { name: true, email: true, signature: true } },
+      },
     })
 
     if (!doc) {
@@ -33,6 +36,10 @@ export async function GET(
       identifier,
       createdAt: doc.createdAt.toISOString(),
       createdBy: { name: doc.createdBy.name, email: doc.createdBy.email },
+      signedAt: doc.signedAt?.toISOString() ?? null,
+      signedBy: doc.signedBy
+        ? { name: doc.signedBy.name, email: doc.signedBy.email, signature: doc.signedBy.signature }
+        : null,
     })
 
     const { searchParams } = new URL(request.url)
