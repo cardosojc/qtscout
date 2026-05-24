@@ -13,7 +13,9 @@
     "db:reset": "prisma migrate reset",
     "generate": "prisma generate",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "docs:sync": "tsx scripts/sync-categories-doc.ts",
+    "docs:check": "tsx scripts/sync-categories-doc.ts --check"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.30",
