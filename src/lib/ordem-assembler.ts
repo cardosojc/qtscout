@@ -7,6 +7,7 @@ import {
   type OrdemServicoData,
 } from '@/types/ordem-servico'
 import type { OrdemSection } from '@/types/ordem-item'
+import { profileLabel, scoutLabel, type ResolvedRef } from '@/lib/ordem-resolver'
 
 const SECTION_KEY: Record<OrdemSection, 'alcateia' | 'expedicao' | 'comunidade' | 'cla'> = {
   ALCATEIA: 'alcateia',
@@ -31,25 +32,47 @@ function asAtividade(data: unknown): OSAtividade {
   }
 }
 
-function asNomeacao(data: unknown): OSNomeacao {
-  const d = (data ?? {}) as Partial<OSNomeacao>
+function refScoutName(data: unknown, refs: ResolvedRef): string {
+  const d = (data ?? {}) as Record<string, unknown>
+  if (typeof d.scoutId !== 'string') return ''
+  return scoutLabel(refs.scouts.get(d.scoutId))
+}
+
+function refProfileNomeacao(data: unknown, refs: ResolvedRef): OSNomeacao {
+  const d = (data ?? {}) as Record<string, unknown>
+  const profile = typeof d.profileId === 'string' ? refs.profiles.get(d.profileId) : undefined
   return {
-    nome: typeof d.nome === 'string' ? d.nome : '',
+    nome: profileLabel(profile),
     cargo: typeof d.cargo === 'string' ? d.cargo : '',
   }
 }
 
-function asNoites(data: unknown): OSNoitesMilestone {
-  const d = (data ?? {}) as Partial<OSNoitesMilestone>
-  return {
-    count: typeof d.count === 'number' ? d.count : 0,
-    membros: Array.isArray(d.membros) ? d.membros.filter((m): m is string => typeof m === 'string') : [],
-  }
+function refMixedNomeacao(data: unknown, refs: ResolvedRef): OSNomeacao {
+  const d = (data ?? {}) as Record<string, unknown>
+  const nome =
+    d.kind === 'scout' && typeof d.refId === 'string'
+      ? scoutLabel(refs.scouts.get(d.refId))
+      : d.kind === 'profile' && typeof d.refId === 'string'
+        ? profileLabel(refs.profiles.get(d.refId))
+        : ''
+  return { nome, cargo: typeof d.cargo === 'string' ? d.cargo : '' }
+}
+
+function refNoites(data: unknown, refs: ResolvedRef): OSNoitesMilestone {
+  const d = (data ?? {}) as Record<string, unknown>
+  const count = typeof d.count === 'number' ? d.count : 0
+  const membros = Array.isArray(d.scoutIds)
+    ? d.scoutIds
+        .filter((id): id is string => typeof id === 'string')
+        .map((id) => scoutLabel(refs.scouts.get(id)))
+    : []
+  return { count, membros }
 }
 
 export function assembleOrdemServico(
   items: OrdemItem[],
-  periodo: { de: string; ate: string }
+  periodo: { de: string; ate: string },
+  refs: ResolvedRef
 ): OrdemServicoData {
   const data = defaultOrdemServicoData()
   data.periodo = periodo
@@ -79,43 +102,43 @@ export function assembleOrdemServico(
         break
 
       case 'NOMEACAO_DIRIGENTE':
-        data.nomeacoes.dirigentes.push(asNomeacao(item.data))
+        data.nomeacoes.dirigentes.push(refProfileNomeacao(item.data, refs))
         break
       case 'NOMEACAO_SECCAO':
-        if (section) data.nomeacoes[section].push(asNomeacao(item.data))
+        if (section) data.nomeacoes[section].push(refMixedNomeacao(item.data, refs))
         break
       case 'NOMEACAO_DEPARTAMENTO':
         data.nomeacoes.departamentos.push(asString(item.data))
         break
 
       case 'ADMISSAO':
-        if (section) data.efetivo.admissao[section].push(asString(item.data))
+        if (section) data.efetivo.admissao[section].push(refScoutName(item.data, refs))
         break
       case 'READMISSAO':
-        if (section) data.efetivo.readmissao[section].push(asString(item.data))
+        if (section) data.efetivo.readmissao[section].push(refScoutName(item.data, refs))
         break
       case 'TRANSFERENCIA':
-        if (section) data.efetivo.transferencia[section].push(asString(item.data))
+        if (section) data.efetivo.transferencia[section].push(refScoutName(item.data, refs))
         break
       case 'PASSAGEM':
-        if (section) data.efetivo.passagens[section].push(asString(item.data))
+        if (section) data.efetivo.passagens[section].push(refScoutName(item.data, refs))
         break
       case 'INVESTIDURA':
-        if (section) data.efetivo.investiduras[section].push(asString(item.data))
+        if (section) data.efetivo.investiduras[section].push(refScoutName(item.data, refs))
         break
       case 'SAIDA_ATIVO_SECCAO':
-        if (section) data.efetivo.saidaAtivo[section].push(asString(item.data))
+        if (section) data.efetivo.saidaAtivo[section].push(refScoutName(item.data, refs))
         break
       case 'SAIDA_ATIVO_DIRIGENTE':
         data.efetivo.saidaAtivo.dirigentes.push(asString(item.data))
         break
 
       case 'PROGRESSO':
-        if (section) data.sistemaProgresso[section].push(asString(item.data))
+        if (section) data.sistemaProgresso[section].push(refScoutName(item.data, refs))
         break
 
       case 'NOITES_CAMPO':
-        if (section) data.noitesCampo[section].push(asNoites(item.data))
+        if (section) data.noitesCampo[section].push(refNoites(item.data, refs))
         break
 
       case 'ACCAO_DISCIPLINAR':

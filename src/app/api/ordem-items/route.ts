@@ -3,7 +3,49 @@ import type { Prisma } from '@prisma/client'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { canManageItem, resolveCategory, type ProfileForAuth } from '@/lib/ordem-permissions'
-import { isOrdemSection, validateItemData } from '@/types/ordem-item'
+import { annotateItems, resolveRefs } from '@/lib/ordem-resolver'
+import { isOrdemSection, validateItemData, type ItemShape, type OrdemSection } from '@/types/ordem-item'
+
+async function validateRefs(
+  shape: ItemShape,
+  value: Record<string, unknown>,
+  section: OrdemSection | null
+): Promise<string | null> {
+  const scoutIds: string[] = []
+  const profileIds: string[] = []
+
+  if (shape === 'MEMBER_REF' && typeof value.scoutId === 'string') {
+    scoutIds.push(value.scoutId)
+  }
+  if (shape === 'NOITES_REF' && Array.isArray(value.scoutIds)) {
+    for (const id of value.scoutIds) if (typeof id === 'string') scoutIds.push(id)
+  }
+  if (shape === 'PROFILE_REF' && typeof value.profileId === 'string') {
+    profileIds.push(value.profileId)
+  }
+  if (shape === 'SCOUT_OR_PROFILE_REF' && typeof value.refId === 'string') {
+    if (value.kind === 'scout') scoutIds.push(value.refId)
+    if (value.kind === 'profile') profileIds.push(value.refId)
+  }
+
+  if (scoutIds.length > 0) {
+    const found = await prisma.scout.findMany({
+      where: { id: { in: scoutIds } },
+      select: { id: true, section: true },
+    })
+    if (found.length !== scoutIds.length) return 'Membro não encontrado'
+    if (section) {
+      const mismatched = found.find((s) => s.section !== section)
+      if (mismatched) return 'O membro selecionado pertence a outra secção'
+    }
+  }
+  if (profileIds.length > 0) {
+    const count = await prisma.profile.count({ where: { id: { in: profileIds } } })
+    if (count !== profileIds.length) return 'Dirigente não encontrado'
+  }
+
+  return null
+}
 
 export async function GET(request: NextRequest) {
   const session = await getSession()
@@ -33,7 +75,9 @@ export async function GET(request: NextRequest) {
     include: { createdBy: { select: { id: true, name: true, email: true } } },
   })
 
-  return NextResponse.json({ items })
+  const refs = await resolveRefs(items)
+  const annotated = annotateItems(items, refs)
+  return NextResponse.json({ items: annotated })
 }
 
 export async function POST(request: NextRequest) {
@@ -85,6 +129,10 @@ export async function POST(request: NextRequest) {
   if (!canManageItem(authProfile, category, section)) {
     return NextResponse.json({ error: 'Sem permissões para esta categoria/secção' }, { status: 403 })
   }
+
+  // Validate ref existence + that referenced scouts belong to the item's section
+  const refError = await validateRefs(category.shape, dataResult.value, section)
+  if (refError) return NextResponse.json({ error: refError }, { status: 400 })
 
   const item = await prisma.ordemItem.create({
     data: {

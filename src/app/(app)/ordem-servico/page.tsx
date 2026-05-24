@@ -43,6 +43,8 @@ const GROUP_ROLES = [
 const SECTION_ROLES = ['Chefe de Unidade', 'Chefe de Unidade Adjunto', 'Instrutor']
 
 function summarizeData(category: CategorySpec, data: Record<string, unknown>): string {
+  const display = (data?._display ?? {}) as Record<string, unknown>
+
   switch (category.shape) {
     case 'STRING':
     case 'TEXT':
@@ -59,6 +61,21 @@ function summarizeData(category: CategorySpec, data: Record<string, unknown>): s
       const count = Number(data?.count ?? 0)
       const membros = Array.isArray(data?.membros) ? data.membros.length : 0
       return `${count} noite(s), ${membros} membro(s)`
+    }
+    case 'MEMBER_REF':
+      return String(display.scout ?? '—')
+    case 'NOITES_REF': {
+      const count = Number(data?.count ?? 0)
+      const names = Array.isArray(display.scouts) ? (display.scouts as string[]) : []
+      return `${count} noite(s) — ${names.length > 0 ? names.join(', ') : 'sem membros'}`
+    }
+    case 'PROFILE_REF': {
+      const parts = [String(display.profile ?? '—'), data?.cargo].filter(Boolean)
+      return parts.join(' — ')
+    }
+    case 'SCOUT_OR_PROFILE_REF': {
+      const parts = [String(display.ref ?? '—'), data?.cargo].filter(Boolean)
+      return parts.join(' — ')
     }
   }
 }

@@ -10,7 +10,16 @@ export const ORDEM_SECTION_LABELS: Record<OrdemSection, string> = {
   CLA: 'Clã',
 }
 
-export type ItemShape = 'STRING' | 'TEXT' | 'ATIVIDADE' | 'NOMEACAO' | 'NOITES'
+export type ItemShape =
+  | 'STRING'
+  | 'TEXT'
+  | 'ATIVIDADE'
+  | 'NOMEACAO'
+  | 'NOITES'
+  | 'MEMBER_REF'
+  | 'NOITES_REF'
+  | 'PROFILE_REF'
+  | 'SCOUT_OR_PROFILE_REF'
 
 export type ItemScope = 'GROUP' | 'SECTION'
 
@@ -38,24 +47,24 @@ export const ORDEM_CATEGORIES = [
   { key: 'CRIACAO_EXTINCAO', label: 'Criação ou Extinção (bando/patrulha/equipa/tribo/departamento)', shape: 'STRING', scope: 'SECTION' },
 
   // Nomeações e Exonerações
-  { key: 'NOMEACAO_DIRIGENTE', label: 'Nomeação/Exoneração de Dirigente', shape: 'NOMEACAO', scope: 'GROUP' },
-  { key: 'NOMEACAO_SECCAO', label: 'Nomeação/Exoneração na Secção', shape: 'NOMEACAO', scope: 'SECTION' },
+  { key: 'NOMEACAO_DIRIGENTE', label: 'Nomeação/Exoneração de Dirigente', shape: 'PROFILE_REF', scope: 'GROUP' },
+  { key: 'NOMEACAO_SECCAO', label: 'Nomeação/Exoneração na Secção', shape: 'SCOUT_OR_PROFILE_REF', scope: 'SECTION' },
   { key: 'NOMEACAO_DEPARTAMENTO', label: 'Nomeação/Exoneração em Departamento', shape: 'STRING', scope: 'GROUP' },
 
   // Efetivo (section-scoped)
-  { key: 'ADMISSAO', label: 'Admissão de Associado', shape: 'STRING', scope: 'SECTION' },
-  { key: 'READMISSAO', label: 'Readmissão de Associado', shape: 'STRING', scope: 'SECTION' },
-  { key: 'TRANSFERENCIA', label: 'Transferência de Associado', shape: 'STRING', scope: 'SECTION' },
-  { key: 'PASSAGEM', label: 'Passagem de Secção', shape: 'STRING', scope: 'SECTION' },
-  { key: 'INVESTIDURA', label: 'Investidura', shape: 'STRING', scope: 'SECTION' },
-  { key: 'SAIDA_ATIVO_SECCAO', label: 'Saída do Ativo (Secção)', shape: 'STRING', scope: 'SECTION' },
+  { key: 'ADMISSAO', label: 'Admissão de Associado', shape: 'MEMBER_REF', scope: 'SECTION' },
+  { key: 'READMISSAO', label: 'Readmissão de Associado', shape: 'MEMBER_REF', scope: 'SECTION' },
+  { key: 'TRANSFERENCIA', label: 'Transferência de Associado', shape: 'MEMBER_REF', scope: 'SECTION' },
+  { key: 'PASSAGEM', label: 'Passagem de Secção', shape: 'MEMBER_REF', scope: 'SECTION' },
+  { key: 'INVESTIDURA', label: 'Investidura', shape: 'MEMBER_REF', scope: 'SECTION' },
+  { key: 'SAIDA_ATIVO_SECCAO', label: 'Saída do Ativo (Secção)', shape: 'MEMBER_REF', scope: 'SECTION' },
   { key: 'SAIDA_ATIVO_DIRIGENTE', label: 'Saída do Ativo (Dirigente)', shape: 'STRING', scope: 'GROUP' },
 
   // Sistema de Progresso
-  { key: 'PROGRESSO', label: 'Sistema de Progresso', shape: 'STRING', scope: 'SECTION' },
+  { key: 'PROGRESSO', label: 'Sistema de Progresso', shape: 'MEMBER_REF', scope: 'SECTION' },
 
   // Noites de Campo
-  { key: 'NOITES_CAMPO', label: 'Noites de Campo', shape: 'NOITES', scope: 'SECTION' },
+  { key: 'NOITES_CAMPO', label: 'Noites de Campo', shape: 'NOITES_REF', scope: 'SECTION' },
 
   // Justiça e Disciplina (group)
   { key: 'ACCAO_DISCIPLINAR', label: 'Ação Disciplinar', shape: 'STRING', scope: 'GROUP' },
@@ -136,6 +145,38 @@ export function validateItemData(shape: ItemShape, data: unknown): ValidateResul
         ? d.membros.filter((m): m is string => typeof m === 'string' && m.trim() !== '').map((m) => m.trim())
         : []
       return { ok: true, value: { count: Math.floor(count), membros } }
+    }
+    case 'MEMBER_REF': {
+      if (typeof d.scoutId !== 'string' || !d.scoutId) {
+        return { ok: false, error: 'Membro obrigatório' }
+      }
+      return { ok: true, value: { scoutId: d.scoutId } }
+    }
+    case 'NOITES_REF': {
+      const count = Number(d.count)
+      if (!Number.isFinite(count) || count <= 0) {
+        return { ok: false, error: 'count deve ser um número positivo' }
+      }
+      const scoutIds = Array.isArray(d.scoutIds)
+        ? d.scoutIds.filter((m): m is string => typeof m === 'string' && m !== '')
+        : []
+      return { ok: true, value: { count: Math.floor(count), scoutIds } }
+    }
+    case 'PROFILE_REF': {
+      if (typeof d.profileId !== 'string' || !d.profileId) {
+        return { ok: false, error: 'Dirigente obrigatório' }
+      }
+      const cargo = typeof d.cargo === 'string' ? d.cargo.trim() : ''
+      return { ok: true, value: { profileId: d.profileId, cargo } }
+    }
+    case 'SCOUT_OR_PROFILE_REF': {
+      const kind = d.kind === 'scout' ? 'scout' : d.kind === 'profile' ? 'profile' : null
+      if (!kind) return { ok: false, error: 'Tipo de referência inválido' }
+      if (typeof d.refId !== 'string' || !d.refId) {
+        return { ok: false, error: 'Referência obrigatória' }
+      }
+      const cargo = typeof d.cargo === 'string' ? d.cargo.trim() : ''
+      return { ok: true, value: { kind, refId: d.refId, cargo } }
     }
   }
 }

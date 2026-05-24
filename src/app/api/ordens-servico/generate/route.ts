@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { formatDocumentIdentifier } from '@/lib/document-utils'
 import { assembleOrdemServico } from '@/lib/ordem-assembler'
+import { resolveRefs } from '@/lib/ordem-resolver'
 
 export async function POST(request: NextRequest) {
   const session = await getSession()
@@ -40,7 +41,8 @@ export async function POST(request: NextRequest) {
   }
 
   const formatDate = (d: Date) => d.toISOString().slice(0, 10)
-  const assembled = assembleOrdemServico(items, { de: formatDate(from), ate: formatDate(to) })
+  const refs = await resolveRefs(items)
+  const assembled = assembleOrdemServico(items, { de: formatDate(from), ate: formatDate(to) }, refs)
 
   const document = await prisma.$transaction(async (tx) => {
     const settings = await tx.documentSettings.findUnique({ where: { type: 'ORDEM_SERVICO' } })
