@@ -33,7 +33,8 @@
     "prisma": "^6.16.1",
     "puppeteer-core": "^24.37.3",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

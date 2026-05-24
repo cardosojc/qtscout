@@ -91,15 +91,35 @@ model MeetingAttendee {
 }
 
 model Scout {
-  id          String       @id @default(cuid())
-  profileId   String?      @unique
-  name        String
-  dateOfBirth DateTime
-  section     ScoutSection
-  joinedAt    DateTime     @default(now())
-  active      Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                    String        @id @default(cuid())
+  profileId             String?       @unique
+  firstName             String
+  lastName              String
+  numeroAssociado       String?       @unique
+  dateOfBirth           DateTime
+  section               OrdemSection?
+  sexo                  String?
+  cc                    String?
+  nif                   String?
+  email                 String?
+  telefone              String?
+  telemovel             String?
+  morada                String?
+  localidade            String?
+  codigoPostal          String?
+  paiNome               String?
+  paiTelefone           String?
+  paiEmail              String?
+  maeNome               String?
+  maeTelefone           String?
+  maeEmail              String?
+  encarregadoNome       String?
+  encarregadoTelefone   String?
+  encarregadoEmail      String?
+  joinedAt              DateTime      @default(now())
+  active                Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   // Relations
   profile Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
@@ -120,13 +140,6 @@ model ScoutLeader {
 
   @@unique([scoutId, leaderId])
   @@map("scout_leaders")
-}
-
-enum ScoutSection {
-  LOBITOS
-  EXPLORADORES
-  PIONEIROS
-  CAMINHEIROS
 }
 
 enum OrdemSection {
