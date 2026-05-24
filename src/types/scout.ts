@@ -27,6 +27,21 @@ export interface Scout {
   encarregadoEmail: string | null
   joinedAt: string
   active: boolean
+  noitesCampoInicial: number
+}
+
+/** Date the manual snapshot refers to (start of the current ano escutista). */
+export const NOITES_CAMPO_SNAPSHOT_DATE = '2025-10-01'
+
+/**
+ * Total noites de campo for a scout. Currently returns the manual snapshot;
+ * once activity participation is tracked, add the delta from activities the
+ * scout attended after NOITES_CAMPO_SNAPSHOT_DATE.
+ */
+export function computeNoitesCampoAtual(scout: Pick<Scout, 'noitesCampoInicial'>): number {
+  // TODO: + sum of nights from activities the scout participated in after
+  // NOITES_CAMPO_SNAPSHOT_DATE (waiting on participation data model).
+  return scout.noitesCampoInicial
 }
 
 export function scoutDisplayName(s: Pick<Scout, 'firstName' | 'lastName'>): string {

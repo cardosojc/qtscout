@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@/types/ordem-item'
-import type { Scout } from '@/types/scout'
+import { NOITES_CAMPO_SNAPSHOT_DATE, type Scout } from '@/types/scout'
 
 type FormValues = {
   firstName: string
@@ -30,6 +30,7 @@ type FormValues = {
   encarregadoNome: string
   encarregadoTelefone: string
   encarregadoEmail: string
+  noitesCampoInicial: string
 }
 
 type Props = {
@@ -75,6 +76,7 @@ export function ScoutForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
     encarregadoNome: initial?.encarregadoNome ?? '',
     encarregadoTelefone: initial?.encarregadoTelefone ?? '',
     encarregadoEmail: initial?.encarregadoEmail ?? '',
+    noitesCampoInicial: String(initial?.noitesCampoInicial ?? 0),
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -193,6 +195,28 @@ export function ScoutForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
           <Input label="Nome" field="encarregadoNome" />
           <Input label="Telefone" field="encarregadoTelefone" type="tel" />
           <Input label="Email" field="encarregadoEmail" type="email" />
+        </div>
+      </fieldset>
+
+      <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 px-2">Noites de Campo</legend>
+        <div>
+          <label className={labelCls}>
+            Snapshot inicial ({NOITES_CAMPO_SNAPSHOT_DATE.split('-').reverse().join('/')})
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={values.noitesCampoInicial}
+            onChange={(e) => set('noitesCampoInicial', e.target.value)}
+            className={`${fieldCls} w-32`}
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Nº de noites de campo acumuladas até esta data. O total atual é
+            calculado a partir deste valor mais a participação registada em
+            atividades posteriores.
+          </p>
         </div>
       </fieldset>
 

@@ -133,6 +133,13 @@ Noites de campo are tracked per scout as milestones in `ScoutNightsBadge`
 exposes a small editor with one date input per milestone (ADMIN-only
 writes via `PUT /api/scouts/[id]/nights-badges`).
 
+Each scout also has a manual `Scout.noitesCampoInicial` snapshot — the
+number of noites accumulated as of `NOITES_CAMPO_SNAPSHOT_DATE`
+(2025-10-01, start of the current ano escutista). `computeNoitesCampoAtual`
+in `src/types/scout.ts` returns the live total; today it just echoes the
+snapshot, with a `TODO` to add the delta from activities the scout
+participated in after that date once the participation model exists.
+
 Item forms with `MEMBER_REF` / `NOITES_REF` / `SCOUT_OR_PROFILE_REF` shapes
 pick from `/api/scouts?section=…`. Leader picker calls
 `/api/profiles/leaders`.

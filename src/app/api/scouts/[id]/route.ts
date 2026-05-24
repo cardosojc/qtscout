@@ -92,6 +92,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (body.active !== undefined) {
     update.active = Boolean(body.active)
   }
+  if (body.noitesCampoInicial !== undefined) {
+    const n = Number(body.noitesCampoInicial)
+    if (!Number.isFinite(n) || n < 0) {
+      return NextResponse.json({ error: 'Noites de campo inválido' }, { status: 400 })
+    }
+    update.noitesCampoInicial = Math.floor(n)
+  }
   for (const field of OPTIONAL_STRING_FIELDS) {
     if (body[field] !== undefined) {
       update[field] = optionalString(body[field])

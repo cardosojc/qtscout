@@ -118,6 +118,7 @@ model Scout {
   encarregadoEmail      String?
   joinedAt              DateTime      @default(now())
   active                Boolean       @default(true)
+  noitesCampoInicial    Int           @default(0)
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 

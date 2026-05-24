@@ -7,7 +7,12 @@ import { useToast } from '@/components/ui/toast'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ScoutForm } from '@/components/membros/scout-form'
 import { NightsBadgesEditor } from '@/components/membros/nights-badges'
-import { scoutDisplayName, type Scout } from '@/types/scout'
+import {
+  computeNoitesCampoAtual,
+  NOITES_CAMPO_SNAPSHOT_DATE,
+  scoutDisplayName,
+  type Scout,
+} from '@/types/scout'
 
 export default function MembroDetailPage() {
   const params = useParams()
@@ -97,8 +102,30 @@ export default function MembroDetailPage() {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-          Insígnias de Noites de Campo
+          Noites de Campo
         </h2>
+
+        <div className="flex flex-wrap items-baseline gap-6 mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Total atual
+            </p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {computeNoitesCampoAtual(scout)}
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400"> noites</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Snapshot inicial ({NOITES_CAMPO_SNAPSHOT_DATE.split('-').reverse().join('/')})
+            </p>
+            <p className="text-lg text-gray-800 dark:text-gray-200">
+              {scout.noitesCampoInicial} <span className="text-sm text-gray-500 dark:text-gray-400">noites</span>
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Insígnias</h3>
         <NightsBadgesEditor scoutId={scout.id} canEdit={user?.role === 'ADMIN'} />
       </div>
     </main>

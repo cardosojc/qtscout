@@ -86,12 +86,17 @@ export async function POST(request: NextRequest) {
 
   const joinedAt = parseDate(body.joinedAt) ?? new Date()
 
+  const noitesCampoInicial = Number.isFinite(Number(body.noitesCampoInicial))
+    ? Math.max(0, Math.floor(Number(body.noitesCampoInicial)))
+    : 0
+
   const data: Prisma.ScoutCreateInput = {
     firstName,
     lastName,
     dateOfBirth,
     section,
     joinedAt,
+    noitesCampoInicial,
   }
   for (const field of OPTIONAL_STRING_FIELDS) {
     data[field] = optionalString(body[field])
