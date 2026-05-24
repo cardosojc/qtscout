@@ -22,6 +22,8 @@ export default function MembroDetailPage() {
   const { showToast } = useToast()
   const [scout, setScout] = useState<Scout | null>(null)
   const [loading, setLoading] = useState(true)
+  const [snapshotInput, setSnapshotInput] = useState('0')
+  const [savingSnapshot, setSavingSnapshot] = useState(false)
 
   const fetchScout = useCallback(async () => {
     setLoading(true)
@@ -30,11 +32,34 @@ export default function MembroDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setScout(data.scout)
+        setSnapshotInput(String(data.scout?.noitesCampoInicial ?? 0))
       }
     } finally {
       setLoading(false)
     }
   }, [id])
+
+  const handleSaveSnapshot = async () => {
+    setSavingSnapshot(true)
+    try {
+      const res = await fetch(`/api/scouts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noitesCampoInicial: Number(snapshotInput) }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setScout(data.scout)
+        setSnapshotInput(String(data.scout.noitesCampoInicial))
+        showToast('Snapshot guardado', 'success')
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao guardar', 'error')
+      }
+    } finally {
+      setSavingSnapshot(false)
+    }
+  }
 
   useEffect(() => {
     if (user) fetchScout()
@@ -105,7 +130,7 @@ export default function MembroDetailPage() {
           Noites de Campo
         </h2>
 
-        <div className="flex flex-wrap items-baseline gap-6 mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="mb-6 pb-4 border-b border-gray-100 dark:border-gray-700 space-y-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
               Total atual
@@ -116,11 +141,38 @@ export default function MembroDetailPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <label className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
               Snapshot inicial ({NOITES_CAMPO_SNAPSHOT_DATE.split('-').reverse().join('/')})
-            </p>
-            <p className="text-lg text-gray-800 dark:text-gray-200">
-              {scout.noitesCampoInicial} <span className="text-sm text-gray-500 dark:text-gray-400">noites</span>
+            </label>
+            {user?.role === 'ADMIN' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={snapshotInput}
+                  onChange={(e) => setSnapshotInput(e.target.value)}
+                  className="w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-500 dark:text-gray-400">noites</span>
+                <button
+                  onClick={handleSaveSnapshot}
+                  disabled={
+                    savingSnapshot || Number(snapshotInput) === scout.noitesCampoInicial
+                  }
+                  className="ml-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg"
+                >
+                  {savingSnapshot ? 'A guardar...' : 'Guardar'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-lg text-gray-800 dark:text-gray-200">
+                {scout.noitesCampoInicial} <span className="text-sm text-gray-500 dark:text-gray-400">noites</span>
+              </p>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Nº de noites acumuladas até esta data. O total atual junta este
+              valor à participação em atividades posteriores.
             </p>
           </div>
         </div>
