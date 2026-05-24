@@ -127,9 +127,13 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
           data = { kind: refKind, refId: refKind === 'scout' ? scoutId : profileId, cargo }
           break
       }
+      const resolvedSection: OrdemSection | null =
+        category.scope === 'GROUP'
+          ? null
+          : (section || null) as OrdemSection | null
       await onSubmit({
         category: category.key,
-        section: category.scope === 'SECTION' ? (section || null) as OrdemSection | null : null,
+        section: resolvedSection,
         date,
         data,
       })
@@ -162,6 +166,22 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
               className={fieldCls}
             >
               <option value="">— Selecione —</option>
+              {ORDEM_SECTIONS.map((s) => (
+                <option key={s} value={s}>{ORDEM_SECTION_LABELS[s]}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {category.scope === 'BOTH' && (
+          <div>
+            <label className={labelCls}>Destino</label>
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value as OrdemSection | '')}
+              className={fieldCls}
+            >
+              <option value="">Agrupamento</option>
               {ORDEM_SECTIONS.map((s) => (
                 <option key={s} value={s}>{ORDEM_SECTION_LABELS[s]}</option>
               ))}

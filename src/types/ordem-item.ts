@@ -21,7 +21,7 @@ export type ItemShape =
   | 'PROFILE_REF'
   | 'SCOUT_OR_PROFILE_REF'
 
-export type ItemScope = 'GROUP' | 'SECTION'
+export type ItemScope = 'GROUP' | 'SECTION' | 'BOTH'
 
 export type CategorySpec = {
   key: string
@@ -39,9 +39,8 @@ export const ORDEM_CATEGORIES = [
   { key: 'RESOLUCAO', label: 'Resolução do Conselho de Agrupamento', shape: 'STRING', scope: 'GROUP' },
   { key: 'DETERMINACAO', label: 'Determinação do Conselho de Agrupamento', shape: 'STRING', scope: 'GROUP' },
 
-  // Atividades
-  { key: 'ATIVIDADE_AGRUPAMENTO', label: 'Atividade de Agrupamento', shape: 'ATIVIDADE', scope: 'GROUP' },
-  { key: 'ATIVIDADE_SECCAO', label: 'Atividade da Secção', shape: 'ATIVIDADE', scope: 'SECTION' },
+  // Atividades — target picker decides if it's an Agrupamento or Secção activity
+  { key: 'ATIVIDADE', label: 'Atividade', shape: 'ATIVIDADE', scope: 'BOTH' },
 
   // Criação/Extinção
   { key: 'CRIACAO_EXTINCAO', label: 'Criação ou Extinção (bando/patrulha/equipa/tribo/departamento)', shape: 'STRING', scope: 'SECTION' },

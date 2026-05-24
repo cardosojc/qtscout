@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
   if (category.scope === 'GROUP' && section) {
     return NextResponse.json({ error: 'Categoria de grupo não aceita secção' }, { status: 400 })
   }
+  // BOTH: section optional, no further check here
 
   if (typeof body.date !== 'string' || isNaN(Date.parse(body.date))) {
     return NextResponse.json({ error: 'Data inválida' }, { status: 400 })

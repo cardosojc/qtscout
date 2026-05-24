@@ -47,6 +47,15 @@ export function canManageItem(
     return hasGroupRole(profile)
   }
 
+  if (category.scope === 'BOTH') {
+    // No section → group-level decision; section set → must belong to it
+    if (section == null) return hasGroupRole(profile)
+    if (hasSectionRole(profile) && profile.section === section) return true
+    // Group leaders can also create activities for any section
+    if (hasGroupRole(profile)) return true
+    return false
+  }
+
   // SECTION-scoped
   if (!section) return false
   if (!hasSectionRole(profile)) return false
@@ -60,10 +69,12 @@ export function canManageItem(
 export function allowedCategoriesFor(profile: ProfileForAuth): CategorySpec[] {
   if (profile.role === 'ADMIN') return Object.values(CATEGORY_MAP)
   const hasGroup = hasGroupRole(profile)
-  const hasSection = hasSectionRole(profile)
-  return Object.values(CATEGORY_MAP).filter((c) =>
-    c.scope === 'GROUP' ? hasGroup : hasSection && profile.section != null
-  )
+  const hasSection = hasSectionRole(profile) && profile.section != null
+  return Object.values(CATEGORY_MAP).filter((c) => {
+    if (c.scope === 'GROUP') return hasGroup
+    if (c.scope === 'SECTION') return hasSection
+    return hasGroup || hasSection // BOTH
+  })
 }
 
 export function resolveCategory(key: string) {
