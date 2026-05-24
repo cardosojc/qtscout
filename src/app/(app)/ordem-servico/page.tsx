@@ -239,7 +239,9 @@ export default function OrdemServicoPage() {
       })
       if (res.ok) {
         const doc = await res.json()
-        showToast(`Ordem de Serviço ${doc.identifier} criada (${doc.itemCount} itens)`, 'success')
+        const parts = [`${doc.itemCount} itens`]
+        if (doc.autoAdmissions) parts.push(`${doc.autoAdmissions} admissões automáticas`)
+        showToast(`Ordem de Serviço ${doc.identifier} criada (${parts.join(', ')})`, 'success')
         setGenerating(false)
         router.push(`/documents/${doc.id}`)
       } else {

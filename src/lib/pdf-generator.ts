@@ -662,9 +662,15 @@ function generateOSContent(data: OrdemServicoData): string {
     `).join('')}
 
     ${osSecTitle('Criação/Extinção de Unidades, Bandos, Patrulhas, Equipas, Tribos e Departamentos')}
+    ${osSubTitle('Criação')}
     ${SECCOES.map(key => `
-      ${osSubTitle(SECCAO_LABELS[key])}
-      ${renderStrList(data.criacaoExtincao[key])}
+      ${osSubSubTitle(SECCAO_LABELS[key])}
+      ${renderStrList(data.criacaoExtincao.criacao[key])}
+    `).join('')}
+    ${osSubTitle('Extinção')}
+    ${SECCOES.map(key => `
+      ${osSubSubTitle(SECCAO_LABELS[key])}
+      ${renderStrList(data.criacaoExtincao.extincao[key])}
     `).join('')}
 
     ${osSecTitle('Nomeações e Exonerações')}

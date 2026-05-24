@@ -123,10 +123,22 @@ export function OrdemServicoView({ data }: { data: OrdemServicoData }) {
 
       {/* 3. Criação/Extinção */}
       <SectionTitle>Criação/Extinção de Unidades, Bandos, Patrulhas, Equipas, Tribos e Departamentos</SectionTitle>
+      <SubTitle>Criação</SubTitle>
       {SECCOES.map((key) => (
-        <div key={key}>
-          <SubTitle>{SECCAO_LABELS[key]}</SubTitle>
-          <ListItems items={data.criacaoExtincao[key]} />
+        <div key={`criacao-${key}`} className="ml-2 mt-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+            {SECCAO_LABELS[key]}
+          </p>
+          <ListItems items={data.criacaoExtincao.criacao[key]} />
+        </div>
+      ))}
+      <SubTitle>Extinção</SubTitle>
+      {SECCOES.map((key) => (
+        <div key={`extincao-${key}`} className="ml-2 mt-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+            {SECCAO_LABELS[key]}
+          </p>
+          <ListItems items={data.criacaoExtincao.extincao[key]} />
         </div>
       ))}
 

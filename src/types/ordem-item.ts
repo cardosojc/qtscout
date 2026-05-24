@@ -42,16 +42,17 @@ export const ORDEM_CATEGORIES = [
   // Atividades — target picker decides if it's an Agrupamento or Secção activity
   { key: 'ATIVIDADE', label: 'Atividade', shape: 'ATIVIDADE', scope: 'BOTH' },
 
-  // Criação/Extinção
-  { key: 'CRIACAO_EXTINCAO', label: 'Criação ou Extinção (bando/patrulha/equipa/tribo/departamento)', shape: 'STRING', scope: 'SECTION' },
+  // Criação / Extinção (separate categories)
+  { key: 'CRIACAO', label: 'Criação (bando/patrulha/equipa/tribo)', shape: 'STRING', scope: 'SECTION' },
+  { key: 'EXTINCAO', label: 'Extinção (bando/patrulha/equipa/tribo)', shape: 'STRING', scope: 'SECTION' },
 
   // Nomeações e Exonerações
   { key: 'NOMEACAO_DIRIGENTE', label: 'Nomeação/Exoneração de Dirigente', shape: 'PROFILE_REF', scope: 'GROUP' },
   { key: 'NOMEACAO_SECCAO', label: 'Nomeação/Exoneração na Secção', shape: 'SCOUT_OR_PROFILE_REF', scope: 'SECTION' },
   { key: 'NOMEACAO_DEPARTAMENTO', label: 'Nomeação/Exoneração em Departamento', shape: 'STRING', scope: 'GROUP' },
 
-  // Efetivo (section-scoped)
-  { key: 'ADMISSAO', label: 'Admissão de Associado', shape: 'MEMBER_REF', scope: 'SECTION' },
+  // Efetivo (section-scoped). ADMISSAO is auto-included from Scout.joinedAt at
+  // generation time, so it's intentionally not an option in the manual catalog.
   { key: 'READMISSAO', label: 'Readmissão de Associado', shape: 'MEMBER_REF', scope: 'SECTION' },
   { key: 'TRANSFERENCIA', label: 'Transferência de Associado', shape: 'MEMBER_REF', scope: 'SECTION' },
   { key: 'PASSAGEM', label: 'Passagem de Secção', shape: 'MEMBER_REF', scope: 'SECTION' },

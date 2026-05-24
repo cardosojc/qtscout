@@ -54,7 +54,10 @@ export type OrdemServicoData = {
   atividades: {
     agrupamento: OSAtividade[]
   } & OSAtividadesSeccoes
-  criacaoExtincao: OSSeccoes
+  criacaoExtincao: {
+    criacao: OSSeccoes
+    extincao: OSSeccoes
+  }
   nomeacoes: {
     dirigentes: OSNomeacao[]
     departamentos: string[]
@@ -97,7 +100,7 @@ export function defaultOrdemServicoData(): OrdemServicoData {
       comunidade: [],
       cla: [],
     },
-    criacaoExtincao: emptySeccoes(),
+    criacaoExtincao: { criacao: emptySeccoes(), extincao: emptySeccoes() },
     nomeacoes: {
       dirigentes: [],
       departamentos: [],

@@ -95,8 +95,11 @@ export function assembleOrdemServico(
         else data.atividades.agrupamento.push(asAtividade(item.data))
         break
 
-      case 'CRIACAO_EXTINCAO':
-        if (section) data.criacaoExtincao[section].push(asString(item.data))
+      case 'CRIACAO':
+        if (section) data.criacaoExtincao.criacao[section].push(asString(item.data))
+        break
+      case 'EXTINCAO':
+        if (section) data.criacaoExtincao.extincao[section].push(asString(item.data))
         break
 
       case 'NOMEACAO_DIRIGENTE':

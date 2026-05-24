@@ -3,7 +3,15 @@ import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { formatDocumentIdentifier } from '@/lib/document-utils'
 import { assembleOrdemServico } from '@/lib/ordem-assembler'
-import { resolveRefs } from '@/lib/ordem-resolver'
+import { resolveRefs, scoutLabel } from '@/lib/ordem-resolver'
+import type { OrdemSection } from '@/types/ordem-item'
+
+const SECTION_KEY: Record<OrdemSection, 'alcateia' | 'expedicao' | 'comunidade' | 'cla'> = {
+  ALCATEIA: 'alcateia',
+  EXPEDICAO: 'expedicao',
+  COMUNIDADE: 'comunidade',
+  CLA: 'cla',
+}
 
 export async function POST(request: NextRequest) {
   const session = await getSession()
@@ -28,21 +36,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Apenas administradores podem gerar Ordens de Serviço' }, { status: 403 })
   }
 
-  const items = await prisma.ordemItem.findMany({
-    where: {
-      date: { gte: from, lte: to },
-      includedInOsId: null,
-    },
-    orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
-  })
+  const [items, admittedScouts] = await Promise.all([
+    prisma.ordemItem.findMany({
+      where: {
+        date: { gte: from, lte: to },
+        includedInOsId: null,
+      },
+      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+    }),
+    prisma.scout.findMany({
+      where: {
+        joinedAt: { gte: from, lte: to },
+        section: { not: null },
+      },
+      select: { firstName: true, lastName: true, numeroAssociado: true, section: true, joinedAt: true },
+      orderBy: [{ section: 'asc' }, { joinedAt: 'asc' }],
+    }),
+  ])
 
-  if (items.length === 0) {
-    return NextResponse.json({ error: 'Sem itens neste intervalo' }, { status: 400 })
+  if (items.length === 0 && admittedScouts.length === 0) {
+    return NextResponse.json({ error: 'Sem itens nem admissões neste intervalo' }, { status: 400 })
   }
 
   const formatDate = (d: Date) => d.toISOString().slice(0, 10)
   const refs = await resolveRefs(items)
   const assembled = assembleOrdemServico(items, { de: formatDate(from), ate: formatDate(to) }, refs)
+
+  // Auto-include admissões from Scout.joinedAt (scouts without section are skipped)
+  for (const scout of admittedScouts) {
+    const key = SECTION_KEY[scout.section as OrdemSection]
+    if (!key) continue
+    assembled.efetivo.admissao[key].push(
+      scoutLabel({
+        firstName: scout.firstName,
+        lastName: scout.lastName,
+        numeroAssociado: scout.numeroAssociado,
+      })
+    )
+  }
 
   const document = await prisma.$transaction(async (tx) => {
     const settings = await tx.documentSettings.findUnique({ where: { type: 'ORDEM_SERVICO' } })
@@ -76,5 +107,6 @@ export async function POST(request: NextRequest) {
     ...document,
     identifier: formatDocumentIdentifier('ORDEM_SERVICO', document.number, document.year),
     itemCount: items.length,
+    autoAdmissions: admittedScouts.length,
   })
 }
