@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import type { CategorySpec, OrdemSection } from '@/types/ordem-item'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS } from '@/types/ordem-item'
 import { scoutDisplayName, type Scout } from '@/types/scout'
@@ -293,7 +294,7 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
           </select>
           {sortedScouts.length === 0 && (
             <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-              Sem membros para esta secção. <a href="/membros" className="underline">Criar primeiro</a>.
+              Sem membros para esta secção. <Link href="/membros" className="underline">Criar primeiro</Link>.
             </p>
           )}
         </div>
