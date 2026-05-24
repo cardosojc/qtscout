@@ -159,6 +159,13 @@ emails) → batch upsert in parallel with per-row try/catch.
 - `src/types/` — domain types (`document`, `meeting`, `ordem-servico`,
   `ordem-item`, `scout`, `leader-role`)
 
+## Deeper reading
+
+`docs/architecture.md` — full source tree map, domain ER summary, OS pipeline
+walkthrough, PDF pipeline, SIIE import flow, and the database workflow with
+the Prisma drift workaround. Read it before non-trivial changes; this file
+is the quick reference.
+
 ## Gotchas
 
 - Dynamic route params are Promises:
