@@ -122,10 +122,26 @@ model Scout {
   updatedAt             DateTime      @updatedAt
 
   // Relations
-  profile Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  leaders ScoutLeader[]
+  profile      Profile?            @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  leaders      ScoutLeader[]
+  nightsBadges ScoutNightsBadge[]
 
   @@map("scouts")
+}
+
+model ScoutNightsBadge {
+  id        String   @id @default(cuid())
+  scoutId   String
+  count     Int
+  awardedAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scout Scout @relation(fields: [scoutId], references: [id], onDelete: Cascade)
+
+  @@unique([scoutId, count])
+  @@index([awardedAt])
+  @@map("scout_nights_badges")
 }
 
 model ScoutLeader {

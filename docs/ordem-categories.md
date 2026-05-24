@@ -20,7 +20,6 @@ Do not edit by hand — run `npm run docs:sync`.
 | `SAIDA_ATIVO_SECCAO` | MEMBER_REF | SECTION | `data.efetivo.saidaAtivo[section].push` |
 | `SAIDA_ATIVO_DIRIGENTE` | STRING | GROUP | `data.efetivo.saidaAtivo.dirigentes.push` |
 | `PROGRESSO` | MEMBER_REF | SECTION | `data.sistemaProgresso[section].push` |
-| `NOITES_CAMPO` | NOITES_REF | SECTION | `data.noitesCampo[section].push` |
 | `ACCAO_DISCIPLINAR` | STRING | GROUP | `data.justicaDisciplina.accoesDisicplinares.push` |
 | `DISTINCAO_PREMIO` | TEXT | GROUP | — |
 | `RETIFICACAO` | STRING | GROUP | `data.retificacoes.push` |

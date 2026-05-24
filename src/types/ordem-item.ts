@@ -77,8 +77,8 @@ export const ORDEM_CATEGORIES = [
   // Sistema de Progresso
   { key: 'PROGRESSO', label: 'Sistema de Progresso', shape: 'MEMBER_REF', scope: 'SECTION' },
 
-  // Noites de Campo
-  { key: 'NOITES_CAMPO', label: 'Noites de Campo', shape: 'NOITES_REF', scope: 'SECTION' },
+  // Noites de Campo are tracked per scout as milestones (ScoutNightsBadge)
+  // and auto-included at generation time — not a manual category.
 
   // Justiça e Disciplina (group)
   { key: 'ACCAO_DISCIPLINAR', label: 'Ação Disciplinar', shape: 'STRING', scope: 'GROUP' },

@@ -32,3 +32,15 @@ export interface Scout {
 export function scoutDisplayName(s: Pick<Scout, 'firstName' | 'lastName'>): string {
   return `${s.firstName} ${s.lastName}`.trim()
 }
+
+export const NIGHTS_BADGE_COUNTS = [25, 50, 75, 100, 200] as const
+export type NightsBadgeCount = (typeof NIGHTS_BADGE_COUNTS)[number]
+
+export function isNightsBadgeCount(value: unknown): value is NightsBadgeCount {
+  return typeof value === 'number' && (NIGHTS_BADGE_COUNTS as readonly number[]).includes(value)
+}
+
+export interface NightsBadge {
+  count: NightsBadgeCount
+  awardedAt: string
+}

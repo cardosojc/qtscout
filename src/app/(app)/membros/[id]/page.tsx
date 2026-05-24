@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ScoutForm } from '@/components/membros/scout-form'
+import { NightsBadgesEditor } from '@/components/membros/nights-badges'
 import { scoutDisplayName, type Scout } from '@/types/scout'
 
 export default function MembroDetailPage() {
@@ -92,6 +93,13 @@ export default function MembroDetailPage() {
             <div><dt className="font-medium text-gray-700 dark:text-gray-200">Encarregado</dt><dd>{scout.encarregadoNome ?? '—'} {scout.encarregadoTelefone ? `(${scout.encarregadoTelefone})` : ''}{scout.encarregadoEmail ? ` ${scout.encarregadoEmail}` : ''}</dd></div>
           </dl>
         )}
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+          Insígnias de Noites de Campo
+        </h2>
+        <NightsBadgesEditor scoutId={scout.id} canEdit={user?.role === 'ADMIN'} />
       </div>
     </main>
   )

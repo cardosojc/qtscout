@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Apenas administradores podem gerar Ordens de Serviço' }, { status: 403 })
   }
 
-  const [items, admittedScouts] = await Promise.all([
+  const [items, admittedScouts, nightsBadges] = await Promise.all([
     prisma.ordemItem.findMany({
       where: {
         date: { gte: from, lte: to },
@@ -52,10 +52,25 @@ export async function POST(request: NextRequest) {
       select: { firstName: true, lastName: true, numeroAssociado: true, section: true, joinedAt: true },
       orderBy: [{ section: 'asc' }, { joinedAt: 'asc' }],
     }),
+    prisma.scoutNightsBadge.findMany({
+      where: {
+        awardedAt: { gte: from, lte: to },
+        scout: { section: { not: null } },
+      },
+      select: {
+        count: true,
+        awardedAt: true,
+        scout: { select: { firstName: true, lastName: true, numeroAssociado: true, section: true } },
+      },
+      orderBy: [{ count: 'asc' }, { awardedAt: 'asc' }],
+    }),
   ])
 
-  if (items.length === 0 && admittedScouts.length === 0) {
-    return NextResponse.json({ error: 'Sem itens nem admissões neste intervalo' }, { status: 400 })
+  if (items.length === 0 && admittedScouts.length === 0 && nightsBadges.length === 0) {
+    return NextResponse.json(
+      { error: 'Sem itens, admissões nem insígnias neste intervalo' },
+      { status: 400 }
+    )
   }
 
   const formatDate = (d: Date) => d.toISOString().slice(0, 10)
@@ -73,6 +88,30 @@ export async function POST(request: NextRequest) {
         numeroAssociado: scout.numeroAssociado,
       })
     )
+  }
+
+  // Auto-include noites de campo milestones, grouped by (section, count).
+  // Each section ends up with a list of milestone entries, each carrying the
+  // names of the scouts that crossed that threshold in the period.
+  const milestoneIndex = new Map<string, { count: number; sectionKey: 'alcateia' | 'expedicao' | 'comunidade' | 'cla'; membros: string[] }>()
+  for (const badge of nightsBadges) {
+    const section = badge.scout.section
+    if (!section) continue
+    const sectionKey = SECTION_KEY[section as OrdemSection]
+    const k = `${sectionKey}:${badge.count}`
+    if (!milestoneIndex.has(k)) {
+      milestoneIndex.set(k, { count: badge.count, sectionKey, membros: [] })
+    }
+    milestoneIndex.get(k)!.membros.push(
+      scoutLabel({
+        firstName: badge.scout.firstName,
+        lastName: badge.scout.lastName,
+        numeroAssociado: badge.scout.numeroAssociado,
+      })
+    )
+  }
+  for (const { count, sectionKey, membros } of milestoneIndex.values()) {
+    assembled.noitesCampo[sectionKey].push({ count, membros })
   }
 
   const document = await prisma.$transaction(async (tx) => {
@@ -108,5 +147,6 @@ export async function POST(request: NextRequest) {
     identifier: formatDocumentIdentifier('ORDEM_SERVICO', document.number, document.year),
     itemCount: items.length,
     autoAdmissions: admittedScouts.length,
+    autoNightsBadges: nightsBadges.length,
   })
 }

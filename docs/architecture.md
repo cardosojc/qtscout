@@ -60,7 +60,9 @@ Scout (scouts)                                   # member, may or may not be a l
   │   firstName/lastName, dateOfBirth, joinedAt
   │   section: OrdemSection?                    # null = leader / unassigned
   │   profileId?                                # set when this scout is also a leader
-  └──< ScoutLeader (responsible leaders — UI not yet built)
+  ├──< ScoutLeader (responsible leaders — UI not yet built)
+  └──< ScoutNightsBadge                         # milestone per scout (25/50/75/100/200)
+         count, awardedAt                       # @@unique(scoutId, count)
 
 Meeting (meetings)
   │   type: CA | RD                             # via MeetingType
@@ -147,19 +149,24 @@ all of which require `Profile.section` to be set.
 ```
 1. Load OrdemItems where date in [from, to] AND includedInOsId IS NULL
 2. Load Scouts where joinedAt in [from, to] AND section IS NOT NULL
-3. resolveRefs(items)  ─────►  one query for scouts, one for profiles
-4. assembleOrdemServico(items, periodo, refs)
+3. Load ScoutNightsBadge where awardedAt in [from, to] AND scout.section IS NOT NULL
+4. resolveRefs(items)  ─────►  one query for scouts, one for profiles
+5. assembleOrdemServico(items, periodo, refs)
      │  fold each item into the matching OrdemServicoData bucket
      │  (see ordem-item.ts comment header for the full mapping)
      └─ snapshot is plain strings (resolved names), not refs
-5. Auto-include admissions:
+6. Auto-include admissions:
      for each admitted scout in [from, to]:
        data.efetivo.admissao[section].push(scoutLabel(scout))
-6. Transaction:
+7. Auto-include noites de campo:
+     group badges by (section, count)
+     for each group:
+       data.noitesCampo[section].push({ count, membros: [names] })
+8. Transaction:
      a) DocumentSequence.upsert       (next OS number, type=ORDEM_SERVICO year=0)
      b) Document.create               (content = JSON.stringify(assembled))
      c) OrdemItem.updateMany          (includedInOsId = doc.id) — locks them
-7. Return { id, identifier, itemCount, autoAdmissions }
+9. Return { id, identifier, itemCount, autoAdmissions, autoNightsBadges }
 ```
 
 The snapshot is immutable from then on. Items already `includedInOsId`

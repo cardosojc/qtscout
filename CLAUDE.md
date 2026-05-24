@@ -104,6 +104,11 @@ items for their section. ADMIN can do anything.
 4. **Auto-includes admissions**: pulls `Scout` rows whose `joinedAt` is in
    the period and has a section; appends their names to
    `efetivo.admissao[section]`. `ADMISSAO` is not a manual category.
+   **Auto-includes noites de campo milestones**: pulls `ScoutNightsBadge`
+   rows whose `awardedAt` is in the period; groups by `(section, count)`
+   and pushes one `OSNoitesMilestone` per group into
+   `noitesCampo[section]`. `NOITES_CAMPO` is not a manual category — see
+   per-scout editor on `/membros/[id]`.
 5. Transactional: bumps `DocumentSequence`, creates the `Document`, marks
    source items as `includedInOsId`. Items already in an OS are
    immutable (item PATCH/DELETE returns 409).
@@ -121,6 +126,12 @@ optional so leaders/honorários can be tracked alongside section members.
 `Scout.profileId` optionally links to a `Profile` (for leaders who also
 have an account). SIIE import sets this on **create** when email matches an
 existing Profile — never overwrites a manual link.
+
+Noites de campo are tracked per scout as milestones in `ScoutNightsBadge`
+(unique on `(scoutId, count)`; counts come from
+`NIGHTS_BADGE_COUNTS = [25, 50, 75, 100, 200]`). The Scout detail page
+exposes a small editor with one date input per milestone (ADMIN-only
+writes via `PUT /api/scouts/[id]/nights-badges`).
 
 Item forms with `MEMBER_REF` / `NOITES_REF` / `SCOUT_OR_PROFILE_REF` shapes
 pick from `/api/scouts?section=…`. Leader picker calls

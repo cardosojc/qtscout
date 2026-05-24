@@ -240,7 +240,8 @@ export default function OrdemServicoPage() {
       if (res.ok) {
         const doc = await res.json()
         const parts = [`${doc.itemCount} itens`]
-        if (doc.autoAdmissions) parts.push(`${doc.autoAdmissions} admissões automáticas`)
+        if (doc.autoAdmissions) parts.push(`${doc.autoAdmissions} admissões`)
+        if (doc.autoNightsBadges) parts.push(`${doc.autoNightsBadges} insígnias`)
         showToast(`Ordem de Serviço ${doc.identifier} criada (${parts.join(', ')})`, 'success')
         setGenerating(false)
         router.push(`/documents/${doc.id}`)
