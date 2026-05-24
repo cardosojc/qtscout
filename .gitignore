@@ -46,3 +46,7 @@ prisma/*.db-journal
 .auth/
 playwright-report/
 test-results/
+
+# Claude Code local state
+.claude/cache/
+.claude/settings.local.json

@@ -161,10 +161,25 @@ emails) → batch upsert in parallel with per-row try/catch.
 
 ## Deeper reading
 
-`docs/architecture.md` — full source tree map, domain ER summary, OS pipeline
-walkthrough, PDF pipeline, SIIE import flow, and the database workflow with
-the Prisma drift workaround. Read it before non-trivial changes; this file
-is the quick reference.
+- `docs/architecture.md` — full source tree map, domain ER summary, OS
+  pipeline walkthrough, PDF pipeline, SIIE import flow, and the database
+  workflow with the Prisma drift workaround. Read before non-trivial work;
+  this file is the quick reference.
+- `docs/ordem-categories.md` — generated category → snapshot bucket table.
+  Always reflects the current catalog and assembler.
+
+## Keeping docs current
+
+A Stop hook (`scripts/check-docs-drift.sh`, registered in
+`.claude/settings.json`) fires when this session ends. If any watchlisted
+file changed in the working tree (schema, OS catalog, assembler, resolver,
+permissions, PDF generator, key route handlers) but neither `CLAUDE.md` nor
+`docs/architecture.md` was touched, the hook surfaces a reminder before the
+session can stop. Fires at most once per session.
+
+When the catalog or assembler changes, run `npm run docs:sync` to refresh
+`docs/ordem-categories.md`. CI / pre-commit can run `npm run docs:check`,
+which fails if the file is stale.
 
 ## Gotchas
 
