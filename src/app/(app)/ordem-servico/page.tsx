@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
@@ -99,6 +99,18 @@ export default function OrdemServicoPage() {
   const [genFrom, setGenFrom] = useState('')
   const [genTo, setGenTo] = useState('')
 
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [importSummary, setImportSummary] = useState<
+    | {
+        total: number
+        created: number
+        updated: number
+        skipped: number
+        errors: { row: number; descricao: string; error: string }[]
+      }
+    | null
+  >(null)
+
   useEffect(() => {
     if (!user) return
     Promise.all([
@@ -119,10 +131,12 @@ export default function OrdemServicoPage() {
     if (!profile) return []
     if (profile.role === 'ADMIN') return Object.values(CATEGORY_MAP)
     const hasGroup = profile.roles.some((r) => GROUP_ROLES.includes(r))
-    const hasSection = profile.roles.some((r) => SECTION_ROLES.includes(r))
-    return Object.values(CATEGORY_MAP).filter((c) =>
-      c.scope === 'GROUP' ? hasGroup : hasSection && profile.section != null
-    )
+    const hasSection = profile.roles.some((r) => SECTION_ROLES.includes(r)) && profile.section != null
+    return Object.values(CATEGORY_MAP).filter((c) => {
+      if (c.scope === 'GROUP') return hasGroup
+      if (c.scope === 'SECTION') return hasSection
+      return hasGroup || hasSection
+    })
   }, [profile])
 
   const fetchItems = useCallback(async () => {
@@ -184,6 +198,33 @@ export default function OrdemServicoPage() {
     }
   }
 
+  const handleImportActivities = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    startLoading('A importar atividades...')
+    try {
+      const res = await fetch('/api/ordem-items/import-activities', { method: 'POST', body: formData })
+      if (res.ok) {
+        const data = await res.json()
+        setImportSummary(data.summary)
+        const s = data.summary
+        showToast(
+          `${s.created} criadas, ${s.updated} atualizadas, ${s.skipped} ignoradas, ${s.errors.length} erros`,
+          s.errors.length > 0 ? 'error' : 'success'
+        )
+        fetchItems()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao importar', 'error')
+      }
+    } finally {
+      stopLoading()
+      if (importInputRef.current) importInputRef.current.value = ''
+    }
+  }
+
   const handleGenerate = async () => {
     if (!genFrom || !genTo) {
       showToast('Selecione o intervalo de datas', 'error')
@@ -228,14 +269,57 @@ export default function OrdemServicoPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Ordem de Serviço</h1>
         {canGenerate && (
-          <button
-            onClick={() => setGenerating(true)}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            Gerar Ordem de Serviço
-          </button>
+          <div className="flex gap-2 flex-wrap">
+            <label className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors">
+              Importar Atividades (SIIE)
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={handleImportActivities}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={() => setGenerating(true)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Gerar Ordem de Serviço
+            </button>
+          </div>
         )}
       </div>
+
+      {importSummary && (
+        <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg shadow-sm p-4">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Resultado da importação
+            </h2>
+            <button
+              onClick={() => setImportSummary(null)}
+              className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              Fechar
+            </button>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-200">
+            {importSummary.total} linhas processadas — <strong>{importSummary.created}</strong> criadas,{' '}
+            <strong>{importSummary.updated}</strong> atualizadas,{' '}
+            <strong>{importSummary.skipped}</strong> ignoradas (já numa OS),{' '}
+            <strong>{importSummary.errors.length}</strong> erros.
+          </p>
+          {importSummary.errors.length > 0 && (
+            <ul className="mt-3 text-xs text-red-700 dark:text-red-300 space-y-1 max-h-40 overflow-y-auto">
+              {importSummary.errors.map((e, i) => (
+                <li key={i}>
+                  Linha {e.row}{e.descricao ? ` — ${e.descricao}` : ''}: {e.error}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Add item */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">

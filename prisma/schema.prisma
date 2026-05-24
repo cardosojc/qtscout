@@ -201,6 +201,7 @@ model DocumentSettings {
 
 model OrdemItem {
   id              String        @id @default(cuid())
+  externalId      String?       @unique
   category        String
   section         OrdemSection?
   date            DateTime

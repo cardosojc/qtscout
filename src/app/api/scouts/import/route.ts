@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { getSession } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
-import { mapRow, type ImportRow, type MappedRow } from '@/lib/siie-import'
+import { mapRow, type ImportRow, type ScoutImportPayload } from '@/lib/siie-import'
 
 export const runtime = 'nodejs'
 
@@ -13,6 +13,8 @@ type ImportSummary = {
   linkedToProfile: number
   errors: { row: number; nome: string; error: string }[]
 }
+
+type ValidRow = { row: number; nin: string; payload: ScoutImportPayload }
 
 export async function POST(request: NextRequest) {
   const session = await getSession()
@@ -41,14 +43,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Pre-load profiles for email-based linking (leaders only)
-  const profileEmails = await prisma.profile.findMany({
-    select: { id: true, email: true },
-  })
-  const emailToProfileId = new Map<string, string>(
-    profileEmails.map((p) => [p.email.toLowerCase(), p.id])
-  )
-
   const summary: ImportSummary = {
     total: rows.length,
     created: 0,
@@ -57,62 +51,82 @@ export async function POST(request: NextRequest) {
     errors: [],
   }
 
-  // Sequentially process to keep summary deterministic; volume is small (~100s).
+  // Phase 1: validate + collect valid rows
+  const valid: ValidRow[] = []
   for (let i = 0; i < rows.length; i++) {
-    const mapped: MappedRow = mapRow(rows[i], i + 2) // +2: header is row 1, data starts at 2
+    const mapped = mapRow(rows[i], i + 2) // +2: header is row 1
     if (!mapped.ok) {
       summary.errors.push({ row: mapped.row, nome: mapped.nome, error: mapped.error })
       continue
     }
+    valid.push({ row: i + 2, nin: mapped.nin, payload: mapped.payload })
+  }
 
-    const { payload, nin } = mapped
+  if (valid.length === 0) {
+    return NextResponse.json({ summary })
+  }
 
-    // Find existing scout by numeroAssociado
-    const existing = await prisma.scout.findUnique({
-      where: { numeroAssociado: nin },
-      select: { id: true, profileId: true },
-    })
+  // Phase 2: single round-trip lookups for upsert decisions
+  const [existingScouts, profiles] = await Promise.all([
+    prisma.scout.findMany({
+      where: { numeroAssociado: { in: valid.map((v) => v.nin) } },
+      select: { numeroAssociado: true },
+    }),
+    prisma.profile.findMany({ select: { id: true, email: true } }),
+  ])
+  const existingNins = new Set(
+    existingScouts.map((s) => s.numeroAssociado).filter((n): n is string => n != null)
+  )
+  const emailToProfileId = new Map<string, string>(
+    profiles.map((p) => [p.email.toLowerCase(), p.id])
+  )
 
-    // Email-based profile link (only set if not already linked)
-    let profileIdToLink: string | null = null
-    if (payload.email) {
-      const match = emailToProfileId.get(payload.email.toLowerCase())
-      if (match && (!existing || !existing.profileId)) {
-        profileIdToLink = match
-      }
-    }
+  // Phase 3: batch upserts in parallel. Profile link is only applied on create,
+  // so existing manual links are preserved.
+  type UpsertOutcome =
+    | { ok: true; row: number; wasExisting: boolean; linkedProfile: boolean }
+    | { ok: false; row: number; nome: string; error: string }
 
-    try {
+  const outcomes = await Promise.all(
+    valid.map(async ({ row, nin, payload }): Promise<UpsertOutcome> => {
       const { joinedAt, ...rest } = payload
-      if (existing) {
-        await prisma.scout.update({
-          where: { id: existing.id },
-          data: {
-            ...rest,
-            ...(joinedAt ? { joinedAt } : {}),
-            ...(profileIdToLink ? { profile: { connect: { id: profileIdToLink } } } : {}),
-          },
+      const wasExisting = existingNins.has(nin)
+      const linkedProfileId = payload.email
+        ? emailToProfileId.get(payload.email.toLowerCase()) ?? null
+        : null
+      const profileConnect =
+        !wasExisting && linkedProfileId
+          ? { profile: { connect: { id: linkedProfileId } } }
+          : {}
+      try {
+        await prisma.scout.upsert({
+          where: { numeroAssociado: nin },
+          create: { ...rest, ...(joinedAt ? { joinedAt } : {}), ...profileConnect },
+          update: { ...rest, ...(joinedAt ? { joinedAt } : {}) },
         })
-        summary.updated++
-        if (profileIdToLink) summary.linkedToProfile++
-      } else {
-        await prisma.scout.create({
-          data: {
-            ...rest,
-            ...(joinedAt ? { joinedAt } : {}),
-            ...(profileIdToLink ? { profile: { connect: { id: profileIdToLink } } } : {}),
-          },
-        })
-        summary.created++
-        if (profileIdToLink) summary.linkedToProfile++
+        return { ok: true, row, wasExisting, linkedProfile: !wasExisting && linkedProfileId != null }
+      } catch (err) {
+        const e = err as { code?: string; message?: string }
+        return {
+          ok: false,
+          row,
+          nome: `${payload.firstName} ${payload.lastName}`.trim(),
+          error:
+            e.code === 'P2002'
+              ? 'Conflito de unicidade (já existe outro membro)'
+              : e.message ?? 'Erro desconhecido',
+        }
       }
-    } catch (err) {
-      const e = err as { code?: string; message?: string }
-      summary.errors.push({
-        row: i + 2,
-        nome: `${payload.firstName} ${payload.lastName}`.trim(),
-        error: e.code === 'P2002' ? 'Conflito de unicidade (já existe outro membro)' : (e.message ?? 'Erro desconhecido'),
-      })
+    })
+  )
+
+  for (const o of outcomes) {
+    if (o.ok) {
+      if (o.wasExisting) summary.updated++
+      else summary.created++
+      if (o.linkedProfile) summary.linkedToProfile++
+    } else {
+      summary.errors.push({ row: o.row, nome: o.nome, error: o.error })
     }
   }
 
