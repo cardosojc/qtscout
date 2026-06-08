@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test'
-import { TEST_USER } from '../helpers/auth'
 
 test.describe('Dashboard — Home Page', () => {
   test('not authenticated shows "Entre na sua conta"', async ({ browser }) => {
@@ -15,33 +14,25 @@ test.describe('Dashboard — Home Page', () => {
     await context.close()
   })
 
-  test('authenticated shows welcome message', async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByText(`Bem-vindo, ${TEST_USER.name}`)).toBeVisible()
-    await expect(
-      page.getByText('Gerencie as atas das suas reuniões de forma fácil e organizada.')
-    ).toBeVisible()
-  })
+  test('not authenticated shows system title and footer', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
 
-  test('nav buttons are visible and link correctly', async ({ page }) => {
-    await page.goto('/')
-
-    const newMeetingLink = page.getByRole('link', { name: 'Nova Reunião' }).first()
-    await expect(newMeetingLink).toBeVisible()
-    await expect(newMeetingLink).toHaveAttribute('href', '/meetings/new')
-
-    const viewMeetingsLink = page.getByRole('link', { name: 'Ver Reuniões' })
-    await expect(viewMeetingsLink).toBeVisible()
-    await expect(viewMeetingsLink).toHaveAttribute('href', '/meetings')
-
-    const searchLink = page.getByRole('link', { name: 'Pesquisar' }).first()
-    await expect(searchLink).toBeVisible()
-    await expect(searchLink).toHaveAttribute('href', '/search')
-  })
-
-  test('page shows system title and footer', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Sistema de Atas de Reunião' })).toBeVisible()
     await expect(page.getByText('CNE - instituição de utilidade pública')).toBeVisible()
+
+    await context.close()
+  })
+
+  test('authenticated user is redirected to /meetings', async ({ page }) => {
+    // The home page redirects signed-in users to /meetings once the profile
+    // loads (a few auth round-trips). Use waitUntil:'commit' so the initial
+    // navigation doesn't race with the client redirect (which can abort a
+    // 'load' wait), and allow generous time for the auth chain.
+    test.setTimeout(45_000)
+    await page.goto('/', { waitUntil: 'commit' })
+    await page.waitForURL('**/meetings', { timeout: 30_000 })
+    await expect(page.getByRole('heading', { name: 'Reuniões' })).toBeVisible()
   })
 })

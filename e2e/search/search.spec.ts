@@ -18,7 +18,7 @@ test.describe('Search', () => {
   })
 
   test('text query shows debounced results', async ({ page }) => {
-    const searchInput = page.locator('input[placeholder="Procurar no conteúdo, agenda, ações..."]')
+    const searchInput = page.locator('input[placeholder="Pesquisar no conteúdo..."]')
     await searchInput.fill('Pesquisa Teste')
 
     // Click search to trigger results immediately
@@ -27,9 +27,9 @@ test.describe('Search', () => {
     // Wait for results
     await page.waitForLoadState('networkidle')
 
-    // Should show results count or no-results message
-    const hasResults = await page.getByText('Encontradas').isVisible().catch(() => false)
-    const noResults = await page.getByText('Nenhuma reunião encontrada').isVisible().catch(() => false)
+    // Should show a results count ("N resultados") or the no-results message
+    const hasResults = await page.getByText(/\d+ resultados?/).first().isVisible().catch(() => false)
+    const noResults = await page.getByText('Nenhum resultado encontrado.').isVisible().catch(() => false)
     expect(hasResults || noResults).toBeTruthy()
   })
 
@@ -48,9 +48,10 @@ test.describe('Search', () => {
     await page.getByRole('button', { name: 'Pesquisar' }).click()
     await page.waitForLoadState('networkidle')
 
-    // Page should show either results or no-results
-    const searchSection = page.locator('[aria-live="polite"]')
-    await expect(searchSection).toBeVisible()
+    // Search should complete and render the results region (count or empty msg)
+    await expect(
+      page.getByText(/\d+ resultados?/).first().or(page.getByText('Nenhum resultado encontrado.')),
+    ).toBeVisible()
   })
 
   test('date range filter works', async ({ page }) => {
@@ -64,7 +65,7 @@ test.describe('Search', () => {
   })
 
   test('Limpar resets filters and results', async ({ page }) => {
-    const searchInput = page.locator('input[placeholder="Procurar no conteúdo, agenda, ações..."]')
+    const searchInput = page.locator('input[placeholder="Pesquisar no conteúdo..."]')
     await searchInput.fill('test query')
 
     await page.getByRole('button', { name: 'Limpar' }).click()
@@ -73,28 +74,26 @@ test.describe('Search', () => {
   })
 
   test('no results message appears for unmatched query', async ({ page }) => {
-    const searchInput = page.locator('input[placeholder="Procurar no conteúdo, agenda, ações..."]')
+    const searchInput = page.locator('input[placeholder="Pesquisar no conteúdo..."]')
     await searchInput.fill('zzz_impossible_query_zzz')
 
     await page.getByRole('button', { name: 'Pesquisar' }).click()
     await page.waitForLoadState('networkidle')
 
-    await expect(
-      page.getByText('Nenhuma reunião encontrada com os critérios especificados.')
-    ).toBeVisible()
+    await expect(page.getByText('Nenhum resultado encontrado.')).toBeVisible()
   })
 
   test('result links navigate to meeting detail', async ({ page }) => {
     // Search for something that should have results
-    const searchInput = page.locator('input[placeholder="Procurar no conteúdo, agenda, ações..."]')
+    const searchInput = page.locator('input[placeholder="Pesquisar no conteúdo..."]')
     await searchInput.fill('Searchable Location E2E')
     await page.getByRole('button', { name: 'Pesquisar' }).click()
     await page.waitForLoadState('networkidle')
 
-    const hasResults = await page.getByText('Encontradas').isVisible().catch(() => false)
+    const hasResults = await page.getByText(/\d+ resultados?/).first().isVisible().catch(() => false)
     if (hasResults) {
-      const verLink = page.getByRole('link', { name: 'Ver' }).first()
-      await verLink.click()
+      // Result rows are clickable cards that navigate to the meeting detail.
+      await page.locator('div[class*="cursor-pointer"]').first().click()
       await expect(page).toHaveURL(/\/meetings\//)
     }
   })

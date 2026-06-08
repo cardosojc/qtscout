@@ -1,0 +1,20 @@
+{
+  "name": "@qtscout/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qtscout/db": "*",
+    "@qtscout/types": "*",
+    "@supabase/supabase-js": "^2.95.3"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

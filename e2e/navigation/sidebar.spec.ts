@@ -33,6 +33,8 @@ test.describe('Sidebar', () => {
   })
 
   test('shows user name', async ({ page }) => {
-    await expect(page.getByText(TEST_USER.name)).toBeVisible()
+    // Sidebar renders in both the mobile drawer (hidden on desktop) and the
+    // desktop rail, so the name matches twice — assert the visible one.
+    await expect(page.getByText(TEST_USER.name).filter({ visible: true })).toBeVisible()
   })
 })

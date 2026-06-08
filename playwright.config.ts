@@ -2,8 +2,9 @@ import { defineConfig, devices } from '@playwright/test'
 import dotenv from 'dotenv'
 import path from 'path'
 
-// Load .env.local so Supabase/DB vars are available in setup and tests
-dotenv.config({ path: path.resolve(__dirname, '.env.local') })
+// Load env so Supabase/DB vars are available in setup and tests. The single
+// source of truth lives in the web app during the monorepo transition.
+dotenv.config({ path: path.resolve(__dirname, 'apps/web/.env.local') })
 
 export default defineConfig({
   testDir: './e2e',
@@ -35,10 +36,12 @@ export default defineConfig({
     },
   ],
 
+  // `npm run dev` runs `turbo run dev`, which starts BOTH the web app (:3000)
+  // and the standalone API (:3001) in parallel.
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 })

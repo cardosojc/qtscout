@@ -4,55 +4,86 @@ Meeting minutes + document management for **Agrupamento 61 – Santa Maria dos
 Olivais** (CNE). All user-facing strings are **pt-PT**. Never add emojis to UI
 or files unless asked.
 
+## Monorepo
+
+npm workspaces + Turborepo. The backend was extracted from Next.js into a
+standalone **Hono** API so other clients can use it; the UI stays in Next.js
+and talks to the API over `fetch` + Bearer token.
+
+- `apps/web` — Next.js 15 UI (no DB / business logic). Calls the API via
+  `apiFetch()` (`apps/web/src/lib/api-client.ts`).
+- `apps/api` — Hono service (`tsx`), all 49 endpoints under `/api/*`.
+- `packages/types` (`@qtscout/types`) — pure TS types (incl. `session.ts`).
+- `packages/db` (`@qtscout/db`) — Prisma schema + client singleton.
+- `packages/core` (`@qtscout/core`) — backend logic: ordem-*, siie-*,
+  pdf-generator (+ `assets/images`), document-utils, ano-escutista.
+- `packages/auth` (`@qtscout/auth`) — Bearer-JWT verification → `Session`.
+
+Internal packages ship raw TS (no build); web consumes them via
+`transpilePackages`, the API via `tsx`. Run everything from the repo root.
+
 ## Stack
 
 - Next.js 15 App Router (Turbopack), React 19, TypeScript 5
-- Supabase Auth (`@supabase/ssr`) + Supabase Postgres
-- Prisma ORM (`prisma/schema.prisma`)
+- Hono (API) on `@hono/node-server` / `tsx`
+- Supabase Auth (`@supabase/ssr` in web; `@supabase/supabase-js` token
+  validation in the API) + Supabase Postgres
+- Prisma ORM (`packages/db/prisma/schema.prisma`)
 - TipTap rich text, Puppeteer-headless PDF, Tailwind CSS 4
 - `xlsx` (SheetJS) for SIIE imports
 
-Common commands: `npm run dev`, `npm run build`, `npm run lint`,
-`npx tsc --noEmit`, `npm run test:e2e`. Type-check is the fastest signal —
-prefer it over a full build when verifying changes.
+Common commands (root): `npm run dev` (starts web :3000 + api :3001),
+`npm run build`, `npm run typecheck`, `npm run lint`, `npm run test:e2e`.
+Type-check is the fastest signal — prefer `npm run typecheck` over a full
+build when verifying changes.
 
 ## Auth
 
-- Server: `const session = await getSession()` from `src/lib/auth-helpers.ts`
-  (cached per request). Returns `{ user: { id, email, name, username, role } }`
-  or `null`. Use this in every API route.
+One identity (Supabase), two transports: cookies for the web shell, **Bearer
+tokens** for the API.
+
+- API: routes use the `requireAuth` middleware (`apps/api/src/middleware/auth.ts`),
+  then read `c.get('session')`. Auth itself is `@qtscout/auth`:
+  `getSessionFromToken(jwt)` validates via `supabase.auth.getUser(token)` and
+  joins the `Profile`, returning the same `{ user: { id, email, name, username,
+  role } }` shape as before. `requireAdmin` gates ADMIN-only routes.
 - Client: `const { user, loading, signOut } = useAuth()` from
-  `src/components/providers/auth-provider.tsx`.
-- **No middleware** for route protection — each route checks `session`
-  explicitly. Admin checks are `session.user.role !== 'ADMIN'`.
-- Supabase admin client (for user-create/delete) lives in the route that
-  needs it; uses `SUPABASE_SECRET_KEY`.
+  `apps/web/src/components/providers/auth-provider.tsx`. All data calls go
+  through `apiFetch()`, which attaches the Supabase access token as Bearer.
+- **No authZ middleware** beyond `requireAuth`/`requireAdmin` — handlers check
+  `c.get('session').user.role` directly.
+- Supabase admin client (user create/delete) is `apps/api/src/lib/supabase-admin.ts`;
+  uses `SUPABASE_SECRET_KEY`.
+- Two endpoints stay in the web app (cookie/email-redirect recovery flow):
+  `POST /api/auth/{forgot,reset}-password`.
+- Never write `getSession()` (the old cookie helper) — it was removed from web.
 
 ## Database / Prisma — read carefully
 
-- Schema: `prisma/schema.prisma`. Connection via `DATABASE_URL` (pooler) +
-  `DIRECT_URL` for migrations. `prisma.config.ts` does manual env loading.
+- Schema: `packages/db/prisma/schema.prisma`. Connection via `DATABASE_URL`
+  (pooler) + `DIRECT_URL` for migrations. `packages/db/prisma.config.ts` does
+  manual env loading from `apps/web/.env.local` (single source of truth).
 - **Drift exists** in `_prisma_migrations`: `npx prisma migrate dev` will
   refuse to run because of a historical rolled-back migration row. Don't try
   to reset.
 - **Migration workflow**:
-  1. Edit `prisma/schema.prisma`.
+  1. Edit `packages/db/prisma/schema.prisma`.
   2. Create the migration folder + SQL manually under
-     `prisma/migrations/<YYYYMMDDHHMMSS>_<name>/migration.sql`.
+     `packages/db/prisma/migrations/<YYYYMMDDHHMMSS>_<name>/migration.sql`.
   3. Apply via the Supabase MCP (`mcp__claude_ai_Supabase__execute_sql`,
      project `apoltgoxrrzjteosljoo`). In the same SQL block, insert into
      `_prisma_migrations` so Prisma's status stays consistent.
-  4. Run `npx prisma generate`.
+  4. Run `npm run db:generate`.
   5. **Restart the dev server.** Turbopack caches the generated client and
      does not hot-reload `node_modules/@prisma/client` changes — symptoms are
      `Unknown argument 'x'` referring to fields that don't exist anymore.
 - Prefer `prisma.X.upsert` over find+create/update. For batches, use
   per-row upsert + `Promise.all` + `try/catch` per row (see
-  `src/app/api/scouts/import/route.ts`).
+  `apps/api/src/routes/scouts.ts`).
 
 ## Feature flags
 
-Defined in `src/flags.ts` using `@flags-sdk/vercel`. Three flags gate the
+Defined in `apps/web/src/flags.ts` using `@flags-sdk/vercel`. Three flags gate the
 document types: `oficio-enabled`, `circular-enabled`, `ordem-servico-enabled`.
 All default to `true`. Discovered at `/.well-known/vercel/flags`. The OS flag
 also controls visibility of the `/ordem-servico` sidebar nav entry.
@@ -74,32 +105,32 @@ name + roles in parentheses.
 Two phases: **logging** and **assembly**.
 
 **Logging.** Section leaders + group leaders log individual `OrdemItem`
-rows (`prisma/schema.prisma`). Each item has:
+rows (`packages/db/prisma/schema.prisma`). Each item has:
 - `category` (a string key, e.g. `ATIVIDADE`, `NOMEACAO_DIRIGENTE`) —
-  validated against the catalog in `src/types/ordem-item.ts`.
+  validated against the catalog in `packages/types/src/ordem-item.ts`.
 - `section` (`OrdemSection?`) — null = Agrupamento-level / leader / group
   item. Set = section-specific item.
 - `data` (JSON) — shape depends on category. See `ItemShape` enum and the
   `validateItemData` switch.
 - `externalId?` — used by SIIE imports to upsert.
 
-The catalog (`ORDEM_CATEGORIES` in `src/types/ordem-item.ts`) is the source
+The catalog (`ORDEM_CATEGORIES` in `packages/types/src/ordem-item.ts`) is the source
 of truth: it controls form rendering, permission checks, the API validator,
 and how the assembler routes each category. Categories declare a `scope`:
 `GROUP`, `SECTION`, or `BOTH`. `BOTH` is used by `ATIVIDADE` (the form picks
 "Destino: Agrupamento / Alcateia / …").
 
-Permissions: `src/lib/ordem-permissions.ts`. Group-level roles
+Permissions: `packages/core/src/ordem-permissions.ts`. Group-level roles
 (Chefe de Agrupamento + 4 others) can create group items; section-level
 roles (Chefe de Unidade, Adjunto, Instrutor + `Profile.section`) can create
 items for their section. ADMIN can do anything.
 
 **Assembly.** `POST /api/ordens-servico/generate` with `{ from, to }`:
 1. Loads all pending items (`includedInOsId IS NULL`) in the range.
-2. Resolves scout/profile refs via `src/lib/ordem-resolver.ts` (single
+2. Resolves scout/profile refs via `packages/core/src/ordem-resolver.ts` (single
    batched query for each table).
 3. `assembleOrdemServico()` folds items into `OrdemServicoData` JSON
-   (`src/types/ordem-servico.ts`). Snapshot is stored on `Document.content`
+   (`packages/types/src/ordem-servico.ts`). Snapshot is stored on `Document.content`
    so subsequent edits to source items don't change the generated doc.
 4. **Auto-includes admissions**: pulls `Scout` rows whose `joinedAt` is in
    the period and has a section; appends their names to
@@ -113,7 +144,7 @@ items for their section. ADMIN can do anything.
    source items as `includedInOsId`. Items already in an OS are
    immutable (item PATCH/DELETE returns 409).
 
-PDF render path unchanged for OS: `src/lib/pdf-generator.ts` reads the
+PDF render path unchanged for OS: `packages/core/src/pdf-generator.ts` reads the
 snapshotted JSON.
 
 ## Scouts (members)
@@ -136,7 +167,7 @@ writes via `PUT /api/scouts/[id]/nights-badges`).
 Each scout also has a manual `Scout.noitesCampoInicial` snapshot — the
 number of noites accumulated as of `NOITES_CAMPO_SNAPSHOT_DATE`
 (2025-10-01, start of the current ano escutista). `computeNoitesCampoAtual`
-in `src/types/scout.ts` returns the live total; today it just echoes the
+in `packages/types/src/scout.ts` returns the live total; today it just echoes the
 snapshot, with a `TODO` to add the delta from activities the scout
 participated in after that date once the participation model exists.
 
@@ -165,17 +196,21 @@ emails) → batch upsert in parallel with per-row try/catch.
 
 ## Where things live
 
-- `src/app/(app)/` — authenticated pages
+- `apps/web/src/app/(app)/` — authenticated pages
   - `meetings/`, `documents/`, `ordem-servico/`, `membros/`, `profile/`,
     `settings/`, `search/`
-- `src/app/api/` — route handlers (same structure)
-- `src/components/` — UI by domain (`documents/`, `ordem-servico/`,
+- `apps/web/src/app/api/` — ONLY `auth/{forgot,reset}-password` (recovery flow)
+- `apps/web/src/components/` — UI by domain (`documents/`, `ordem-servico/`,
   `membros/`, `editor/`, `providers/`, `ui/`)
-- `src/lib/` — shared (`auth-helpers`, `prisma`, `pdf-generator`,
-  `ordem-permissions`, `ordem-assembler`, `ordem-resolver`, `siie-import`,
-  `siie-atividades-import`, `document-utils`, `ano-escutista`)
-- `src/types/` — domain types (`document`, `meeting`, `ordem-servico`,
-  `ordem-item`, `scout`, `leader-role`)
+- `apps/web/src/lib/` — `api-client` (apiFetch), `supabase/`, `flags`
+- `apps/api/src/routes/` — one Hono router per domain (the ported handlers)
+- `apps/api/src/{middleware,lib}/` — `requireAuth`/`requireAdmin`,
+  `supabase-admin`, `pdf-response`
+- `packages/core/src/` — `pdf-generator`, `ordem-{permissions,assembler,resolver}`,
+  `siie-{import,atividades-import}`, `document-utils`, `ano-escutista`
+- `packages/types/src/` — domain types (`session`, `document`, `meeting`,
+  `ordem-servico`, `ordem-item`, `scout`, `leader-role`)
+- `packages/db/src/` — Prisma singleton; `packages/auth/src/` — token auth
 
 ## Deeper reading
 
@@ -201,9 +236,13 @@ which fails if the file is stale.
 
 ## Gotchas
 
-- Dynamic route params are Promises:
+- API route params (Hono): `c.req.param('id')`, query via `c.req.query('x')`.
+  Web page dynamic params are still Promises:
   `{ params }: { params: Promise<{ id: string }> }` → `const { id } = await params`.
-- Never write `getServerSession` (legacy NextAuth name); always `getSession()`.
+- Web data fetching goes through `apiFetch()` (Bearer), never relative
+  `fetch('/api/...')` — the routes no longer live in the web app.
+- API auth is Bearer-only via `requireAuth`; never reintroduce cookie
+  `getSession()` / `getServerSession`.
 - `useAuth()`'s `user.role` is `'ADMIN' | 'LEADER' | 'MEMBER'`, separate
   from `Profile.roles[]` (the array of human-readable leader role labels).
 - E2E tests in `e2e/` use Playwright with a shared `storageState`; test

@@ -1,0 +1,15 @@
+import { createBrowserClient } from '@supabase/ssr'
+import { processLock } from '@supabase/supabase-js'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      // Use an in-memory lock instead of the Web Locks API. navigator.locks can
+      // deadlock when a lock holder is abandoned (e.g. React StrictMode
+      // double-mount in dev, or a navigated-away tab), hanging getSession().
+      auth: { lock: processLock },
+    },
+  )
+}

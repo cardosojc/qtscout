@@ -38,8 +38,9 @@ export async function createTestMeeting(page: Page, overrides: {
   // Submit
   await page.getByRole('button', { name: 'Criar Reunião' }).click()
 
-  // Wait for redirect to detail page
-  await page.waitForURL(/\/meetings\/[a-zA-Z0-9-]+$/)
+  // Wait for redirect to the detail page. Exclude /meetings/new (the form URL)
+  // so we don't resolve before the post-create redirect actually happens.
+  await page.waitForURL(/\/meetings\/(?!new$)[a-zA-Z0-9-]+$/)
 
   return page.url()
 }

@@ -15,7 +15,8 @@ test.describe('Meetings List', () => {
     await page.waitForLoadState('networkidle')
 
     const emptyMsg = page.getByText('Ainda não há reuniões criadas.')
-    const meetingCards = page.locator('text=Ver').first()
+    // Cards carry a PDF link; the card itself is clickable for the detail view.
+    const meetingCards = page.getByRole('link', { name: 'PDF' }).first()
 
     // Either we have meetings or the empty state
     const hasEmpty = await emptyMsg.isVisible().catch(() => false)
@@ -35,9 +36,7 @@ test.describe('Meetings List', () => {
     await page.goto('/meetings')
     await page.waitForLoadState('networkidle')
 
-    // Should have action buttons on the first meeting card
-    await expect(page.getByRole('link', { name: 'Ver' }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Editar' }).first()).toBeVisible()
+    // Cards expose PDF + Eliminar; the card body itself links to the detail view.
     await expect(page.getByRole('link', { name: 'PDF' }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Eliminar' }).first()).toBeVisible()
   })

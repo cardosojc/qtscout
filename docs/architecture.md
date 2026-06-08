@@ -4,42 +4,51 @@ Deeper notes for QTScout. Pair this with `CLAUDE.md` (operating notes / quick
 reference). When something here drifts from the code, the code wins — update
 this file or delete the stale section.
 
-## Top-level layout
+## Monorepo layout
+
+npm workspaces + Turborepo. Two deployables (`apps/*`) over four shared
+packages (`packages/*`). The UI (`apps/web`) talks to the standalone HTTP API
+(`apps/api`) over `fetch` + Bearer token — no in-process API anymore.
 
 ```
-src/
-├── app/
-│   ├── (app)/                    # Authenticated, sidebar-shell pages
-│   │   ├── meetings/             # CA / RD minutes
-│   │   ├── documents/            # Ofício / Circular / OS (read + create non-OS)
-│   │   ├── ordem-servico/        # Item logging + OS generation
-│   │   ├── membros/              # Scout CRUD + SIIE member import
-│   │   ├── profile/              # Per-user signature, roles, section
-│   │   ├── settings/             # Numbering, users (ADMIN-only)
-│   │   └── search/               # Full-text meeting search
-│   ├── api/                      # Route handlers, mirrors the (app) tree
-│   ├── auth/                     # Sign-in / sign-up
-│   ├── .well-known/              # Vercel flags discovery
-│   └── layout.tsx                # Fonts (Lato, Caveat), providers
-├── components/
-│   ├── ordem-servico/            # ItemForm with per-shape renderers
-│   ├── membros/                  # ScoutForm
-│   ├── documents/                # OrdemServicoView (legacy + new shape)
-│   ├── editor/                   # TipTap wrapper
-│   ├── providers/                # AuthProvider
-│   └── ui/                       # Sidebar, breadcrumbs, toast, loading
-├── lib/
-│   ├── auth-helpers.ts           # getSession() (cached, server-side)
-│   ├── prisma.ts                 # Prisma singleton
-│   ├── pdf-generator.ts          # Puppeteer headless: meetings + documents
-│   ├── ordem-permissions.ts      # canManageItem(), allowedCategoriesFor()
-│   ├── ordem-assembler.ts        # OrdemItem[] → OrdemServicoData snapshot
-│   ├── ordem-resolver.ts         # Batch resolve scout/profile refs
-│   ├── siie-import.ts            # SIIE scouts xlsx → ScoutImportPayload
-│   ├── siie-atividades-import.ts # SIIE activities xlsx → ActivityPayload
-│   └── supabase/                 # client.ts, server.ts, middleware.ts
-└── types/                        # Domain types
+apps/
+├── web/                          # Next.js 15 UI (no business logic / DB)
+│   ├── src/app/(app)/            # Authenticated, sidebar-shell pages
+│   │   ├── meetings/ documents/ ordem-servico/ membros/ profile/ settings/ search/
+│   ├── src/app/api/              # ONLY auth recovery flows that need Supabase
+│   │   └── auth/{forgot,reset}-password  # cookie/redirect-bound; stay in web
+│   ├── src/app/auth/             # Sign-in / sign-up / recovery pages
+│   ├── src/components/           # ordem-servico, membros, documents, editor, providers, ui
+│   ├── src/lib/api-client.ts     # apiFetch(): prepends NEXT_PUBLIC_API_URL + Bearer
+│   ├── src/lib/supabase/         # client.ts, server.ts, middleware.ts (session + flags)
+│   └── src/flags.ts              # Vercel flags (UI visibility + /documents gating)
+└── api/                          # Hono service — the standalone backend
+    └── src/
+        ├── index.ts              # app, CORS, mounts routers under /api
+        ├── load-env.ts           # loads env before @qtscout/db (Prisma) init
+        ├── middleware/auth.ts    # requireAuth (Bearer JWT) + requireAdmin
+        ├── lib/                  # supabase-admin, pdf-response
+        └── routes/               # one router per domain (auth, profile, profiles,
+                                   #   meeting-types, meetings, documents, scouts,
+                                   #   ordem-items, ordens-servico, search, settings,
+                                   #   users, ai) — ports of the old route handlers
+
+packages/
+├── types/   # @qtscout/types — pure TS types (zero runtime deps). session.ts, document.ts,
+│            #   meeting.ts, scout.ts, ordem-item.ts, ordem-servico.ts, leader-role.ts
+├── db/      # @qtscout/db — Prisma schema + client singleton; re-exports @prisma/client.
+│            #   prisma/schema.prisma + migrations + seed.ts + prisma.config.ts live here
+├── core/    # @qtscout/core — backend business logic (depends on db + types):
+│            #   ordem-{assembler,resolver,permissions}, siie-{import,atividades-import},
+│            #   pdf-generator (+ pdf-config + assets/images/*), document-utils, ano-escutista
+└── auth/    # @qtscout/auth — getSessionFromToken(jwt) + bearerFromHeader(); hydrates Profile
 ```
+
+Internal packages ship **raw TypeScript** (no build step): consumed by Next via
+`transpilePackages` and by the API via `tsx`. Subpath exports (`@qtscout/core/x`,
+`@qtscout/types/x`) keep heavy deps (Puppeteer, xlsx, Prisma) out of the web
+client bundle — web depends only on `@qtscout/types` + `@qtscout/core` (and only
+client-safe modules like `ano-escutista`).
 
 ## Domain model
 
@@ -90,17 +99,29 @@ OrdemItem (ordem_items)
 
 ## Auth flow
 
-1. User signs in via Supabase Auth (email/password). Session cookies are
-   set by `@supabase/ssr` (no Next middleware doing this).
-2. Server pages/routes call `getSession()` which:
-   - Reads the user from Supabase (cached via `cache()` per request).
-   - Joins to the `Profile` row (Prisma) by Supabase user id.
-   - Returns `{ user: { id, email, name, username, role } }` or `null`.
-3. Client uses `useAuth()` which calls `/api/auth/profile`.
+Single identity (Supabase Auth), two transports — cookies for the web shell,
+Bearer tokens for the API. This makes the API usable by any client.
 
-There is **no per-route middleware**. Each route checks `session` and
-`session.user.role` directly. This is intentional — keeps things explicit
-and avoids hidden behavior.
+1. User signs in via Supabase Auth (email/password). The `@supabase/ssr`
+   browser client stores the session in cookies; `apps/web/src/middleware.ts`
+   (`updateSession`) refreshes it on navigation.
+2. **Web → API.** `apps/web/src/lib/api-client.ts` `apiFetch()` reads the
+   access token via `supabase.auth.getSession()` and sends it as
+   `Authorization: Bearer <jwt>` to `NEXT_PUBLIC_API_URL`. The browser
+   `useAuth()` provider calls `apiFetch('/api/auth/profile')` to hydrate the user.
+3. **API auth.** `apps/api` `requireAuth` middleware (`@qtscout/auth`):
+   - `bearerFromHeader()` extracts the token.
+   - `getSessionFromToken()` validates it with `supabase.auth.getUser(token)`,
+     then joins the `Profile` row (Prisma) by Supabase user id.
+   - Produces the same `Session` shape the old cookie `getSession()` did, so
+     ported handlers are unchanged. `requireAdmin` gates ADMIN-only routes.
+4. **Other clients** authenticate against Supabase (e.g. password grant) and
+   send the resulting `access_token` as Bearer — identical server path.
+
+There is still **no per-route middleware for authZ** beyond `requireAuth` /
+`requireAdmin`; handlers check `c.get('session').user.role` directly. Two
+endpoints stay in the web app because they are bound to Supabase's cookie /
+email-redirect recovery flow: `POST /api/auth/{forgot,reset}-password`.
 
 ## Ordem de Serviço pipeline
 
@@ -176,11 +197,18 @@ items are not consulted at render time.
 
 ## PDF rendering
 
-Single browser launch per request, ~5–8 s cold on Vercel:
+Runs in **`apps/api`** (the only PDF generator now), via
+`@qtscout/core/pdf-generator`. Single browser launch per request, ~5–8 s cold:
 
 - Local dev: `puppeteer` (full bundle).
-- Production (Vercel): `puppeteer-core` + `@sparticuz/chromium-min`
+- Production: `puppeteer-core` + `@sparticuz/chromium-min`
   (Chromium binary fetched from GitHub release at startup).
+- These deps live in `@qtscout/core`, not in the web app.
+
+Header logos ship inside the package at `packages/core/assets/images/` and are
+resolved relative to the module (`import.meta.url`), with a `process.cwd()/public`
+fallback; they are base64-embedded into the HTML. The API returns the PDF as a
+binary body via `apps/api/src/lib/pdf-response.ts`.
 
 Meeting and Document each have a dedicated HTML generator
 (`generateMeetingHTML`, `generateDocumentHTML`). Fonts come from
@@ -226,12 +254,15 @@ The `_prisma_migrations` table has a historical rolled-back row that makes
 `prisma migrate dev` refuse to run. The workaround is documented in
 `CLAUDE.md`. In short:
 
-1. Edit `prisma/schema.prisma`.
-2. Author `prisma/migrations/<ts>_<name>/migration.sql` manually.
+1. Edit `packages/db/prisma/schema.prisma`.
+2. Author `packages/db/prisma/migrations/<ts>_<name>/migration.sql` manually.
 3. Execute via Supabase MCP + insert into `_prisma_migrations` in the
    same statement.
-4. `npx prisma generate`.
+4. `npm run db:generate` (runs `prisma generate` in `@qtscout/db`).
 5. **Restart the dev server.** Turbopack caches `@prisma/client`.
+
+Prisma config (`packages/db/prisma.config.ts`) loads env from
+`apps/web/.env.local` (single source of truth during the monorepo transition).
 
 The schema is the source of truth, the migrations are the audit trail —
 they're applied in the same transaction so the two stay in sync, but the
@@ -245,10 +276,39 @@ Three booleans via `@flags-sdk/vercel`, default `true`:
 - `circular-enabled`
 - `ordem-servico-enabled`
 
-Read server-side in `(app)/layout.tsx` and passed down to the sidebar +
-documents list as `enabledDocTypes`. The OS flag also controls visibility
-of the `/ordem-servico` nav entry. The Vercel Flags dashboard owns the
-overrides.
+Read server-side in `apps/web/src/app/(app)/layout.tsx` and passed down to the
+sidebar + documents list as `enabledDocTypes`. The OS flag also controls
+visibility of the `/ordem-servico` nav entry. `apps/web/src/middleware.ts`
+gates the `/documents` page by type. The Vercel Flags dashboard owns the
+overrides. Flags currently live **only in `apps/web`** (UI visibility +
+page gating); the API does not yet enforce them on create/generate — adding
+that is a follow-up if document-type gating must hold for non-browser clients.
+
+## Deployment
+
+Two Vercel projects from one repo:
+
+- **web** → root directory `apps/web` (Next.js, auto-detected). Env:
+  `NEXT_PUBLIC_*` + `NEXT_PUBLIC_API_URL` (the API's public origin) + the
+  Supabase/flags vars its server side still needs.
+- **api** → root directory `apps/api` (Hono). Env: `DATABASE_URL`,
+  `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+  `SUPABASE_SECRET_KEY`, `MISTRAL_API_KEY`, `WEB_ORIGIN` (CORS allow-list).
+  The PDF route needs elevated `maxDuration`/memory (was the only entry in the
+  old root `vercel.json`).
+
+CORS: `apps/api/src/index.ts` allows `WEB_ORIGIN` (defaults to
+`http://localhost:3000`) and the `Authorization` header.
+
+## Commands
+
+Run from the repo root (Turborepo fans out to workspaces):
+
+- `npm run dev` — starts web (:3000) **and** api (:3001) in parallel.
+- `npm run build` / `npm run typecheck` / `npm run lint`.
+- `npm run db:generate | db:migrate | db:seed` — proxy to `@qtscout/db`.
+- `npm run docs:sync | docs:check` — regenerate/verify `ordem-categories.md`.
+- `npm run test:e2e` — Playwright; its `webServer` runs `npm run dev` (both).
 
 ## Conventions
 

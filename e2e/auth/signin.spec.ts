@@ -10,13 +10,14 @@ test.describe('Sign In', () => {
     await page.goto('/auth/signin')
   })
 
-  test('valid login redirects to home with welcome message', async ({ page }) => {
+  test('valid login redirects into the app', async ({ page }) => {
     await page.locator('#email').fill(TEST_USER.email)
     await page.locator('#password').fill(TEST_USER.password)
     await page.locator('button[type="submit"]').click()
 
-    await page.waitForURL('/')
-    await expect(page.getByText(`Bem-vindo, ${TEST_USER.name}`)).toBeVisible()
+    // Login lands on '/', which redirects authenticated users to /meetings.
+    await page.waitForURL('**/meetings')
+    await expect(page.getByRole('heading', { name: 'Reuniões' })).toBeVisible()
   })
 
   test('invalid credentials shows error message', async ({ page }) => {

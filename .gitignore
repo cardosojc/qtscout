@@ -5,6 +5,9 @@ node_modules/
 .next/
 out/
 
+# Turborepo
+.turbo/
+
 # Build
 dist/
 build/
