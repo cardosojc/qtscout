@@ -5,6 +5,17 @@ import { requireAuth } from '../middleware/auth'
 import { pdfResponse } from '../lib/pdf-response'
 import type { AppEnv } from '../types'
 
+// A meeting's `identifier` (TYPE-YYYYMMDD) is unique, so only one meeting of a
+// given type can exist per day. Prisma raises P2002 on that constraint.
+function isDuplicateIdentifierError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
+  )
+}
+
 export const meetings = new Hono<AppEnv>()
 meetings.use('*', requireAuth)
 
@@ -94,6 +105,9 @@ meetings.post('/', async (c) => {
 
     return c.json(meeting)
   } catch (error) {
+    if (isDuplicateIdentifierError(error)) {
+      return c.json({ error: 'Já existe uma reunião deste tipo para esta data.' }, 409)
+    }
     console.error('Error creating meeting:', error)
     return c.json({ error: 'Failed to create meeting' }, 500)
   }
@@ -192,6 +206,9 @@ meetings.put('/:id', async (c) => {
 
     return c.json(updatedMeeting)
   } catch (error) {
+    if (isDuplicateIdentifierError(error)) {
+      return c.json({ error: 'Já existe uma reunião deste tipo para esta data.' }, 409)
+    }
     console.error('Error updating meeting:', error)
     return c.json({ error: 'Failed to update meeting' }, 500)
   }

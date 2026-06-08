@@ -72,10 +72,20 @@ documents.post('/', async (c) => {
       const settings = await tx.documentSettings.findUnique({ where: { type } })
       const startingNumber = settings?.startingNumber ?? 1
 
+      // `startingNumber` acts as a floor: the next document is at least
+      // `startingNumber`, otherwise one past the last assigned number. This
+      // lets an admin raise the starting number even after a sequence exists.
+      const existing = await tx.documentSequence.findUnique({
+        where: { type_year: { type, year: seqYear } },
+      })
+      const nextNumber = existing
+        ? Math.max(existing.currentNumber + 1, startingNumber)
+        : startingNumber
+
       const sequence = await tx.documentSequence.upsert({
         where: { type_year: { type, year: seqYear } },
-        create: { type, year: seqYear, currentNumber: startingNumber },
-        update: { currentNumber: { increment: 1 } },
+        create: { type, year: seqYear, currentNumber: nextNumber },
+        update: { currentNumber: nextNumber },
       })
 
       return tx.document.create({

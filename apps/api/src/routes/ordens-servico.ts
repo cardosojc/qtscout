@@ -102,10 +102,21 @@ ordensServico.post('/generate', requireAdmin, async (c) => {
   const document = await prisma.$transaction(async (tx) => {
     const settings = await tx.documentSettings.findUnique({ where: { type: 'ORDEM_SERVICO' } })
     const startingNumber = settings?.startingNumber ?? 1
+
+    // `startingNumber` acts as a floor: the next document is at least
+    // `startingNumber`, otherwise one past the last assigned number. This
+    // lets an admin raise the starting number even after a sequence exists.
+    const existing = await tx.documentSequence.findUnique({
+      where: { type_year: { type: 'ORDEM_SERVICO', year: 0 } },
+    })
+    const nextNumber = existing
+      ? Math.max(existing.currentNumber + 1, startingNumber)
+      : startingNumber
+
     const sequence = await tx.documentSequence.upsert({
       where: { type_year: { type: 'ORDEM_SERVICO', year: 0 } },
-      create: { type: 'ORDEM_SERVICO', year: 0, currentNumber: startingNumber },
-      update: { currentNumber: { increment: 1 } },
+      create: { type: 'ORDEM_SERVICO', year: 0, currentNumber: nextNumber },
+      update: { currentNumber: nextNumber },
     })
 
     const doc = await tx.document.create({
