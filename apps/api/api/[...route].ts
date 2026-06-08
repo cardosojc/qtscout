@@ -7,6 +7,10 @@ import bundle from '../dist/index.cjs'
 
 export const config = {
   maxDuration: 60,
+  // Let the Hono adapter read the raw request stream instead of Vercel parsing it.
+  api: {
+    bodyParser: false,
+  },
 }
 
 // The CJS bundle exposes the handler as its `default` export under Node's
