@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "build": "tsc --noEmit",
+    "build:vercel": "node esbuild.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "esbuild": "^0.25.0",
     "tsx": "^4.20.5",
     "typescript": "^5"
   }

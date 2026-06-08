@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd ../.. && npm run db:generate",
+  "buildCommand": "cd ../.. && npm run db:generate && cd apps/api && npm run build:vercel",
   "functions": {
     "api/[...route].ts": {
       "maxDuration": 60
