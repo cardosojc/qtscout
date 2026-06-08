@@ -83,8 +83,11 @@ setup('create test user and authenticate', async ({ page }) => {
   await page.locator('#password').fill(TEST_USER.password)
   await page.locator('button[type="submit"]').click()
 
-  await page.waitForURL('/')
-  await page.getByText(`Bem-vindo, ${TEST_USER.name}`).waitFor({ timeout: 10_000 })
+  // Sign-in pushes to '/', and the authenticated home redirects to /meetings
+  // once the profile loads from the API. Reaching /meetings therefore confirms
+  // the browser -> API (Bearer) auth path works end-to-end.
+  await page.waitForURL('**/meetings', { timeout: 30_000 })
+  await page.getByRole('link', { name: 'Reuniões' }).first().waitFor({ timeout: 15_000 })
 
   await page.context().storageState({ path: '.auth/user.json' })
 })

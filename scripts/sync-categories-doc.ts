@@ -8,11 +8,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ORDEM_CATEGORIES } from '../src/types/ordem-item'
+import { ORDEM_CATEGORIES } from '@qtscout/types/ordem-item'
 
 const __filename = fileURLToPath(import.meta.url)
 const REPO = path.resolve(path.dirname(__filename), '..')
-const ASSEMBLER_PATH = path.join(REPO, 'src/lib/ordem-assembler.ts')
+const ASSEMBLER_PATH = path.join(REPO, 'packages/core/src/ordem-assembler.ts')
 const OUTPUT_PATH = path.join(REPO, 'docs/ordem-categories.md')
 
 /**

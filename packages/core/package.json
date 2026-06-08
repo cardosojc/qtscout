@@ -1,0 +1,23 @@
+{
+  "name": "@qtscout/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.1",
+    "@qtscout/db": "*",
+    "@qtscout/types": "*",
+    "@sparticuz/chromium-min": "^143.0.4",
+    "puppeteer-core": "^24.37.3"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.37.5",
+    "typescript": "^5"
+  }
+}

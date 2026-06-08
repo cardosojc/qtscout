@@ -1,0 +1,307 @@
+'use client'
+import { apiFetch } from '@/lib/api-client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { useAuth } from '@/components/providers/auth-provider'
+import { useLoading } from '@/components/ui/loading-overlay'
+import { useToast } from '@/components/ui/toast'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
+import Link from 'next/link'
+import { DOCUMENT_TYPE_LABELS, type Document } from '@qtscout/types/document'
+import { OrdemServicoView } from '@/components/documents/ordem-servico-view'
+import { parseOrdemServicoData } from '@qtscout/types/ordem-servico'
+
+export default function DocumentDetailPage() {
+  const { user: session } = useAuth()
+  const params = useParams()
+  const router = useRouter()
+  const docId = params.id as string
+  const { startLoading, stopLoading } = useLoading()
+  const { showToast, showConfirm } = useToast()
+
+  const [document, setDocument] = useState<Document | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+
+  const fetchDocument = useCallback(async () => {
+    startLoading('A carregar documento...')
+    try {
+      setLoading(true)
+      const res = await apiFetch(`/api/documents/${docId}`)
+      if (res.ok) {
+        setDocument(await res.json())
+      } else if (res.status === 404) {
+        setError('Documento não encontrado')
+      } else {
+        setError('Erro ao carregar documento')
+      }
+    } catch {
+      setError('Erro ao carregar documento')
+    } finally {
+      setLoading(false)
+      stopLoading()
+    }
+  }, [docId, startLoading, stopLoading])
+
+  useEffect(() => {
+    if (session && docId) fetchDocument()
+  }, [session, docId, fetchDocument])
+
+  const handleSign = async () => {
+    if (!document) return
+    startLoading('A assinar...')
+    try {
+      const res = await apiFetch(`/api/documents/${document.id}/sign`, { method: 'POST' })
+      if (res.ok) {
+        showToast('Documento assinado', 'success')
+        await fetchDocument()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao assinar', 'error')
+      }
+    } finally {
+      stopLoading()
+    }
+  }
+
+  const handleUnsign = async () => {
+    if (!document) return
+    const confirmed = await showConfirm({
+      title: 'Remover assinatura',
+      message: 'Tem a certeza que deseja remover a assinatura deste documento?',
+      confirmLabel: 'Remover',
+    })
+    if (!confirmed) return
+    startLoading('A remover assinatura...')
+    try {
+      const res = await apiFetch(`/api/documents/${document.id}/sign`, { method: 'DELETE' })
+      if (res.ok) {
+        showToast('Assinatura removida', 'success')
+        await fetchDocument()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao remover assinatura', 'error')
+      }
+    } finally {
+      stopLoading()
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!document) return
+    const confirmed = await showConfirm({
+      title: 'Eliminar documento',
+      message: `Tem certeza que deseja eliminar "${document.identifier}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Eliminar',
+    })
+    if (!confirmed) return
+
+    startLoading('A eliminar...')
+    try {
+      const res = await apiFetch(`/api/documents/${docId}`, { method: 'DELETE' })
+      if (res.ok) {
+        showToast('Documento eliminado', 'success')
+        router.push('/documents')
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Erro ao eliminar', 'error')
+      }
+    } catch {
+      showToast('Erro ao eliminar', 'error')
+    } finally {
+      stopLoading()
+    }
+  }
+
+  const formatDateTime = (s: string) => new Date(s).toLocaleString('pt-PT')
+
+  if (!session) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <p>Precisa fazer login.</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
+      </div>
+    )
+  }
+
+  if (error || !document) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <p className="text-red-500">{error}</p>
+        <Link href="/documents" className="inline-block mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+          Voltar aos Documentos
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <main id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Breadcrumbs items={[
+        { label: 'Documentos', href: `/documents?type=${document.type}` },
+        { label: document.identifier },
+      ]} />
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors">
+        {/* Header */}
+        <div className="border-b border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                {document.identifier}
+              </h1>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                {DOCUMENT_TYPE_LABELS[document.type]}
+              </span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={async () => {
+                  if (pdfUrl) { setPdfUrl(null); return }
+                  startLoading('A gerar PDF...')
+                  try {
+                    const res = await apiFetch(`/api/documents/${document.id}/pdf`)
+                    if (res.ok) {
+                      const blob = await res.blob()
+                      setPdfUrl(URL.createObjectURL(blob))
+                    } else {
+                      showToast('Erro ao gerar PDF', 'error')
+                    }
+                  } catch {
+                    showToast('Erro ao gerar PDF', 'error')
+                  } finally {
+                    stopLoading()
+                  }
+                }}
+                className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-4 py-2 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+              >
+                {pdfUrl ? 'Fechar PDF' : 'Gerar PDF'}
+              </button>
+              {document.signedBy ? (
+                (session.id === document.signedBy.id || session.role === 'ADMIN') && (
+                  <button
+                    onClick={handleUnsign}
+                    className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 px-4 py-2 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+                  >
+                    Remover assinatura
+                  </button>
+                )
+              ) : (
+                <button
+                  onClick={handleSign}
+                  className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-4 py-2 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+                >
+                  Assinar
+                </button>
+              )}
+              {document.type !== 'ORDEM_SERVICO' && (
+                <Link
+                  href={`/documents/${document.id}/edit`}
+                  className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                >
+                  Editar
+                </Link>
+              )}
+              {session.role === 'ADMIN' && (
+                <button
+                  onClick={handleDelete}
+                  className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-4 py-2 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
+                >
+                  Eliminar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Inline PDF Viewer */}
+        {pdfUrl && (
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Pré-visualização</h3>
+              <a
+                href={`/api/documents/${document.id}/pdf?download=true`}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                Descarregar PDF
+              </a>
+            </div>
+            <iframe
+              src={pdfUrl}
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
+              style={{ height: '80vh' }}
+            />
+          </div>
+        )}
+
+        <div className="p-6 space-y-6">
+          {/* Meta */}
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+            <p><span className="font-medium">Criado por:</span> {document.createdBy.name || document.createdBy.email}</p>
+            <p><span className="font-medium">Criado em:</span> {formatDateTime(document.createdAt)}</p>
+            {document.updatedAt !== document.createdAt && (
+              <p><span className="font-medium">Atualizado em:</span> {formatDateTime(document.updatedAt)}</p>
+            )}
+          </div>
+
+          {/* Signature block */}
+          {document.signedBy && (
+            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-800 dark:text-gray-200 mb-2">Saudações Escutistas,</p>
+              {document.signedBy.signature ? (
+                <div className="bg-white rounded p-2 inline-block mb-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={document.signedBy.signature} alt="Assinatura" className="max-h-24 object-contain mx-auto" />
+                </div>
+              ) : (
+                <p
+                  className="text-4xl text-gray-900 dark:text-white mb-2"
+                  style={{ fontFamily: 'var(--font-caveat), cursive' }}
+                >
+                  {document.signedBy.name || document.signedBy.email}
+                </p>
+              )}
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                {document.signedBy.name || document.signedBy.email}
+                {document.signedBy.roles && document.signedBy.roles.length > 0 && (
+                  <span className="font-normal text-gray-600 dark:text-gray-300">
+                    {' '}
+                    ({document.signedBy.roles.join(', ')})
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Content */}
+          {document.type === 'ORDEM_SERVICO' && document.content?.trimStart().startsWith('{') ? (
+            <OrdemServicoView data={parseOrdemServicoData(document.content)} />
+          ) : document.content && document.content.trim() !== '' && document.content !== '<p></p>' ? (
+            <div
+              className="prose dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: document.content }}
+            />
+          ) : (
+            <p className="text-gray-400 dark:text-gray-500 italic">Sem conteúdo.</p>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center">
+          <Link href={`/documents?type=${document.type}`} className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
+            ← Voltar aos Documentos
+          </Link>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{document.identifier}</span>
+        </div>
+      </div>
+    </main>
+  )
+}

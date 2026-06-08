@@ -6,7 +6,8 @@ test.describe('Theme Toggle', () => {
     await page.waitForLoadState('networkidle')
 
     const html = page.locator('html')
-    const toggleBtn = page.locator('button[aria-label="Toggle theme"]')
+    // The sidebar renders twice (mobile drawer + desktop rail); target the visible toggle.
+    const toggleBtn = page.locator('button[aria-label="Toggle theme"]').filter({ visible: true })
 
     // Get initial state
     const initialClasses = await html.getAttribute('class') ?? ''
@@ -37,7 +38,8 @@ test.describe('Theme Toggle', () => {
     await page.waitForLoadState('networkidle')
 
     const html = page.locator('html')
-    const toggleBtn = page.locator('button[aria-label="Toggle theme"]')
+    // The sidebar renders twice (mobile drawer + desktop rail); target the visible toggle.
+    const toggleBtn = page.locator('button[aria-label="Toggle theme"]').filter({ visible: true })
 
     // Set to dark mode
     const initialClasses = await html.getAttribute('class') ?? ''
@@ -54,6 +56,6 @@ test.describe('Theme Toggle', () => {
     await expect(page.locator('html')).toHaveClass(/dark/)
 
     // Reset back to light for other tests
-    await page.locator('button[aria-label="Toggle theme"]').click()
+    await page.locator('button[aria-label="Toggle theme"]').filter({ visible: true }).click()
   })
 })
