@@ -2,7 +2,7 @@
 import { apiFetch } from '@/lib/api-client'
 
 import { useState, useEffect, useRef } from 'react'
-import { RichTextEditor } from '@/components/editor/rich-text-editor'
+import { RichTextEditor } from '@/components/editor/rich-text-editor-dynamic'
 import { useLoading } from '@/components/ui/loading-overlay'
 import type { MeetingType, AgendaItem, ActionItem } from '@qtscout/types/meeting'
 

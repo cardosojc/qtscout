@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
-import { RichTextEditor } from '@/components/editor/rich-text-editor'
+import { RichTextEditor } from '@/components/editor/rich-text-editor-dynamic'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { DOCUMENT_TYPE_LABELS, type Document } from '@qtscout/types/document'
 
