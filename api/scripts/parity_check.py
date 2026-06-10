@@ -28,6 +28,12 @@ GET_ENDPOINTS: list[str] = [
     "/api/health",
     "/api/meeting-types",
     "/api/settings/documents",
+    "/api/auth/profile",
+    "/api/profile/roles",
+    "/api/profile/section",
+    "/api/profile/signature",
+    "/api/profiles/leaders",
+    "/api/users",
 ]
 
 
