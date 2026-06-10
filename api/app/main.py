@@ -21,6 +21,7 @@ from app.routers import (
     documents,
     meeting_types,
     meetings,
+    ordem_items,
     profile,
     profiles,
     scouts,
@@ -76,5 +77,6 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(scouts.router, prefix="/api")
 app.include_router(meetings.router, prefix="/api")
 app.include_router(meeting_types.router, prefix="/api")
+app.include_router(ordem_items.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")

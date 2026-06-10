@@ -84,3 +84,7 @@ class OrdemItem(Base):
     included_in_os_id: Mapped[str | None] = mapped_column(
         "includedInOsId", String, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True
     )
+
+    created_by: Mapped["Profile"] = relationship(
+        "Profile", foreign_keys=[created_by_id], lazy="raise"
+    )
