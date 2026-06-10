@@ -16,6 +16,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.auth import close_http
 from app.config import get_settings
 from app.db import engine
+from app.routers import meeting_types
+from app.routers import settings as settings_router
 
 settings = get_settings()
 
@@ -55,6 +57,6 @@ async def health() -> dict[str, bool]:
     return {"ok": True}
 
 
-# Domain routers are mounted here as they are ported (Phase 2):
-# from app.routers import meetings, documents, scouts, ...
-# app.include_router(meetings.router, prefix="/api")
+# Domain routers (mounted under /api as they are ported in Phase 2).
+app.include_router(meeting_types.router, prefix="/api")
+app.include_router(settings_router.router, prefix="/api")
