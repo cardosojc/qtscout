@@ -34,9 +34,7 @@ def has_section_role(profile: ProfileForAuth) -> bool:
     return any(r in SECTION_ROLES for r in profile.roles)
 
 
-def can_manage_item(
-    profile: ProfileForAuth, category: CategorySpec, section: str | None
-) -> bool:
+def can_manage_item(profile: ProfileForAuth, category: CategorySpec, section: str | None) -> bool:
     if profile.role == "ADMIN":
         return True
 

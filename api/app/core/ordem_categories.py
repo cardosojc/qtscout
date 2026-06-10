@@ -47,9 +47,7 @@ ORDEM_CATEGORIES: tuple[CategorySpec, ...] = (
     CategorySpec(
         "NOMEACAO_SECCAO", "Nomeação/Exoneração na Secção", "SCOUT_OR_PROFILE_REF", "SECTION"
     ),
-    CategorySpec(
-        "NOMEACAO_DEPARTAMENTO", "Nomeação/Exoneração em Departamento", "STRING", "GROUP"
-    ),
+    CategorySpec("NOMEACAO_DEPARTAMENTO", "Nomeação/Exoneração em Departamento", "STRING", "GROUP"),
     CategorySpec("READMISSAO", "Readmissão de Associado", "MEMBER_REF", "SECTION"),
     CategorySpec("TRANSFERENCIA", "Transferência de Associado", "MEMBER_REF", "SECTION"),
     CategorySpec("PASSAGEM", "Passagem de Secção", "MEMBER_REF", "SECTION"),
@@ -128,11 +126,11 @@ def validate_item_data(shape: ItemShape, data: Any) -> ValidateResult:
         count = _to_float(d.get("count"))
         if count is None or count <= 0:
             return ValidateResult(False, error="count deve ser um número positivo")
-        membros = [
-            m.strip()
-            for m in d.get("membros", [])
-            if isinstance(m, str) and m.strip() != ""
-        ] if isinstance(d.get("membros"), list) else []
+        membros = (
+            [m.strip() for m in d.get("membros", []) if isinstance(m, str) and m.strip() != ""]
+            if isinstance(d.get("membros"), list)
+            else []
+        )
         return ValidateResult(True, value={"count": int(count), "membros": membros})
 
     if shape == "MEMBER_REF":
@@ -145,9 +143,11 @@ def validate_item_data(shape: ItemShape, data: Any) -> ValidateResult:
         count = _to_float(d.get("count"))
         if count is None or count <= 0:
             return ValidateResult(False, error="count deve ser um número positivo")
-        scout_ids = [
-            m for m in d.get("scoutIds", []) if isinstance(m, str) and m != ""
-        ] if isinstance(d.get("scoutIds"), list) else []
+        scout_ids = (
+            [m for m in d.get("scoutIds", []) if isinstance(m, str) and m != ""]
+            if isinstance(d.get("scoutIds"), list)
+            else []
+        )
         return ValidateResult(True, value={"count": int(count), "scoutIds": scout_ids})
 
     if shape == "PROFILE_REF":

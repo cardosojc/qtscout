@@ -68,9 +68,7 @@ async def _validate_refs(
 
     if scout_ids:
         found = (
-            await session.execute(
-                select(Scout.id, Scout.section).where(Scout.id.in_(scout_ids))
-            )
+            await session.execute(select(Scout.id, Scout.section).where(Scout.id.in_(scout_ids)))
         ).all()
         if len(found) != len(scout_ids):
             return "Membro não encontrado"
@@ -337,9 +335,7 @@ async def update_item(
 
     await session.commit()
     updated = await session.scalar(
-        select(OrdemItem)
-        .where(OrdemItem.id == item_id)
-        .options(selectinload(OrdemItem.created_by))
+        select(OrdemItem).where(OrdemItem.id == item_id).options(selectinload(OrdemItem.created_by))
     )
     assert updated is not None
     return {"item": OrdemItemOut.model_validate(updated)}

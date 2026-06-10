@@ -82,7 +82,7 @@ async def search_meetings(
     )
 
     if q and ts_query:
-        where_parts = ['m."contentTsvector" @@ to_tsquery(\'portuguese\', :tsq)']
+        where_parts = ["m.\"contentTsvector\" @@ to_tsquery('portuguese', :tsq)"]
         params: dict[str, Any] = {"tsq": ts_query}
         if type:
             where_parts.append('m."meetingTypeId" = :mtid')

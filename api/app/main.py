@@ -17,11 +17,13 @@ from app.auth import close_http
 from app.config import get_settings
 from app.db import engine
 from app.routers import (
+    ai,
     auth,
     documents,
     meeting_types,
     meetings,
     ordem_items,
+    ordens_servico,
     profile,
     profiles,
     scouts,
@@ -78,5 +80,7 @@ app.include_router(scouts.router, prefix="/api")
 app.include_router(meetings.router, prefix="/api")
 app.include_router(meeting_types.router, prefix="/api")
 app.include_router(ordem_items.router, prefix="/api")
+app.include_router(ordens_servico.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")

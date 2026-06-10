@@ -44,9 +44,9 @@ async def resolve_refs(session: AsyncSession, items: Sequence[OrdemItem]) -> Res
     if scout_ids:
         rows = (
             await session.execute(
-                select(
-                    Scout.id, Scout.first_name, Scout.last_name, Scout.numero_associado
-                ).where(Scout.id.in_(scout_ids))
+                select(Scout.id, Scout.first_name, Scout.last_name, Scout.numero_associado).where(
+                    Scout.id.in_(scout_ids)
+                )
             )
         ).all()
         scouts = {
