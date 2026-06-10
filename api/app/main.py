@@ -24,6 +24,7 @@ from app.routers import (
     profile,
     profiles,
     scouts,
+    search,
     users,
 )
 from app.routers import settings as settings_router
@@ -75,4 +76,5 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(scouts.router, prefix="/api")
 app.include_router(meetings.router, prefix="/api")
 app.include_router(meeting_types.router, prefix="/api")
+app.include_router(search.router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")

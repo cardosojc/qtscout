@@ -39,6 +39,10 @@ GET_ENDPOINTS: list[str] = [
     "/api/documents?type=OFICIO",
     "/api/documents?type=CIRCULAR",
     "/api/documents?type=ORDEM_SERVICO",
+    "/api/meetings",
+    "/api/search/meetings",
+    "/api/search/meetings?q=reuniao",
+    "/api/search/documents",
 ]
 
 

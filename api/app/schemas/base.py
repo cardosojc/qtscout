@@ -15,12 +15,13 @@ from pydantic import BaseModel, ConfigDict, PlainSerializer
 from pydantic.alias_generators import to_camel
 
 
-def _serialize_dt(value: datetime) -> str:
+def prisma_iso(value: datetime) -> str:
+    """Format a datetime like Prisma/`Date.toISOString()`: UTC, millis, `Z`."""
     dt = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
     return dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-PrismaDateTime = Annotated[datetime, PlainSerializer(_serialize_dt, return_type=str)]
+PrismaDateTime = Annotated[datetime, PlainSerializer(prisma_iso, return_type=str)]
 
 
 class ORMModel(BaseModel):

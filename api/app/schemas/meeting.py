@@ -43,3 +43,10 @@ class MeetingOut(MeetingBareOut):
     meeting_type: MeetingTypeOut
     created_by: CreatedByOut
     attendees: list[MeetingAttendeeOut]
+
+
+class MeetingSearchListOut(MeetingBareOut):
+    """Search fallback shape: meeting + meetingType + createdBy, no attendees."""
+
+    meeting_type: MeetingTypeOut
+    created_by: CreatedByOut
