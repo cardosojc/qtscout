@@ -1,12 +1,15 @@
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
 from app.models.ids import cuid_id
+
+if TYPE_CHECKING:
+    from app.models.profile import Profile
 
 
 class MeetingType(Base):
@@ -46,6 +49,14 @@ class Meeting(Base):
     )
     created_by_id: Mapped[str] = mapped_column("createdById", String, ForeignKey("profiles.id"))
 
+    meeting_type: Mapped["MeetingType"] = relationship("MeetingType", lazy="raise")
+    created_by: Mapped["Profile"] = relationship(
+        "Profile", foreign_keys=[created_by_id], lazy="raise"
+    )
+    attendees: Mapped[list["MeetingAttendee"]] = relationship(
+        "MeetingAttendee", lazy="raise", cascade="all, delete-orphan"
+    )
+
 
 class MeetingAttendee(Base):
     __tablename__ = "meeting_attendees"
@@ -59,3 +70,5 @@ class MeetingAttendee(Base):
         "meetingId", String, ForeignKey("meetings.id", ondelete="CASCADE")
     )
     profile_id: Mapped[str] = mapped_column("profileId", String, ForeignKey("profiles.id"))
+
+    profile: Mapped["Profile"] = relationship("Profile", lazy="raise")
