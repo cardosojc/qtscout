@@ -5,11 +5,15 @@ All domain routers mount under /api so the web client only swaps the origin
 consumed by the web app's type generation.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.auth import close_http
 from app.config import get_settings
 from app.db import engine
 
@@ -17,9 +21,10 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
     await engine.dispose()
+    await close_http()
 
 
 app = FastAPI(
@@ -36,6 +41,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Render errors as `{"error": ...}` to match the Hono API's response shape."""
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
 
 
 @app.get("/health")
