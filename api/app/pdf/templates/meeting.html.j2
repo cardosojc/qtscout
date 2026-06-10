@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 0; }
+    body {
+      font-family: 'Lato', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0 40px;
+      background: white;
+      min-height: 100vh;
+    }
+    .page-table { width: 100%; border-collapse: collapse; }
+    .page-table thead td { padding: 0; }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 0;
+      margin-bottom: 20px;
+    }
+    .header-left, .header-right { width: 70px; height: 70px; flex-shrink: 0; }
+    .header-left img, .header-right img { width: 70px; height: 70px; object-fit: contain; }
+    .header-center { flex: 1; text-align: center; }
+    .header-center strong { font-size: 16px; color: #1e40af; }
+    .header-center span { font-size: 12px; color: #555; }
+    .content { padding: 30px; }
+    h1 {
+      color: #1e40af;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 24px;
+      border-bottom: 3px solid #1e40af;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #1e40af;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-size: 18px;
+      border-left: 4px solid #1e40af;
+      padding-left: 10px;
+    }
+    h3 { color: #374151; margin-top: 20px; margin-bottom: 10px; font-size: 16px; }
+    .meeting-info {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      border-left: 4px solid #1e40af;
+    }
+    .meeting-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .info-item { margin-bottom: 8px; }
+    .info-label { font-weight: bold; color: #374151; }
+    .agenda-item {
+      background: #f0f9ff;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border-left: 4px solid #3b82f6;
+      break-inside: avoid;
+    }
+    .agenda-item h4 { margin: 0 0 5px 0; color: #1e40af; }
+    .agenda-item > p { margin: 0; color: #6b7280; font-size: 14px; }
+    .action-item {
+      background: #fff7ed;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border-left: 4px solid #f59e0b;
+    }
+    .action-item h4 { margin: 0 0 5px 0; color: #d97706; }
+    .action-details { font-size: 12px; color: #6b7280; margin-top: 5px; }
+    .attendees { display: flex; flex-wrap: wrap; gap: 8px; }
+    .attendee-tag {
+      background: #e5e7eb;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      color: #374151;
+    }
+    .content-section { background: white; padding: 20px; margin: 15px 0; }
+    .content-section p { margin: 10px 0; }
+    .content-section ul, .content-section ol { margin: 10px 0; padding-left: 25px; }
+    .content-section li { margin: 5px 0; }
+    .page-break { page-break-before: always; }
+    .content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    .content th, .content td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+    .content th { background: #f8fafc; font-weight: bold; color: #374151; }
+  </style>
+</head>
+<body>
+  <table class="page-table">
+    <thead>
+      <tr>
+        <td>
+          <div class="page-header">
+            <div class="header-left">{% if left_img %}<img src="{{ left_img }}" />{% endif %}</div>
+            <div class="header-center">
+              <strong>{{ line1 }}</strong><br>
+              <span>{{ line2 }}</span>
+            </div>
+            <div class="header-right">{% if right_img %}<img src="{{ right_img }}" />{% endif %}</div>
+          </div>
+        </td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ body }}</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

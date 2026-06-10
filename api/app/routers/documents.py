@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,6 +12,7 @@ from app.db import get_session
 from app.deps import AdminUser, CurrentUser
 from app.models import Document, DocumentSequence, DocumentSettings, Profile
 from app.models.enums import DocumentType
+from app.pdf.render import generate_document_pdf
 from app.schemas.document import DocumentDetailOut, DocumentOut, Pagination
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -203,4 +205,44 @@ async def unsign_document(
     return {"ok": True}
 
 
-# GET /{doc_id}/pdf is ported in Phase 3 alongside the Playwright renderer.
+@router.get("/{doc_id}/pdf")
+async def document_pdf(
+    doc_id: str,
+    user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    download: Annotated[str | None, Query()] = None,
+) -> Response:
+    doc = await session.scalar(
+        select(Document)
+        .where(Document.id == doc_id)
+        .options(selectinload(Document.created_by), selectinload(Document.signed_by))
+    )
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    identifier = format_document_identifier(doc.type, doc.number, doc.year)
+    signed_by = None
+    if doc.signed_by is not None:
+        signed_by = {
+            "name": doc.signed_by.name,
+            "email": doc.signed_by.email,
+            "signature": doc.signed_by.signature,
+            "roles": doc.signed_by.roles,
+        }
+    pdf = await generate_document_pdf(
+        {
+            "type": doc.type,
+            "content": doc.content,
+            "identifier": identifier,
+            "createdAt": doc.created_at,
+            "createdBy": {"name": doc.created_by.name, "email": doc.created_by.email},
+            "signedAt": doc.signed_at,
+            "signedBy": signed_by,
+        }
+    )
+    disposition = "attachment" if download == "true" else "inline"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{identifier}.pdf"'},
+    )

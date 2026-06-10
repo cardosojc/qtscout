@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.db import get_session
 from app.deps import CurrentUser
 from app.models import Meeting, MeetingAttendee, MeetingType
+from app.pdf.render import generate_meeting_pdf
 from app.schemas.document import Pagination
 from app.schemas.meeting import MeetingBareOut, MeetingOut
 
@@ -223,4 +225,42 @@ async def delete_meeting(
     return {"message": "Meeting deleted successfully"}
 
 
-# GET /{meeting_id}/pdf is ported in Phase 3 alongside the Playwright renderer.
+@router.get("/{meeting_id}/pdf")
+async def meeting_pdf(
+    meeting_id: str,
+    user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    download: Annotated[str | None, Query()] = None,
+) -> Response:
+    meeting = await session.scalar(
+        select(Meeting)
+        .where(Meeting.id == meeting_id)
+        .options(selectinload(Meeting.meeting_type), selectinload(Meeting.created_by))
+    )
+    if meeting is None:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    pdf = await generate_meeting_pdf(
+        {
+            "identifier": meeting.identifier,
+            "date": meeting.date,
+            "startTime": meeting.start_time,
+            "endTime": meeting.end_time,
+            "location": meeting.location,
+            "agenda": meeting.agenda or {},
+            "meetingType": {
+                "name": meeting.meeting_type.name,
+                "code": meeting.meeting_type.code,
+            },
+            "createdBy": {
+                "name": meeting.created_by.name,
+                "email": meeting.created_by.email,
+            },
+        }
+    )
+    disposition = "attachment" if download == "true" else "inline"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{meeting.identifier}.pdf"'},
+    )
