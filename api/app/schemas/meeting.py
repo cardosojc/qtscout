@@ -1,7 +1,9 @@
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.schemas.base import ORMModel, PrismaDateTime
-from app.schemas.document import CreatedByOut
+from app.schemas.document import CreatedByOut, Pagination
 from app.schemas.meeting_type import MeetingTypeOut
 
 
@@ -50,3 +52,9 @@ class MeetingSearchListOut(MeetingBareOut):
 
     meeting_type: MeetingTypeOut
     created_by: CreatedByOut
+
+
+class MeetingListResponse(BaseModel):
+    meetings: list[MeetingOut]
+    pagination: Pagination
+

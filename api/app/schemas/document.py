@@ -41,3 +41,8 @@ class Pagination(BaseModel):
     limit: int
     total: int
     totalPages: int  # noqa: N815
+
+
+class DocumentListResponse(BaseModel):
+    documents: list[DocumentOut]
+    pagination: Pagination

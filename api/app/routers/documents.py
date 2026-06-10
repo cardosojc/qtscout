@@ -13,7 +13,12 @@ from app.deps import AdminUser, CurrentUser
 from app.models import Document, DocumentSequence, DocumentSettings, Profile
 from app.models.enums import DocumentType
 from app.pdf.render import generate_document_pdf
-from app.schemas.document import DocumentDetailOut, DocumentOut, Pagination
+from app.schemas.document import (
+    DocumentDetailOut,
+    DocumentListResponse,
+    DocumentOut,
+    Pagination,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -41,7 +46,7 @@ async def list_documents(
     type: Annotated[DocumentType | None, Query()] = None,
     from_: Annotated[str | None, Query(alias="from")] = None,
     to: Annotated[str | None, Query()] = None,
-) -> dict[str, Any]:
+) -> DocumentListResponse:
     conditions = []
     if type is not None:
         conditions.append(Document.type == type)
@@ -62,12 +67,12 @@ async def list_documents(
         )
     ).all()
 
-    return {
-        "documents": [_with_identifier(d) for d in rows],
-        "pagination": Pagination(
+    return DocumentListResponse(
+        documents=[_with_identifier(d) for d in rows],
+        pagination=Pagination(
             page=page, limit=limit, total=total, totalPages=-(-total // limit) if limit else 0
         ),
-    }
+    )
 
 
 @router.post("")

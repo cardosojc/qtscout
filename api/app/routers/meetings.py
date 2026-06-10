@@ -13,7 +13,7 @@ from app.deps import CurrentUser
 from app.models import Meeting, MeetingAttendee, MeetingType
 from app.pdf.render import generate_meeting_pdf
 from app.schemas.document import Pagination
-from app.schemas.meeting import MeetingBareOut, MeetingOut
+from app.schemas.meeting import MeetingBareOut, MeetingListResponse, MeetingOut
 
 router = APIRouter(prefix="/meetings", tags=["meetings"])
 
@@ -50,7 +50,7 @@ async def list_meetings(
     limit: int = 10,
     from_: Annotated[str | None, Query(alias="from")] = None,
     to: Annotated[str | None, Query()] = None,
-) -> dict[str, Any]:
+) -> MeetingListResponse:
     conditions = []
     if from_:
         conditions.append(Meeting.date >= _parse_dt(from_))
@@ -68,12 +68,12 @@ async def list_meetings(
             .limit(limit)
         )
     ).all()
-    return {
-        "meetings": [MeetingOut.model_validate(m) for m in rows],
-        "pagination": Pagination(
+    return MeetingListResponse(
+        meetings=[MeetingOut.model_validate(m) for m in rows],
+        pagination=Pagination(
             page=page, limit=limit, total=total, totalPages=-(-total // limit) if limit else 0
         ),
-    }
+    )
 
 
 @router.post("")
