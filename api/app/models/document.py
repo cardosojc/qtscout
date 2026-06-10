@@ -1,14 +1,17 @@
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
 from app.models._columns import pg_enum
 from app.models.enums import DocumentType, OrdemSection
 from app.models.ids import cuid_id
+
+if TYPE_CHECKING:
+    from app.models.profile import Profile
 
 
 class Document(Base):
@@ -28,6 +31,14 @@ class Document(Base):
         "signedById", String, ForeignKey("profiles.id"), nullable=True
     )
     signed_at: Mapped[datetime | None] = mapped_column("signedAt", DateTime, nullable=True)
+
+    # Eager-load explicitly (selectinload) — lazy IO is unavailable under async.
+    created_by: Mapped["Profile"] = relationship(
+        "Profile", foreign_keys=[created_by_id], lazy="raise"
+    )
+    signed_by: Mapped["Profile | None"] = relationship(
+        "Profile", foreign_keys=[signed_by_id], lazy="raise"
+    )
 
 
 class DocumentSequence(Base):
