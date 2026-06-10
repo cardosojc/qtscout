@@ -10,8 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.30",
-    "@ai-sdk/mistral": "^3.0.20",
     "@flags-sdk/vercel": "^1.0.1",
     "@qtscout/core": "*",
     "@qtscout/types": "*",
@@ -22,10 +20,10 @@
     "@tiptap/react": "^3.4.2",
     "@tiptap/starter-kit": "^3.4.2",
     "@vercel/flags": "^3.1.1",
-    "ai": "^6.0.97",
     "next": "15.5.9",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "swr": "^2.4.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
