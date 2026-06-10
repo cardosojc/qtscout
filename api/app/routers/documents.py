@@ -48,9 +48,7 @@ async def list_documents(
     if to:
         conditions.append(Document.created_at <= _parse_date(to))
 
-    total = await session.scalar(
-        select(func.count()).select_from(Document).where(*conditions)
-    ) or 0
+    total = await session.scalar(select(func.count()).select_from(Document).where(*conditions)) or 0
     rows = (
         await session.scalars(
             select(Document)
@@ -87,9 +85,7 @@ async def create_document(
     document_year = None if is_os else current_year
     seq_year = 0 if is_os else current_year
 
-    settings = await session.scalar(
-        select(DocumentSettings).where(DocumentSettings.type == type_)
-    )
+    settings = await session.scalar(select(DocumentSettings).where(DocumentSettings.type == type_))
     starting_number = settings.starting_number if settings else 1
 
     existing = await session.scalar(

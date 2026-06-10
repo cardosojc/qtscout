@@ -34,6 +34,11 @@ GET_ENDPOINTS: list[str] = [
     "/api/profile/signature",
     "/api/profiles/leaders",
     "/api/users",
+    "/api/scouts",
+    "/api/scouts?includeInactive=true",
+    "/api/documents?type=OFICIO",
+    "/api/documents?type=CIRCULAR",
+    "/api/documents?type=ORDEM_SERVICO",
 ]
 
 

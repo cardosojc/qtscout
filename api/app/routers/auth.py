@@ -45,9 +45,7 @@ async def register(
     if await session.scalar(select(Profile).where(Profile.email == email)):
         raise HTTPException(status_code=400, detail="Email já está registado")
 
-    sb_user, error = await create_user(
-        email=email, password=password, name=name, username=username
-    )
+    sb_user, error = await create_user(email=email, password=password, name=name, username=username)
     if error or sb_user is None:
         raise HTTPException(status_code=400, detail=error or "Erro ao criar utilizador")
 
