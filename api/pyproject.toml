@@ -1,0 +1,53 @@
+[project]
+name = "qtscout-api"
+version = "0.1.0"
+description = "QTScout backend API (FastAPI). Meeting minutes + document management for Agrupamento 61 - Santa Maria dos Olivais (CNE)."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "gunicorn>=23.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "pyjwt[crypto]>=2.10",
+    "httpx>=0.28",
+    "supabase>=2.10",
+    "openpyxl>=3.1",
+    "jinja2>=3.1",
+    "playwright>=1.49",
+    "python-multipart>=0.0.18",
+    "cuid>=0.4",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.14",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "anyio>=4.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.uv]
+package = false
