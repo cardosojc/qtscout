@@ -1,7 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
@@ -10,60 +10,28 @@ import Link from 'next/link'
 import { MeetingListSkeleton } from '@/components/ui/skeleton'
 import { AnoEscutistaSelector } from '@/components/ui/ano-escutista-selector'
 import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@qtscout/core/ano-escutista'
-import type { Meeting, MeetingResponse } from '@qtscout/types/meeting'
+import { useMeetings } from '@/lib/api-hooks'
 
 export default function MeetingsPage() {
   const { user: session } = useAuth()
   const { showToast, showConfirm } = useToast()
   const { startLoading, stopLoading } = useLoading()
   const router = useRouter()
-  const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0
-  })
   const [anoEscutista, setAnoEscutista] = useState<number | null>(getCurrentAnoEscutista().startYear)
 
   const from = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).from : ''
   const to   = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).to   : ''
 
-  const fetchMeetings = useCallback(async (page: number) => {
-    startLoading('A carregar reuniões...')
-    try {
-      const params = new URLSearchParams({ page: String(page), limit: '10' })
-      if (from) params.set('from', from)
-      if (to)   params.set('to', to)
-      const response = await apiFetch(`/api/meetings?${params}`)
-      if (response.ok) {
-        const data: MeetingResponse = await response.json()
-        setMeetings(data.meetings)
-        setPagination(data.pagination)
-      }
-    } catch (error) {
-      console.error('Error fetching meetings:', error)
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }, [from, to, startLoading, stopLoading])
+  // Reset to the first page whenever the ano escutista filter changes.
+  useEffect(() => { setCurrentPage(1) }, [from, to])
 
-  useEffect(() => {
-    if (session) {
-      setLoading(true)
-      setCurrentPage(1)
-      fetchMeetings(1)
-    }
-  }, [session, fetchMeetings])
-
-  useEffect(() => {
-    if (session && currentPage > 1) {
-      fetchMeetings(currentPage)
-    }
-  }, [session, currentPage, fetchMeetings])
+  // SWR caches by URL: returning to this page renders instantly from cache and
+  // revalidates in the background instead of showing a blank spinner.
+  const { data, isLoading, mutate } = useMeetings({ page: currentPage, from, to }, !!session)
+  const meetings = data?.meetings ?? []
+  const pagination = data?.pagination ?? { page: 1, limit: 10, total: 0, totalPages: 0 }
+  const loading = isLoading
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-PT', {
@@ -94,7 +62,7 @@ export default function MeetingsPage() {
 
       if (response.ok) {
         showToast('Reunião eliminada com sucesso', 'success')
-        await fetchMeetings(currentPage)
+        await mutate()
       } else {
         showToast('Erro ao eliminar reunião', 'error')
       }

@@ -1,7 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
@@ -9,6 +9,11 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@qtscout/types/ordem-item'
 import { scoutDisplayName, type Scout } from '@qtscout/types/scout'
+import { useScouts } from '@/lib/api-hooks'
+
+// Stable empty fallback so the `grouped` useMemo below doesn't re-run on every
+// render while SWR data is still undefined.
+const NO_SCOUTS: Scout[] = []
 
 type ImportSummary = {
   total: number
@@ -23,31 +28,18 @@ export default function MembrosPage() {
   const { showToast, showConfirm } = useToast()
   const { startLoading, stopLoading } = useLoading()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [scouts, setScouts] = useState<Scout[]>([])
-  const [loading, setLoading] = useState(true)
   const [filterSection, setFilterSection] = useState<OrdemSection | ''>('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null)
 
-  const fetchScouts = useCallback(async () => {
-    const params = new URLSearchParams()
-    if (filterSection) params.set('section', filterSection)
-    if (includeInactive) params.set('includeInactive', 'true')
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/api/scouts?${params.toString()}`)
-      if (res.ok) {
-        const data = await res.json()
-        setScouts(data.scouts ?? [])
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [filterSection, includeInactive])
-
-  useEffect(() => {
-    if (user) fetchScouts()
-  }, [user, fetchScouts])
+  // SWR caches by URL: changing section/inactive filters back and forth is
+  // instant, and revisiting the page renders from cache while revalidating.
+  const { data, isLoading, mutate } = useScouts(
+    { section: filterSection, includeInactive },
+    !!user,
+  )
+  const scouts = data?.scouts ?? NO_SCOUTS
+  const loading = isLoading
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -65,7 +57,7 @@ export default function MembrosPage() {
           `${s.created} criados, ${s.updated} atualizados, ${s.errors.length} erros`,
           s.errors.length > 0 ? 'error' : 'success'
         )
-        fetchScouts()
+        mutate()
       } else {
         const data = await res.json().catch(() => ({}))
         showToast(data.error || 'Erro ao importar', 'error')
@@ -86,7 +78,7 @@ export default function MembrosPage() {
     const res = await apiFetch(`/api/scouts/${scout.id}`, { method: 'DELETE' })
     if (res.ok) {
       showToast('Membro eliminado', 'success')
-      fetchScouts()
+      mutate()
     } else {
       const data = await res.json().catch(() => ({}))
       showToast(data.error || 'Erro ao eliminar', 'error')
