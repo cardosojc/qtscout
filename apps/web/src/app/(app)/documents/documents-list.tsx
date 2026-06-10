@@ -1,15 +1,16 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
 import Link from 'next/link'
-import { DOCUMENT_TYPE_LABELS, type DocumentType, type Document } from '@qtscout/types/document'
+import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@qtscout/types/document'
 import { AnoEscutistaSelector } from '@/components/ui/ano-escutista-selector'
 import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@qtscout/core/ano-escutista'
+import { useDocuments } from '@/lib/api-hooks'
 
 interface DocumentsListProps {
   enabledTypes: { oficio: boolean; circular: boolean; ordem: boolean }
@@ -31,48 +32,23 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
   })
 
   const activeType = (searchParams.get('type') as DocumentType) || tabs[0] || 'OFICIO'
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 })
   const [anoEscutista, setAnoEscutista] = useState<number | null>(getCurrentAnoEscutista().startYear)
 
   const from = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).from : ''
   const to   = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).to   : ''
 
-  const fetchDocuments = useCallback(async (type: DocumentType, page: number) => {
-    startLoading('A carregar documentos...')
-    try {
-      const params = new URLSearchParams({ type, page: String(page), limit: '10' })
-      if (from) params.set('from', from)
-      if (to)   params.set('to', to)
-      const res = await apiFetch(`/api/documents?${params}`)
-      if (res.ok) {
-        const data = await res.json()
-        setDocuments(data.documents)
-        setPagination(data.pagination)
-      }
-    } catch (error) {
-      console.error('Error fetching documents:', error)
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }, [from, to, startLoading, stopLoading])
+  // Reset to the first page when the tab (type) or ano escutista filter changes.
+  useEffect(() => { setCurrentPage(1) }, [activeType, from, to])
 
-  useEffect(() => {
-    if (session) {
-      setLoading(true)
-      setCurrentPage(1)
-      fetchDocuments(activeType, 1)
-    }
-  }, [session, activeType, fetchDocuments])
-
-  useEffect(() => {
-    if (session && currentPage > 1) {
-      fetchDocuments(activeType, currentPage)
-    }
-  }, [session, currentPage, activeType, fetchDocuments])
+  // SWR caches by URL: switching tabs back and forth is instant from cache.
+  const { data, isLoading, mutate } = useDocuments(
+    { type: activeType, page: currentPage, from, to },
+    !!session,
+  )
+  const documents = data?.documents ?? []
+  const pagination = data?.pagination ?? { page: 1, limit: 10, total: 0, totalPages: 0 }
+  const loading = isLoading
 
   const deleteDocument = async (docId: string, identifier: string) => {
     const confirmed = await showConfirm({
@@ -87,7 +63,7 @@ export function DocumentsList({ enabledTypes }: DocumentsListProps) {
       const res = await apiFetch(`/api/documents/${docId}`, { method: 'DELETE' })
       if (res.ok) {
         showToast('Documento eliminado com sucesso', 'success')
-        fetchDocuments(activeType, currentPage)
+        mutate()
       } else {
         const data = await res.json()
         showToast(data.error || 'Erro ao eliminar documento', 'error')

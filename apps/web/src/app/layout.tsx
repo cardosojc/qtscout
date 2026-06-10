@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Lato, Caveat } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { SWRProvider } from "@/components/providers/swr-provider";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { ToastProvider } from "@/components/ui/toast";
 import { LoadingProvider } from "@/components/ui/loading-overlay";
@@ -42,12 +43,14 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <AuthProvider>
-            <ToastProvider>
-              <LoadingProvider>
-                <KeyboardShortcuts />
-                {children}
-              </LoadingProvider>
-            </ToastProvider>
+            <SWRProvider>
+              <ToastProvider>
+                <LoadingProvider>
+                  <KeyboardShortcuts />
+                  {children}
+                </LoadingProvider>
+              </ToastProvider>
+            </SWRProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

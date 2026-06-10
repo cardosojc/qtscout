@@ -5,6 +5,8 @@ import { useAuth } from '@/components/providers/auth-provider'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
+import { preloadMeetings, preloadDocuments, preloadScouts } from '@/lib/api-hooks'
+import type { DocumentType } from '@qtscout/types/document'
 
 const meetingsNavItem = {
   href: '/meetings',
@@ -140,6 +142,21 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
   const { oficio, circular, ordem } = enabledDocTypes
   const anyDocEnabled = oficio || circular || ordem
 
+  // Default tab the /documents page lands on (mirrors DocumentsList).
+  const firstDocType: DocumentType | null = oficio ? 'OFICIO' : circular ? 'CIRCULAR' : ordem ? 'ORDEM_SERVICO' : null
+
+  // Warm the SWR cache for a nav target on hover so the page is usually already
+  // populated by the time the user clicks.
+  const prefetch = (href: string) => {
+    const [path, query] = href.split('?')
+    if (path === '/meetings') preloadMeetings()
+    else if (path === '/membros') preloadScouts()
+    else if (path === '/documents') {
+      const type = (new URLSearchParams(query).get('type') as DocumentType | null) ?? firstDocType
+      if (type) preloadDocuments(type)
+    }
+  }
+
   const settingsNavItem = {
     href: '/settings',
     label: 'Definições',
@@ -219,6 +236,7 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
                   onClick={() => setMobileOpen(false)}
+                  onMouseEnter={() => prefetch(item.href)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
                       ? 'bg-blue-700 dark:bg-gray-700 text-white'
@@ -243,6 +261,7 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
                           href={child.href}
                           aria-current={childActive ? 'page' : undefined}
                           onClick={() => setMobileOpen(false)}
+                          onMouseEnter={() => prefetch(child.href)}
                           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                             childActive
                               ? 'bg-blue-700 dark:bg-gray-700 text-white'
