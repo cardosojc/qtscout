@@ -14,6 +14,8 @@
     "typecheck": "turbo run typecheck",
     "docs:sync": "tsx scripts/sync-categories-doc.ts",
     "docs:check": "tsx scripts/sync-categories-doc.ts --check",
+    "sync:categories": "node scripts/sync-categories.mjs",
+    "sync:categories:check": "node scripts/sync-categories.mjs --check",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
