@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@qtscout/types/ordem-item'
-import type { Scout } from '@qtscout/types/scout'
+import type { ScoutOut as Scout } from '@/lib/api-schemas'
 
 type FormValues = {
   firstName: string
