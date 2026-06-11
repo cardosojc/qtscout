@@ -6,80 +6,85 @@ or files unless asked.
 
 ## Monorepo
 
-npm workspaces + Turborepo. The backend was extracted from Next.js into a
-standalone **Hono** API so other clients can use it; the UI stays in Next.js
-and talks to the API over `fetch` + Bearer token.
+npm workspaces + Turborepo for the TS side; the backend is a standalone
+**FastAPI (Python)** service that the Next.js UI talks to over `fetch` + Bearer
+token. (The backend was previously a Hono/TS API — fully rewritten in Python;
+see `api/DEPLOY.md` and the git history.)
 
 - `apps/web` — Next.js 15 UI (no DB / business logic). Calls the API via
-  `apiFetch()` (`apps/web/src/lib/api-client.ts`).
-- `apps/api` — Hono service (`tsx`), all 49 endpoints under `/api/*`.
-- `packages/types` (`@qtscout/types`) — pure TS types (incl. `session.ts`).
-- `packages/db` (`@qtscout/db`) — Prisma schema + client singleton.
-- `packages/core` (`@qtscout/core`) — backend logic: ordem-*, siie-*,
-  pdf-generator (+ `assets/images`), document-utils, ano-escutista.
-- `packages/auth` (`@qtscout/auth`) — Bearer-JWT verification → `Session`.
+  `apiFetch()` (`apps/web/src/lib/api-client.ts`); base URL is
+  `NEXT_PUBLIC_API_URL`.
+- `api/` — **FastAPI service** (Python, `uv`). All endpoints under `/api/*`.
+  Deployed as a Docker container on **Railway** (web stays on Vercel).
+- `packages/types` (`@qtscout/types`) — pure TS types **+ FE runtime helpers**
+  (labels, the OS catalog, `scoutDisplayName`, validators, etc.).
+- `packages/core` (`@qtscout/core`) — now only `ano-escutista.ts` (date logic
+  the web imports). The old backend modules moved to `api/`.
 
-Internal packages ship raw TS (no build); web consumes them via
-`transpilePackages`, the API via `tsx`. Run everything from the repo root.
+The web also consumes the generated API types: `apps/web/src/lib/api-types.ts`
+(from `openapi/openapi.json` via `npm run gen:api-types`) + `api-schemas.ts`
+aliases. Internal TS packages ship raw TS (no build); web consumes them via
+`transpilePackages`.
 
 ## Stack
 
-- Next.js 15 App Router (Turbopack), React 19, TypeScript 5
-- Hono (API) on `@hono/node-server` / `tsx`
-- Supabase Auth (`@supabase/ssr` in web; `@supabase/supabase-js` token
-  validation in the API) + Supabase Postgres
-- Prisma ORM (`packages/db/prisma/schema.prisma`)
-- TipTap rich text, Puppeteer-headless PDF, Tailwind CSS 4
-- `xlsx` (SheetJS) for SIIE imports
+- **Web**: Next.js 15 App Router (Turbopack), React 19, TypeScript 5, TipTap,
+  Tailwind 4, SWR. Unchanged by the migration; stays on Vercel.
+- **API**: FastAPI + Pydantic v2, `uv`; SQLAlchemy 2.0 async (asyncpg) +
+  Alembic; Supabase auth (JWT verified via `/auth/v1/user`); **Playwright
+  (Chromium) + Jinja2** for PDF; **openpyxl** for SIIE xlsx; httpx → Mistral
+  for AI rewrite. Tooling: ruff, mypy, pytest.
+- Supabase Postgres (shared by both); `DATABASE_URL` (transaction pooler) +
+  `DIRECT_URL` (Alembic).
 
-Common commands (root): `npm run dev` (starts web :3000 + api :3001),
-`npm run build`, `npm run typecheck`, `npm run lint`, `npm run test:e2e`.
-Type-check is the fastest signal — prefer `npm run typecheck` over a full
-build when verifying changes.
+### Commands
+
+- **API** (from `api/`): `uv run uvicorn app.main:app --reload --port 3001`
+  (local dev), `uv run pytest`, `uv run ruff check app`, `uv run mypy app`.
+  Export the contract: `uv run python scripts/export_openapi.py`.
+- **Web** (root): `npm run dev` (web :3000 only now), `npm run build`,
+  `npm run typecheck` (fastest signal), `npm run lint`, `npm run test:e2e`,
+  `npm run gen:api-types` (regenerate FE types after the API contract changes).
+- **Local full stack**: run the API (`uv run uvicorn …`) and point the web's
+  `NEXT_PUBLIC_API_URL` at `http://localhost:3001`, or at the Railway URL.
 
 ## Auth
 
 One identity (Supabase), two transports: cookies for the web shell, **Bearer
 tokens** for the API.
 
-- API: routes use the `requireAuth` middleware (`apps/api/src/middleware/auth.ts`),
-  then read `c.get('session')`. Auth itself is `@qtscout/auth`:
-  `getSessionFromToken(jwt)` validates via `supabase.auth.getUser(token)` and
-  joins the `Profile`, returning the same `{ user: { id, email, name, username,
-  role } }` shape as before. `requireAdmin` gates ADMIN-only routes.
+- API: routes depend on `CurrentUser` / `AdminUser` (`api/app/deps.py`).
+  `current_user` extracts the Bearer token, validates it against Supabase
+  (`GET {SUPABASE_URL}/auth/v1/user`, `api/app/auth.py`), loads the `Profile`
+  by id, and returns `SessionUser {id, email, name, username, role}`.
+  `AdminUser` adds the ADMIN check. Errors render as `{"error": ...}` to match
+  the old API (exception handler in `app/main.py`).
 - Client: `const { user, loading, signOut } = useAuth()` from
   `apps/web/src/components/providers/auth-provider.tsx`. All data calls go
   through `apiFetch()`, which attaches the Supabase access token as Bearer.
-- **No authZ middleware** beyond `requireAuth`/`requireAdmin` — handlers check
-  `c.get('session').user.role` directly.
-- Supabase admin client (user create/delete) is `apps/api/src/lib/supabase-admin.ts`;
-  uses `SUPABASE_SECRET_KEY`.
+- **No authZ middleware** beyond the deps — handlers check `user.role` directly.
+- Supabase service-role admin ops (user create/delete) go through
+  `api/app/supabase_admin.py` (GoTrue REST, `SUPABASE_SECRET_KEY`).
 - Two endpoints stay in the web app (cookie/email-redirect recovery flow):
   `POST /api/auth/{forgot,reset}-password`.
-- Never write `getSession()` (the old cookie helper) — it was removed from web.
 
-## Database / Prisma — read carefully
+## Database / SQLAlchemy + Alembic — read carefully
 
-- Schema: `packages/db/prisma/schema.prisma`. Connection via `DATABASE_URL`
-  (pooler) + `DIRECT_URL` for migrations. `packages/db/prisma.config.ts` does
-  manual env loading from `apps/web/.env.local` (single source of truth).
-- **Drift exists** in `_prisma_migrations`: `npx prisma migrate dev` will
-  refuse to run because of a historical rolled-back migration row. Don't try
-  to reset.
-- **Migration workflow**:
-  1. Edit `packages/db/prisma/schema.prisma`.
-  2. Create the migration folder + SQL manually under
-     `packages/db/prisma/migrations/<YYYYMMDDHHMMSS>_<name>/migration.sql`.
-  3. Apply via the Supabase MCP (`mcp__claude_ai_Supabase__execute_sql`,
-     project `apoltgoxrrzjteosljoo`). In the same SQL block, insert into
-     `_prisma_migrations` so Prisma's status stays consistent.
-  4. Run `npm run db:generate`.
-  5. **Restart the dev server.** Turbopack caches the generated client and
-     does not hot-reload `node_modules/@prisma/client` changes — symptoms are
-     `Unknown argument 'x'` referring to fields that don't exist anymore.
-- Prefer `prisma.X.upsert` over find+create/update. For batches, use
-  per-row upsert + `Promise.all` + `try/catch` per row (see
-  `apps/api/src/routes/scouts.ts`).
+- Models: `api/app/models/` (11 tables). Snake_case Python attrs map to the
+  **exact camelCase Prisma column names** (e.g. `created_at` →
+  `mapped_column("createdAt", …)`). PG enums bind to existing types with
+  `create_type=False`. IDs use cuid (most) / uuid (`Profile`) factories.
+- Engine: `api/app/db.py` normalises the Prisma-style `DATABASE_URL` for asyncpg
+  and **disables the prepared-statement cache** (`statement_cache_size=0`) —
+  required because the app connects through the Supabase transaction pooler
+  (pgbouncer). `DIRECT_URL` is used by Alembic.
+- **Migrations** (`api/migrations/`): the schema already existed (Prisma), so
+  Alembic is **baseline-stamped** at `65d0b607c636` (no DDL). New changes:
+  edit a model → `uv run alembic revision --autogenerate -m "…"` →
+  `uv run alembic upgrade head` (against `DIRECT_URL`).
+- Response parity: `api/app/schemas/base.py` — `ORMModel` emits **camelCase**
+  keys; `PrismaDateTime` serialises datetimes as UTC `…000Z` (Prisma's
+  `toISOString` format) so the web's `new Date()` parsing is unchanged.
 
 ## Feature flags
 
@@ -93,10 +98,11 @@ also controls visibility of the `/ordem-servico` sidebar nav entry.
 Single `Document` table for OFICIO / CIRCULAR / ORDEM_SERVICO. Numbering via
 `DocumentSequence` (year=0 sentinel for OS, real year for others); starting
 numbers configurable in `DocumentSettings`. Identifier format:
-`OF-001/2026`, `CI-001/2026`, `OS-001` (no year for OS — global sequence).
+`OF-001/2026`, `CI-001/2026`, `OS-001` (no year for OS — global sequence). See
+`api/app/core/document_utils.py` and `api/app/routers/documents.py`.
 
 Signing: `Profile.signature` is a base64 PNG data URL; `Document.signedById`
-+ `signedAt`. Sign/unsign endpoint: `POST/DELETE /api/documents/[id]/sign`.
++ `signedAt`. Sign/unsign: `POST/DELETE /api/documents/{id}/sign`.
 Render: "Saudações Escutistas" + image (or handwritten Caveat fallback) +
 name + roles in parentheses.
 
@@ -104,150 +110,119 @@ name + roles in parentheses.
 
 Two phases: **logging** and **assembly**.
 
-**Logging.** Section leaders + group leaders log individual `OrdemItem`
-rows (`packages/db/prisma/schema.prisma`). Each item has:
-- `category` (a string key, e.g. `ATIVIDADE`, `NOMEACAO_DIRIGENTE`) —
-  validated against the catalog in `packages/types/src/ordem-item.ts`.
-- `section` (`OrdemSection?`) — null = Agrupamento-level / leader / group
-  item. Set = section-specific item.
-- `data` (JSON) — shape depends on category. See `ItemShape` enum and the
-  `validateItemData` switch.
-- `externalId?` — used by SIIE imports to upsert.
+**Logging.** Section + group leaders log individual `OrdemItem` rows. Each item:
+- `category` (string key, e.g. `ATIVIDADE`, `NOMEACAO_DIRIGENTE`) — validated
+  against the catalog.
+- `section` (`OrdemSection?`) — null = Agrupamento-level. Set = section item.
+- `data` (JSON) — shape depends on category (`ItemShape` + `validate_item_data`).
+- `externalId?` — used by SIIE activity imports to upsert.
 
-The catalog (`ORDEM_CATEGORIES` in `packages/types/src/ordem-item.ts`) is the source
-of truth: it controls form rendering, permission checks, the API validator,
-and how the assembler routes each category. Categories declare a `scope`:
-`GROUP`, `SECTION`, or `BOTH`. `BOTH` is used by `ATIVIDADE` (the form picks
-"Destino: Agrupamento / Alcateia / …").
+The **catalog is duplicated across languages** (faithfully matched, with unit
+tests on each side):
+- BE source of truth (API validator + assembler routing):
+  `api/app/core/ordem_categories.py` (`ORDEM_CATEGORIES`, `validate_item_data`).
+- FE (form rendering): `packages/types/src/ordem-item.ts`.
+When changing categories, update **both** (a shared JSON is the planned fix —
+see `api/DEPLOY.md`). Permissions: `api/app/core/ordem_permissions.py`.
 
-Permissions: `packages/core/src/ordem-permissions.ts`. Group-level roles
-(Chefe de Agrupamento + 4 others) can create group items; section-level
-roles (Chefe de Unidade, Adjunto, Instrutor + `Profile.section`) can create
-items for their section. ADMIN can do anything.
+**Assembly.** `POST /api/ordens-servico/generate` with `{ from, to }`
+(`api/app/routers/ordens_servico.py`):
+1. Loads pending items (`includedInOsId IS NULL`) in the range.
+2. Resolves scout/profile refs via `api/app/core/ordem_resolver.py` (batched).
+3. `assemble_ordem_servico()` (`api/app/core/ordem_assembler.py`) folds items
+   into `OrdemServicoData` JSON (`api/app/core/ordem_servico.py`). Snapshot is
+   stored on `Document.content` so later item edits don't change the doc.
+4. **Auto-includes admissions** (`Scout.joinedAt` in period, has section) and
+   **noites de campo milestones** (`ScoutNightsBadge.awardedAt` in period,
+   grouped by `(section, count)`). Neither is a manual category.
+5. Transactional: bumps `DocumentSequence`, creates the `Document`
+   (`with_for_update` on the sequence), marks source items `includedInOsId`.
+   Items already in an OS are immutable (item PATCH/DELETE → 409).
 
-**Assembly.** `POST /api/ordens-servico/generate` with `{ from, to }`:
-1. Loads all pending items (`includedInOsId IS NULL`) in the range.
-2. Resolves scout/profile refs via `packages/core/src/ordem-resolver.ts` (single
-   batched query for each table).
-3. `assembleOrdemServico()` folds items into `OrdemServicoData` JSON
-   (`packages/types/src/ordem-servico.ts`). Snapshot is stored on `Document.content`
-   so subsequent edits to source items don't change the generated doc.
-4. **Auto-includes admissions**: pulls `Scout` rows whose `joinedAt` is in
-   the period and has a section; appends their names to
-   `efetivo.admissao[section]`. `ADMISSAO` is not a manual category.
-   **Auto-includes noites de campo milestones**: pulls `ScoutNightsBadge`
-   rows whose `awardedAt` is in the period; groups by `(section, count)`
-   and pushes one `OSNoitesMilestone` per group into
-   `noitesCampo[section]`. `NOITES_CAMPO` is not a manual category — see
-   per-scout editor on `/membros/[id]`.
-5. Transactional: bumps `DocumentSequence`, creates the `Document`, marks
-   source items as `includedInOsId`. Items already in an OS are
-   immutable (item PATCH/DELETE returns 409).
+PDF for OS reads the snapshotted JSON: `api/app/pdf/os_content.py`.
 
-PDF render path unchanged for OS: `packages/core/src/pdf-generator.ts` reads the
-snapshotted JSON.
+## PDF generation
+
+`api/app/pdf/`: `render.py` launches Playwright (Chromium) and runs
+`page.pdf(...)` (A4, 1/2/2.5/2cm margins, footer). `html_builders.py` builds the
+meeting body (incl. the CA-only signature page) and document body/signature;
+`os_content.py` renders the OS snapshot. Page shells + CSS are Jinja2 templates
+(`templates/meeting.html.j2`, `document.html.j2`); header images in
+`pdf/assets/`. Endpoints: `GET /api/{documents,meetings}/{id}/pdf?download=`.
+The Docker image installs Chromium (`playwright install --with-deps chromium`).
 
 ## Scouts (members)
 
-`Scout` table is the canonical member record (`firstName + lastName`,
+`Scout` is the canonical member record (`firstName + lastName`,
 `numeroAssociado`, `dateOfBirth`, optional `section`, plus identification +
-address + parent + Encarregado de Educação contact fields). Section is
-optional so leaders/honorários can be tracked alongside section members.
+address + parent + Encarregado de Educação fields). Section is optional so
+leaders/honorários can be tracked alongside section members.
 
-`Scout.profileId` optionally links to a `Profile` (for leaders who also
-have an account). SIIE import sets this on **create** when email matches an
-existing Profile — never overwrites a manual link.
+`Scout.profileId` optionally links a `Profile` (leaders with an account). SIIE
+import sets it on **create** when email matches an existing Profile — never
+overwrites a manual link.
 
-Noites de campo are tracked per scout as milestones in `ScoutNightsBadge`
-(unique on `(scoutId, count)`; counts come from
-`NIGHTS_BADGE_COUNTS = [25, 50, 75, 100, 200]`). The Scout detail page
-exposes a small editor with one date input per milestone (ADMIN-only
-writes via `PUT /api/scouts/[id]/nights-badges`).
+Noites de campo are milestones in `ScoutNightsBadge` (unique `(scoutId, count)`;
+`NIGHTS_BADGE_COUNTS = [25, 50, 75, 100, 200]`). The Scout detail page has a
+date-per-milestone editor (ADMIN writes via `PUT /api/scouts/{id}/nights-badges`).
+`Scout.noitesCampoInicial` is the manual snapshot as of
+`NOITES_CAMPO_SNAPSHOT_DATE` (2025-10-01). `computeNoitesCampoAtual`
+(`packages/types/src/scout.ts`, FE) echoes the snapshot for now.
 
-Each scout also has a manual `Scout.noitesCampoInicial` snapshot — the
-number of noites accumulated as of `NOITES_CAMPO_SNAPSHOT_DATE`
-(2025-10-01, start of the current ano escutista). `computeNoitesCampoAtual`
-in `packages/types/src/scout.ts` returns the live total; today it just echoes the
-snapshot, with a `TODO` to add the delta from activities the scout
-participated in after that date once the participation model exists.
+Item forms with `MEMBER_REF`/`NOITES_REF`/`SCOUT_OR_PROFILE_REF` pick from
+`/api/scouts?section=…`. Leader picker calls `/api/profiles/leaders`.
 
-Item forms with `MEMBER_REF` / `NOITES_REF` / `SCOUT_OR_PROFILE_REF` shapes
-pick from `/api/scouts?section=…`. Leader picker calls
-`/api/profiles/leaders`.
+## SIIE imports (ADMIN-only multipart `file`)
 
-## SIIE imports
+- `POST /api/scouts/import` — `export.xlsx`. `nin → numeroAssociado` (upsert
+  key), split `nome`, `section` from `Categoria` last letter (L/E/P/C → section,
+  else null). Logic: `api/app/core/siie_import.py`.
+- `POST /api/ordem-items/import-activities` — `export (1).xlsx`.
+  `idatividade → externalId`, one `ATIVIDADE` per row; `section` from a
+  single-letter `Sigla Seccao`. Items already in an OS are skipped.
+  Logic: `api/app/core/siie_atividades_import.py`.
 
-Two endpoints, both ADMIN-only multipart `file` upload:
-
-- `POST /api/scouts/import` — `export.xlsx` from SIIE. Maps `nin →
-  numeroAssociado` (upsert key), splits `nome` on first space, derives
-  `section` from `Categoria` last letter (`L`→ALCATEIA, `E`→EXPEDICAO,
-  `P`→COMUNIDADE, `C`→CLA, anything else → null = leader). `cc + nif`,
-  pai/mãe contacts, `Enc Educ`. Postal code joins `CP 1 + CP 2 +
-  codigopostal` into one string.
-- `POST /api/ordem-items/import-activities` — `export (1).xlsx` from SIIE.
-  Maps `idatividade → externalId`, creates one `ATIVIDADE` OrdemItem per
-  row. Section comes from `Sigla Seccao` only when it's a single letter
-  (L/E/P/C); multi-letter or anything else → null = Agrupamento. Items
-  already snapshotted into an OS are skipped, not overwritten.
-
-Both follow the same pattern: validate → pre-fetch (existing rows, profile
-emails) → batch upsert in parallel with per-row try/catch.
+Both: read via openpyxl → `map_row`/`map_activity_row` → pre-fetch existing +
+profile emails → **per-row upsert** with per-row commit + try/except.
 
 ## Where things live
 
-- `apps/web/src/app/(app)/` — authenticated pages
-  - `meetings/`, `documents/`, `ordem-servico/`, `membros/`, `profile/`,
-    `settings/`, `search/`
-- `apps/web/src/app/api/` — ONLY `auth/{forgot,reset}-password` (recovery flow)
-- `apps/web/src/components/` — UI by domain (`documents/`, `ordem-servico/`,
-  `membros/`, `editor/`, `providers/`, `ui/`)
-- `apps/web/src/lib/` — `api-client` (apiFetch), `supabase/`, `flags`
-- `apps/api/src/routes/` — one Hono router per domain (the ported handlers)
-- `apps/api/src/{middleware,lib}/` — `requireAuth`/`requireAdmin`,
-  `supabase-admin`, `pdf-response`
-- `packages/core/src/` — `pdf-generator`, `ordem-{permissions,assembler,resolver}`,
-  `siie-{import,atividades-import}`, `document-utils`, `ano-escutista`
-- `packages/types/src/` — domain types (`session`, `document`, `meeting`,
-  `ordem-servico`, `ordem-item`, `scout`, `leader-role`)
-- `packages/db/src/` — Prisma singleton; `packages/auth/src/` — token auth
+- `apps/web/src/app/(app)/` — authenticated pages (`meetings/`, `documents/`,
+  `ordem-servico/`, `membros/`, `profile/`, `settings/`, `search/`).
+- `apps/web/src/app/api/` — ONLY `auth/{forgot,reset}-password` (recovery flow).
+- `apps/web/src/lib/` — `api-client` (apiFetch), `api-hooks` (SWR),
+  `api-types`/`api-schemas` (generated), `supabase/`, `flags`.
+- `api/app/routers/` — one router per domain (13). `api/app/{models,schemas}/`,
+  `api/app/core/` (ordem_*, siie_*, document_utils, scout_utils, leader_roles),
+  `api/app/pdf/`, `api/app/{deps,auth,supabase_admin,db,config,main}.py`.
+- `api/migrations/` — Alembic. `api/scripts/` — `parity_check.py`,
+  `export_openapi.py`. `api/DEPLOY.md` — the cutover runbook.
+- `packages/types/src/` — domain types + FE runtime helpers.
+- `openapi/openapi.json` — generated API contract.
 
 ## Deeper reading
 
-- `docs/architecture.md` — full source tree map, domain ER summary, OS
-  pipeline walkthrough, PDF pipeline, SIIE import flow, and the database
-  workflow with the Prisma drift workaround. Read before non-trivial work;
-  this file is the quick reference.
-- `docs/ordem-categories.md` — generated category → snapshot bucket table.
-  Always reflects the current catalog and assembler.
-
-## Keeping docs current
-
-A Stop hook (`scripts/check-docs-drift.sh`, registered in
-`.claude/settings.json`) fires when this session ends. If any watchlisted
-file changed in the working tree (schema, OS catalog, assembler, resolver,
-permissions, PDF generator, key route handlers) but neither `CLAUDE.md` nor
-`docs/architecture.md` was touched, the hook surfaces a reminder before the
-session can stop. Fires at most once per session.
-
-When the catalog or assembler changes, run `npm run docs:sync` to refresh
-`docs/ordem-categories.md`. CI / pre-commit can run `npm run docs:check`,
-which fails if the file is stale.
+- `api/README.md` — API setup, layout, deploy. `api/DEPLOY.md` — full cutover
+  runbook (provision, env mapping, Alembic stamp, parity, flip, retirement).
+- `docs/architecture.md` — older (pre-migration) deep dive; the backend
+  sections describe the retired Hono API — trust `api/` + this file for backend.
+- `docs/ordem-categories.md` — category table; `npm run docs:sync` regenerates
+  it from the FE catalog (`packages/types/src/ordem-item.ts`).
 
 ## Gotchas
 
-- API route params (Hono): `c.req.param('id')`, query via `c.req.query('x')`.
-  Web page dynamic params are still Promises:
-  `{ params }: { params: Promise<{ id: string }> }` → `const { id } = await params`.
-- Web data fetching goes through `apiFetch()` (Bearer), never relative
-  `fetch('/api/...')` — the routes no longer live in the web app.
-- API auth is Bearer-only via `requireAuth`; never reintroduce cookie
-  `getSession()` / `getServerSession`.
-- `useAuth()`'s `user.role` is `'ADMIN' | 'LEADER' | 'MEMBER'`, separate
-  from `Profile.roles[]` (the array of human-readable leader role labels).
-- E2E tests in `e2e/` use Playwright with a shared `storageState`; test
-  user is `e2e-test@qtscout.test`.
-- Full-text search on Meetings uses a `tsvector` column with Portuguese
-  config + GIN index. Query path is `/api/search/meetings`.
-- Old OS documents with the legacy full-form JSON shape still render —
-  `defaultOrdemServicoData()` + `parseOrdemServicoData()` are tolerant.
+- API: FastAPI path/query params via function signature; raw bodies validated
+  manually for pt-PT 400 messages (`Annotated[dict, Body()]`). Web page dynamic
+  params are Promises: `{ params }: { params: Promise<{ id: string }> }`.
+- Web data fetching goes through `apiFetch()` (Bearer) / SWR hooks, never
+  relative `fetch('/api/...')` — the routes live in the FastAPI service.
+- API auth is Bearer-only via `CurrentUser`/`AdminUser`.
+- `useAuth()`'s `user.role` is `'ADMIN' | 'LEADER' | 'MEMBER'`, separate from
+  `Profile.roles[]` (human-readable leader role labels).
+- The OS **catalog is duplicated** (Python BE + TS FE) — keep both in sync.
+- E2E tests in `e2e/` use Playwright with a shared `storageState`; test user is
+  `e2e-test@qtscout.test`. They drive the web UI → the live FastAPI backend.
+- Full-text search on Meetings uses a Portuguese `tsvector` column + GIN index
+  (raw SQL in `api/app/routers/search.py`).
+- Old OS documents with the legacy JSON shape still render — the OS body
+  renderer tolerates partial/missing buckets.

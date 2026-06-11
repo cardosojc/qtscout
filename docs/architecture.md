@@ -4,6 +4,13 @@ Deeper notes for QTScout. Pair this with `CLAUDE.md` (operating notes / quick
 reference). When something here drifts from the code, the code wins — update
 this file or delete the stale section.
 
+> **⚠️ Backend migrated to FastAPI (Python).** The backend sections below
+> describe the **retired** Hono/TS API (`apps/api`) + Prisma + Puppeteer, which
+> have been removed. The backend now lives in **`api/`** (FastAPI, SQLAlchemy +
+> Alembic, Playwright PDF). For current backend details see `CLAUDE.md`,
+> `api/README.md`, and `api/DEPLOY.md` (cutover runbook). The frontend
+> (`apps/web`) sections remain accurate. This file is pending a full rewrite.
+
 ## Monorepo layout
 
 npm workspaces + Turborepo. Two deployables (`apps/*`) over four shared
