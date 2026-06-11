@@ -12,27 +12,29 @@ import { ORDEM_CATEGORIES } from '@qtscout/types/ordem-item'
 
 const __filename = fileURLToPath(import.meta.url)
 const REPO = path.resolve(path.dirname(__filename), '..')
-const ASSEMBLER_PATH = path.join(REPO, 'packages/core/src/ordem-assembler.ts')
+const ASSEMBLER_PATH = path.join(REPO, 'api/app/core/ordem_assembler.py')
 const OUTPUT_PATH = path.join(REPO, 'docs/ordem-categories.md')
 
 /**
- * Parse `case 'KEY':` blocks out of the assembler and collect every `data.*`
- * member-expression that appears in the body until the next `break`.
+ * Parse `if/elif category == "KEY":` branches out of the Python assembler and
+ * collect every `data[...]` access in the (more-indented) branch body.
  */
 function parseAssemblerMapping(): Map<string, string[]> {
   const src = fs.readFileSync(ASSEMBLER_PATH, 'utf8')
   const lines = src.split('\n')
   const map = new Map<string, string[]>()
   for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^\s*case '([A-Z_]+)':\s*$/)
+    const m = lines[i].match(/^(\s*)(?:el)?if category == "([A-Z_]+)":\s*$/)
     if (!m) continue
-    const key = m[1]
+    const indent = m[1].length
+    const key = m[2]
     const targets = new Set<string>()
     for (let j = i + 1; j < lines.length; j++) {
-      const line = lines[j].trim()
-      if (line.startsWith('break')) break
-      if (line.startsWith('case ')) break
-      for (const match of line.matchAll(/\bdata(?:\.[a-zA-Z_]\w*|\[[a-zA-Z_]\w*\])+/g)) {
+      const line = lines[j]
+      if (line.trim() === '') continue
+      const lineIndent = line.match(/^(\s*)/)![1].length
+      if (lineIndent <= indent) break // dedent → next branch / end of the loop
+      for (const match of line.matchAll(/\bdata(?:\[(?:"[^"]+"|[a-zA-Z_]\w*)\])+/g)) {
         targets.add(match[0])
       }
     }
@@ -47,7 +49,8 @@ function render(): string {
   lines.push('# Ordem de Serviço — category catalog')
   lines.push('')
   lines.push(
-    'Generated from `src/types/ordem-item.ts` and `src/lib/ordem-assembler.ts`.',
+    'Generated from `api/app/core/ordem_categories.json` and ' +
+      '`api/app/core/ordem_assembler.py`.',
   )
   lines.push('Do not edit by hand — run `npm run docs:sync`.')
   lines.push('')
@@ -62,18 +65,18 @@ function render(): string {
   lines.push('Also folded in at generation time (not a manual category):')
   lines.push('')
   lines.push(
-    '- `Scout.joinedAt in OS period` → `data.efetivo.admissao[section]` ' +
-      '(see `src/app/api/ordens-servico/generate/route.ts`)',
+    '- `Scout.joinedAt in OS period` → `data["efetivo"]["admissao"][section]` ' +
+      '(see `api/app/routers/ordens_servico.py`)',
   )
   lines.push('')
   lines.push('## Unmapped categories')
   lines.push('')
   const unmapped = ORDEM_CATEGORIES.filter((c) => !mapping.has(c.key))
   if (unmapped.length === 0) {
-    lines.push('_None — every catalog entry has at least one matching `case` in the assembler._')
+    lines.push('_None — every catalog entry has at least one branch in the assembler._')
   } else {
     for (const c of unmapped) {
-      lines.push(`- \`${c.key}\` has no \`case\` in \`ordem-assembler.ts\``)
+      lines.push(`- \`${c.key}\` has no branch in \`ordem_assembler.py\``)
     }
   }
   lines.push('')
