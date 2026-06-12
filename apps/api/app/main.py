@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.auth import close_http
+from app.auth import close_http, prefetch_jwks
 from app.config import get_settings
 from app.db import engine
 from app.routers import (
@@ -40,6 +40,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    await prefetch_jwks()
     yield
     await engine.dispose()
     await close_http()
