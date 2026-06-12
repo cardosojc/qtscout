@@ -209,8 +209,8 @@ profile emails → **per-row upsert** with per-row commit + try/except.
 
 - `apps/api/README.md` — API setup, layout, deploy. `apps/api/DEPLOY.md` — full cutover
   runbook (provision, env mapping, Alembic stamp, parity, flip, retirement).
-- `docs/architecture.md` — older (pre-migration) deep dive; the backend
-  sections describe the retired Hono API — trust `apps/api/` + this file for backend.
+- `docs/architecture.md` — deeper architecture dive (kept current with the
+  FastAPI backend). When it drifts from the code, the code wins.
 - `docs/ordem-categories.md` — category table; `npm run docs:sync` regenerates
   it from the FE catalog (`packages/types/src/ordem-item.ts`).
 
