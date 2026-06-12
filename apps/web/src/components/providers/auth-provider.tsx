@@ -37,20 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const getInitialSession = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (authUser) {
-        await fetchProfile()
-      }
-      setLoading(false)
-    }
-
-    getInitialSession()
-
+    // onAuthStateChange fires INITIAL_SESSION on mount with the restored session,
+    // so it covers initial load too — no separate getUser() network round-trip
+    // and no duplicate profile fetch. The backend re-validates the token on every
+    // API call, so the client doesn't need to verify it here.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          await fetchProfile()
+          // TOKEN_REFRESHED fires periodically with the same user — no need to
+          // refetch the profile then.
+          if (event !== 'TOKEN_REFRESHED') {
+            await fetchProfile()
+          }
         } else {
           setUser(null)
         }
