@@ -33,7 +33,7 @@ export type CategorySpec = {
 
 /**
  * Catalog of all item categories. **Single source of truth: the JSON at
- * `api/app/core/ordem_categories.json`** (loaded by the Python backend). This
+ * `apps/api/app/core/ordem_categories.json`** (loaded by the Python backend). This
  * TS copy is generated from it by `npm run sync:categories` (CI guards drift
  * via `npm run sync:categories:check`). Controls shape (form rendering), scope
  * (permission checks), and assembler routing.
@@ -41,7 +41,7 @@ export type CategorySpec = {
  * When adding a category:
  *   1. Edit the JSON, run `npm run sync:categories`.
  *   2. Extend validateItemData() (here) + the Python validator if the shape is new.
- *   3. Add a `case` in the Python assembler (api/app/core/ordem_assembler.py).
+ *   3. Add a `case` in the Python assembler (apps/api/app/core/ordem_assembler.py).
  *   4. Run `npm run docs:sync` to refresh `docs/ordem-categories.md`.
  *   5. The form (item-form.tsx) renders from `shape` automatically.
  */

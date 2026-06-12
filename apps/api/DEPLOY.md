@@ -27,8 +27,8 @@ Env var mapping (Hono → FastAPI service):
 ## 1. Provision the service
 
 - **Render**: New + → Blueprint → this repo (`render.yaml`). Fill the env vars.
-- **Railway**: New service → Deploy from repo → set root directory `api/`
-  (uses `api/Dockerfile`). Add the same env vars. `$PORT` is provided.
+- **Railway**: New service → Deploy from repo → set root directory `apps/api`
+  (uses `apps/api/Dockerfile`). Add the same env vars. `$PORT` is provided.
 
 The image installs Chromium for PDF rendering (`playwright install --with-deps`).
 
@@ -39,7 +39,7 @@ migrations work without recreating anything. Run **once**, locally, against the
 direct connection:
 
 ```bash
-cd api
+cd apps/api
 cp .env.example .env   # fill DIRECT_URL etc. (or reuse the existing api/.env)
 uv run alembic stamp 65d0b607c636
 ```
@@ -58,7 +58,7 @@ open  https://<api-host>/docs              # OpenAPI UI
 With both APIs up and a token, diff responses per endpoint:
 
 ```bash
-cd api
+cd apps/api
 HONO_URL=https://qtscout-api.vercel.app \
 FASTAPI_URL=https://<api-host> \
 TOKEN="<supabase access token>" \
@@ -81,14 +81,14 @@ Repoint **type-only** imports in `apps/web` from `@qtscout/types/*` to
 `@/lib/api-schemas` where they describe API responses. **Keep** runtime imports
 (`ORDEM_CATEGORIES`, `DOCUMENT_TYPE_LABELS`, `scoutDisplayName`,
 `validateItemData`, `defaultOrdemServicoData`/`parseOrdemServicoData`,
-`@qtscout/core/ano-escutista`) on `packages/types` / `packages/core` — those
+`@qtscout/types/ano-escutista`) on `packages/types` / `packages/core` — those
 stay FE-side. Verify with `npm run typecheck`.
 
 ## 6. (Optional) single-source the OS catalog
 
 Now safe since `packages/types` is becoming FE-only: extract the catalog to
 `packages/ordem-categories.json`, have both `packages/types/ordem-item.ts` and
-`api/app/core/ordem_categories.py` load it (copy the JSON into `api/` at build
+`apps/api/app/core/ordem_categories.py` load it (copy the JSON into `apps/api/` at build
 time so it lands in the image), and keep the existing catalog-drift unit tests.
 
 ## 7. Flip the web → FastAPI
@@ -110,4 +110,4 @@ Once stable:
 - Update root `package.json` workspaces, `turbo.json`, and remove the now-unused
   Vercel `qtscout-api` project.
 - Update `CLAUDE.md` and `docs/architecture.md` to describe the FastAPI backend
-  (`api/`), the new auth/PDF/contract flows, and this runbook.
+  (`apps/api/`), the new auth/PDF/contract flows, and this runbook.

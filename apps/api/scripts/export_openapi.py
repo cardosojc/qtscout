@@ -20,7 +20,7 @@ os.environ.setdefault("SUPABASE_SECRET_KEY", "secret")
 
 from app.main import app  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[2] / "openapi" / "openapi.json"
+OUT = Path(__file__).resolve().parents[3] / "openapi" / "openapi.json"
 
 
 def main() -> None:

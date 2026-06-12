@@ -1,6 +1,6 @@
 import useSWR, { preload } from 'swr'
 import { apiGet } from '@/lib/api-client'
-import { getAnoEscutistaRange, getCurrentAnoEscutista } from '@qtscout/core/ano-escutista'
+import { getAnoEscutistaRange, getCurrentAnoEscutista } from '@qtscout/types/ano-escutista'
 import type {
   DocumentOut as Document,
   MeetingListResponse as MeetingResponse,

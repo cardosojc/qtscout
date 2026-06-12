@@ -1,4 +1,4 @@
-// AUTO-GENERATED from api/app/core/ordem_categories.json by `npm run sync:categories`.
+// AUTO-GENERATED from apps/api/app/core/ordem_categories.json by `npm run sync:categories`.
 // Do not edit by hand — edit the JSON (the single source of truth) and re-run.
 import type { CategorySpec } from './ordem-item'
 

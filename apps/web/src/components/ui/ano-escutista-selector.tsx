@@ -1,6 +1,6 @@
 'use client'
 
-import { getAnoEscutistaOptions } from '@qtscout/core/ano-escutista'
+import { getAnoEscutistaOptions } from '@qtscout/types/ano-escutista'
 
 interface Props {
   value: number | null

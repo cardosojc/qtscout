@@ -12,7 +12,7 @@ import { ORDEM_CATEGORIES } from '@qtscout/types/ordem-item'
 
 const __filename = fileURLToPath(import.meta.url)
 const REPO = path.resolve(path.dirname(__filename), '..')
-const ASSEMBLER_PATH = path.join(REPO, 'api/app/core/ordem_assembler.py')
+const ASSEMBLER_PATH = path.join(REPO, 'apps/api/app/core/ordem_assembler.py')
 const OUTPUT_PATH = path.join(REPO, 'docs/ordem-categories.md')
 
 /**
@@ -49,8 +49,8 @@ function render(): string {
   lines.push('# Ordem de Serviço — category catalog')
   lines.push('')
   lines.push(
-    'Generated from `api/app/core/ordem_categories.json` and ' +
-      '`api/app/core/ordem_assembler.py`.',
+    'Generated from `apps/api/app/core/ordem_categories.json` and ' +
+      '`apps/api/app/core/ordem_assembler.py`.',
   )
   lines.push('Do not edit by hand — run `npm run docs:sync`.')
   lines.push('')
@@ -66,7 +66,7 @@ function render(): string {
   lines.push('')
   lines.push(
     '- `Scout.joinedAt in OS period` → `data["efetivo"]["admissao"][section]` ' +
-      '(see `api/app/routers/ordens_servico.py`)',
+      '(see `apps/api/app/routers/ordens_servico.py`)',
   )
   lines.push('')
   lines.push('## Unmapped categories')

@@ -1,6 +1,6 @@
 # Ordem de Serviço — category catalog
 
-Generated from `api/app/core/ordem_categories.json` and `api/app/core/ordem_assembler.py`.
+Generated from `apps/api/app/core/ordem_categories.json` and `apps/api/app/core/ordem_assembler.py`.
 Do not edit by hand — run `npm run docs:sync`.
 
 | Category | Shape | Scope | Snapshot bucket |
@@ -26,7 +26,7 @@ Do not edit by hand — run `npm run docs:sync`.
 
 Also folded in at generation time (not a manual category):
 
-- `Scout.joinedAt in OS period` → `data["efetivo"]["admissao"][section]` (see `api/app/routers/ordens_servico.py`)
+- `Scout.joinedAt in OS period` → `data["efetivo"]["admissao"][section]` (see `apps/api/app/routers/ordens_servico.py`)
 
 ## Unmapped categories
 

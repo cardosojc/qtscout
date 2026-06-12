@@ -9,7 +9,7 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import Link from 'next/link'
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@qtscout/types/document'
 import { AnoEscutistaSelector } from '@/components/ui/ano-escutista-selector'
-import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@qtscout/core/ano-escutista'
+import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@qtscout/types/ano-escutista'
 import { useDocuments } from '@/lib/api-hooks'
 
 interface DocumentsListProps {

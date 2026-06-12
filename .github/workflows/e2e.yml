@@ -6,14 +6,20 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     env:
+      # Web + e2e setup (Supabase admin to seed the test user)
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      # FastAPI backend (started by the Playwright webServer) reads these names
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      WEB_ORIGIN: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
@@ -23,13 +29,16 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      - name: Install web dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
+      - name: Set up uv (Python)
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install Playwright Chromium
+      - name: Install API dependencies + Chromium (PDF)
+        run: cd apps/api && uv sync --frozen && uv run playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium (test runner)
         run: npx playwright install chromium --with-deps
 
       - name: Run E2E tests
