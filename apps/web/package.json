@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@flags-sdk/vercel": "^1.0.1",
-    "@qtscout/core": "*",
     "@qtscout/types": "*",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",

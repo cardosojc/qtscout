@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from '@qtscout/types/document'
-import { getCurrentAnoEscutista } from '@qtscout/core/ano-escutista'
+import { getCurrentAnoEscutista } from '@qtscout/types/ano-escutista'
 
 type Source = 'all' | 'meetings' | 'documents'
 

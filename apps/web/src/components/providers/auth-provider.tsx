@@ -3,7 +3,7 @@ import { apiFetch } from '@/lib/api-client'
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { SessionUser } from '@qtscout/types/session'
+import type { SessionUser } from '@/lib/api-schemas'
 
 type AuthContextType = {
   user: SessionUser | null

@@ -16,7 +16,7 @@ Backend for QTScout — meeting minutes + document management for **Agrupamento 
 ## Local development
 
 ```bash
-cd api
+cd apps/api
 uv sync                       # create .venv + install deps
 cp .env.example .env          # fill in Supabase/DB values
 uv run uvicorn app.main:app --reload --port 3001

@@ -22,7 +22,7 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
-import type { Meeting } from '@qtscout/types/meeting'
+import type { MeetingOut as Meeting } from '@/lib/api-schemas'
 
 export default function MeetingDetailPage() {
   const { user: session } = useAuth()

@@ -4,7 +4,9 @@ Single source of truth for shape (form rendering), scope (permission checks),
 and assembler routing. When adding a category, mirror the steps in the TS file.
 """
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
 ItemShape = Literal[
@@ -37,27 +39,12 @@ class CategorySpec:
     scope: ItemScope
 
 
-ORDEM_CATEGORIES: tuple[CategorySpec, ...] = (
-    CategorySpec("RESOLUCAO", "Resolução do Conselho de Agrupamento", "STRING", "GROUP"),
-    CategorySpec("DETERMINACAO", "Determinação do Conselho de Agrupamento", "STRING", "GROUP"),
-    CategorySpec("ATIVIDADE", "Atividade", "ATIVIDADE", "BOTH"),
-    CategorySpec("CRIACAO", "Criação (bando/patrulha/equipa/tribo)", "STRING", "SECTION"),
-    CategorySpec("EXTINCAO", "Extinção (bando/patrulha/equipa/tribo)", "STRING", "SECTION"),
-    CategorySpec("NOMEACAO_DIRIGENTE", "Nomeação/Exoneração de Dirigente", "PROFILE_REF", "GROUP"),
-    CategorySpec(
-        "NOMEACAO_SECCAO", "Nomeação/Exoneração na Secção", "SCOUT_OR_PROFILE_REF", "SECTION"
-    ),
-    CategorySpec("NOMEACAO_DEPARTAMENTO", "Nomeação/Exoneração em Departamento", "STRING", "GROUP"),
-    CategorySpec("READMISSAO", "Readmissão de Associado", "MEMBER_REF", "SECTION"),
-    CategorySpec("TRANSFERENCIA", "Transferência de Associado", "MEMBER_REF", "SECTION"),
-    CategorySpec("PASSAGEM", "Passagem de Secção", "MEMBER_REF", "SECTION"),
-    CategorySpec("INVESTIDURA", "Investidura", "MEMBER_REF", "SECTION"),
-    CategorySpec("SAIDA_ATIVO_SECCAO", "Saída do Ativo (Secção)", "MEMBER_REF", "SECTION"),
-    CategorySpec("SAIDA_ATIVO_DIRIGENTE", "Saída do Ativo (Dirigente)", "STRING", "GROUP"),
-    CategorySpec("PROGRESSO", "Sistema de Progresso", "MEMBER_REF", "SECTION"),
-    CategorySpec("ACCAO_DISCIPLINAR", "Ação Disciplinar", "STRING", "GROUP"),
-    CategorySpec("DISTINCAO_PREMIO", "Distinção ou Prémio", "TEXT", "GROUP"),
-    CategorySpec("RETIFICACAO", "Retificação", "STRING", "GROUP"),
+# Single source of truth for the OS catalog. The web's TS copy
+# (packages/types/src/ordem-categories.generated.ts) is generated from this file
+# by `npm run sync:categories` (checked in CI via `:check`).
+_CATALOG_JSON = Path(__file__).with_name("ordem_categories.json")
+ORDEM_CATEGORIES: tuple[CategorySpec, ...] = tuple(
+    CategorySpec(**c) for c in json.loads(_CATALOG_JSON.read_text(encoding="utf-8"))
 )
 
 CATEGORY_MAP: dict[str, CategorySpec] = {c.key: c for c in ORDEM_CATEGORIES}
