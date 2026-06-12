@@ -1,6 +1,6 @@
 # Render Blueprint for the FastAPI backend (Docker). Deploy via Render →
 # "New +" → "Blueprint" pointed at this repo. Railway can use the same
-# Dockerfile: create a service, set root directory to `api/`, and add the same
+# Dockerfile: create a service, set root directory to `apps/api/`, and add the same
 # env vars (Railway provides $PORT automatically, like Render).
 #
 # Secret values are NOT stored here (sync: false) — set them in the dashboard.
@@ -9,8 +9,8 @@ services:
     name: qtscout-api
     runtime: docker
     repo: https://github.com/cardosojc/qtscout
-    dockerfilePath: ./api/Dockerfile
-    dockerContext: ./api
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
     plan: starter
     healthCheckPath: /api/health
     autoDeploy: false

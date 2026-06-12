@@ -1,9 +1,12 @@
 import useSWR, { preload } from 'swr'
 import { apiGet } from '@/lib/api-client'
-import { getAnoEscutistaRange, getCurrentAnoEscutista } from '@qtscout/core/ano-escutista'
-import type { MeetingResponse } from '@qtscout/types/meeting'
-import type { Document, DocumentType } from '@qtscout/types/document'
-import type { Scout } from '@qtscout/types/scout'
+import { getAnoEscutistaRange, getCurrentAnoEscutista } from '@qtscout/types/ano-escutista'
+import type {
+  DocumentOut as Document,
+  MeetingListResponse as MeetingResponse,
+  ScoutOut as Scout,
+} from '@/lib/api-schemas'
+import type { DocumentType } from '@qtscout/types/document'
 import type { OrdemSection } from '@qtscout/types/ordem-item'
 
 type Pagination = { page: number; limit: number; total: number; totalPages: number }

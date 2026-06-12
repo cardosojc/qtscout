@@ -9,7 +9,7 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import Link from 'next/link'
 import { MeetingListSkeleton } from '@/components/ui/skeleton'
 import { AnoEscutistaSelector } from '@/components/ui/ano-escutista-selector'
-import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@qtscout/core/ano-escutista'
+import { getCurrentAnoEscutista, getAnoEscutistaRange } from '@qtscout/types/ano-escutista'
 import { useMeetings } from '@/lib/api-hooks'
 
 export default function MeetingsPage() {

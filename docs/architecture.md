@@ -4,60 +4,51 @@ Deeper notes for QTScout. Pair this with `CLAUDE.md` (operating notes / quick
 reference). When something here drifts from the code, the code wins — update
 this file or delete the stale section.
 
-> **⚠️ Backend migrated to FastAPI (Python).** The backend sections below
-> describe the **retired** Hono/TS API (`apps/api`) + Prisma + Puppeteer, which
-> have been removed. The backend now lives in **`api/`** (FastAPI, SQLAlchemy +
-> Alembic, Playwright PDF). For current backend details see `CLAUDE.md`,
-> `api/README.md`, and `api/DEPLOY.md` (cutover runbook). The frontend
-> (`apps/web`) sections remain accurate. This file is pending a full rewrite.
+The backend was rewritten from a Hono/TypeScript API into **FastAPI (Python)**
+(`apps/api/`). The Next.js web app (`apps/web`) is unchanged — it talks to the API
+over `fetch` + Bearer token. See `apps/api/README.md` and `apps/api/DEPLOY.md`.
 
 ## Monorepo layout
 
-npm workspaces + Turborepo. Two deployables (`apps/*`) over four shared
-packages (`packages/*`). The UI (`apps/web`) talks to the standalone HTTP API
-(`apps/api`) over `fetch` + Bearer token — no in-process API anymore.
+npm workspaces + Turborepo for the TS side; the backend is a self-contained
+Python service with its own tooling (`uv`).
 
 ```
 apps/
 ├── web/                          # Next.js 15 UI (no business logic / DB)
 │   ├── src/app/(app)/            # Authenticated, sidebar-shell pages
 │   │   ├── meetings/ documents/ ordem-servico/ membros/ profile/ settings/ search/
-│   ├── src/app/api/              # ONLY auth recovery flows that need Supabase
-│   │   └── auth/{forgot,reset}-password  # cookie/redirect-bound; stay in web
-│   ├── src/app/auth/             # Sign-in / sign-up / recovery pages
+│   ├── src/app/api/              # ONLY auth recovery flows (Supabase cookie/redirect)
 │   ├── src/components/           # ordem-servico, membros, documents, editor, providers, ui
-│   ├── src/lib/api-client.ts     # apiFetch(): prepends NEXT_PUBLIC_API_URL + Bearer
-│   ├── src/lib/supabase/         # client.ts, server.ts, middleware.ts (session + flags)
+│   ├── src/lib/                  # api-client (apiFetch), api-hooks (SWR),
+│   │                             #   api-types/api-schemas (generated), supabase/
 │   └── src/flags.ts              # Vercel flags (UI visibility + /documents gating)
-└── api/                          # Hono service — the standalone backend
-    └── src/
-        ├── index.ts              # app, CORS, mounts routers under /api
-        ├── load-env.ts           # loads env before @qtscout/db (Prisma) init
-        ├── middleware/auth.ts    # requireAuth (Bearer JWT) + requireAdmin
-        ├── lib/                  # supabase-admin, pdf-response
-        └── routes/               # one router per domain (auth, profile, profiles,
-                                   #   meeting-types, meetings, documents, scouts,
-                                   #   ordem-items, ordens-servico, search, settings,
-                                   #   users, ai) — ports of the old route handlers
+└── api/                          # FastAPI service — the backend (Docker on Railway)
+    ├── pyproject.toml  uv.lock  Dockerfile
+    ├── app/
+    │   ├── main.py config.py db.py deps.py auth.py supabase_admin.py
+    │   ├── routers/  models/  schemas/   # 13 routers · 11 models · Pydantic schemas
+    │   ├── core/                 # ordem_*, siie_*, document_utils, ordem_categories(.json)
+    │   └── pdf/                  # render.py (Playwright) + html_builders + templates + assets
+    ├── migrations/               # Alembic (baseline-stamped)
+    └── scripts/                  # parity_check.py, export_openapi.py
 
 packages/
-├── types/   # @qtscout/types — pure TS types (zero runtime deps). session.ts, document.ts,
-│            #   meeting.ts, scout.ts, ordem-item.ts, ordem-servico.ts, leader-role.ts
-├── db/      # @qtscout/db — Prisma schema + client singleton; re-exports @prisma/client.
-│            #   prisma/schema.prisma + migrations + seed.ts + prisma.config.ts live here
-├── core/    # @qtscout/core — backend business logic (depends on db + types):
-│            #   ordem-{assembler,resolver,permissions}, siie-{import,atividades-import},
-│            #   pdf-generator (+ pdf-config + assets/images/*), document-utils, ano-escutista
-└── auth/    # @qtscout/auth — getSessionFromToken(jwt) + bearerFromHeader(); hydrates Profile
+└── types/   # @qtscout/types — the only shared TS package: types + FE runtime
+              #   helpers (labels, scoutDisplayName, ano-escutista) + the OS catalog
+              #   (ordem-categories.generated.ts ← apps/api/.../ordem_categories.json)
+
+openapi/openapi.json              # generated API contract (FE typegen source)
 ```
 
-Internal packages ship **raw TypeScript** (no build step): consumed by Next via
-`transpilePackages` and by the API via `tsx`. Subpath exports (`@qtscout/core/x`,
-`@qtscout/types/x`) keep heavy deps (Puppeteer, xlsx, Prisma) out of the web
-client bundle — web depends only on `@qtscout/types` + `@qtscout/core` (and only
-client-safe modules like `ano-escutista`).
+Internal TS packages ship **raw TypeScript** (no build), consumed by Next via
+`transpilePackages`. The web depends only on `@qtscout/types` and the generated
+`api-types`/`api-schemas`.
 
 ## Domain model
+
+Unchanged by the migration — same 11 tables (now SQLAlchemy models in
+`apps/api/app/models/`, mapping the existing camelCase Prisma columns).
 
 ```
 Profile (Supabase Auth ↔ profiles)
@@ -65,268 +56,217 @@ Profile (Supabase Auth ↔ profiles)
   │   roles: string[]                           # human-readable functions
   │   section: OrdemSection?                    # only meaningful with section-level roles
   │   signature: string?                        # base64 PNG data URL
-  ├──< Meeting (createdBy)
-  ├──< Document (createdBy)
-  ├──< Document (signedBy)
-  ├──< OrdemItem (createdBy)
-  └──< Scout (profileId, optional 1:1)
+  ├──< Meeting (createdBy)  ├──< Document (createdBy / signedBy)
+  ├──< OrdemItem (createdBy)  └──< Scout (profileId, optional 1:1)
 
 Scout (scouts)                                   # member, may or may not be a leader
   │   numeroAssociado: string? @unique          # NIN, SIIE upsert key
   │   firstName/lastName, dateOfBirth, joinedAt
   │   section: OrdemSection?                    # null = leader / unassigned
   │   profileId?                                # set when this scout is also a leader
-  ├──< ScoutLeader (responsible leaders — UI not yet built)
+  ├──< ScoutLeader                              # responsible leaders (UI not yet built)
   └──< ScoutNightsBadge                         # milestone per scout (25/50/75/100/200)
-         count, awardedAt                       # @@unique(scoutId, count)
 
 Meeting (meetings)
-  │   type: CA | RD                             # via MeetingType
-  │   identifier: "{TYPE}-YYYYMMDD"
-  │   agenda: Json                              # items, attendees, chefe, secretário
+  │   type: CA | RD (via MeetingType)           identifier: "{TYPE}-YYYYMMDD"
+  │   agenda: Json (items, attendees, chefe, secretário)
   │   contentTsvector                           # GIN-indexed pt full-text search
   └──< MeetingAttendee (profileId)
 
 Document (documents)
   │   type: OFICIO | CIRCULAR | ORDEM_SERVICO
-  │   number: Int                               # via DocumentSequence (year=0 sentinel for OS)
-  │   year: Int?                                # null for OS (continuous global sequence)
-  │   content: string                           # HTML for OF/CI, JSON snapshot for OS
-  │   signedBy: Profile?, signedAt
+  │   number: Int (via DocumentSequence; year=0 sentinel for OS), year: Int? (null for OS)
+  │   content: string (HTML for OF/CI, JSON snapshot for OS); signedBy/signedAt
   └──< OrdemItem (sourceItems via includedInOsId)
 
 OrdemItem (ordem_items)
-      externalId?: string @unique               # SIIE atividades upsert key
-      category: string                          # see ORDEM_CATEGORIES catalog
-      section: OrdemSection?
-      date: DateTime                            # used for OS date-range filter
-      data: Json                                # shape determined by category.shape
-      includedInOsId?: Document.id              # set on OS generation; locks the item
+      externalId? @unique (SIIE upsert key); category (ORDEM_CATEGORIES catalog)
+      section: OrdemSection?; date; data: Json (shape per category.shape)
+      includedInOsId? → Document.id            # set on OS generation; locks the item
 ```
 
 ## Auth flow
 
 Single identity (Supabase Auth), two transports — cookies for the web shell,
-Bearer tokens for the API. This makes the API usable by any client.
+Bearer tokens for the API.
 
-1. User signs in via Supabase Auth (email/password). The `@supabase/ssr`
-   browser client stores the session in cookies; `apps/web/src/middleware.ts`
-   (`updateSession`) refreshes it on navigation.
-2. **Web → API.** `apps/web/src/lib/api-client.ts` `apiFetch()` reads the
-   access token via `supabase.auth.getSession()` and sends it as
-   `Authorization: Bearer <jwt>` to `NEXT_PUBLIC_API_URL`. The browser
-   `useAuth()` provider calls `apiFetch('/api/auth/profile')` to hydrate the user.
-3. **API auth.** `apps/api` `requireAuth` middleware (`@qtscout/auth`):
-   - `bearerFromHeader()` extracts the token.
-   - `getSessionFromToken()` validates it with `supabase.auth.getUser(token)`,
-     then joins the `Profile` row (Prisma) by Supabase user id.
-   - Produces the same `Session` shape the old cookie `getSession()` did, so
-     ported handlers are unchanged. `requireAdmin` gates ADMIN-only routes.
+1. User signs in via Supabase (email/password). `@supabase/ssr` stores the
+   session in cookies; `apps/web/src/middleware.ts` refreshes it on navigation.
+2. **Web → API.** `apiFetch()` reads the access token via
+   `supabase.auth.getSession()` and sends `Authorization: Bearer <jwt>` to
+   `NEXT_PUBLIC_API_URL`. `useAuth()` hydrates the user via `/api/auth/profile`.
+3. **API auth** (`apps/api/app/deps.py`, `auth.py`): `current_user` extracts the
+   Bearer token, validates it against Supabase (`GET {SUPABASE_URL}/auth/v1/user`,
+   httpx), then loads the `Profile` by Supabase user id and returns
+   `SessionUser {id, email, name, username, role}`. `AdminUser` adds the ADMIN
+   check. Routes depend on `CurrentUser` / `AdminUser`.
 4. **Other clients** authenticate against Supabase (e.g. password grant) and
-   send the resulting `access_token` as Bearer — identical server path.
+   send the `access_token` as Bearer — identical server path.
 
-There is still **no per-route middleware for authZ** beyond `requireAuth` /
-`requireAdmin`; handlers check `c.get('session').user.role` directly. Two
-endpoints stay in the web app because they are bound to Supabase's cookie /
-email-redirect recovery flow: `POST /api/auth/{forgot,reset}-password`.
+No per-route authZ beyond the deps; handlers check `user.role` directly.
+Service-role admin ops (register / delete user) go through
+`apps/api/app/supabase_admin.py` (GoTrue REST, `SUPABASE_SECRET_KEY`). Two endpoints
+stay in the web app (Supabase cookie/email-redirect recovery):
+`POST /api/auth/{forgot,reset}-password`. Errors render as `{"error": …}` (an
+exception handler in `app/main.py`) to match the old API.
 
 ## Ordem de Serviço pipeline
 
-The OS feature has the most moving parts. There are two phases.
+The OS feature has the most moving parts. Two phases.
 
 ### Phase 1: logging items
 
-Leaders log individual `OrdemItem`s via `/ordem-servico` as events happen
-(an activity took place, a scout was nominated, etc.).
+Leaders log individual `OrdemItem`s via `/ordem-servico` as events happen.
 
 ```
 User picks category (filtered by permissions)
   └─> ItemForm renders inputs based on category.shape
-        ├─ STRING / TEXT     : single input
-        ├─ ATIVIDADE         : nome + datas + local
-        ├─ NOMEACAO          : nome + cargo
-        ├─ NOITES            : count
-        ├─ MEMBER_REF        : scout picker (filtered by section)
-        ├─ NOITES_REF        : count + multi-select scout checklist
-        ├─ PROFILE_REF       : leader picker + cargo
-        └─ SCOUT_OR_PROFILE  : toggle scout/leader + picker + cargo
-  └─> POST /api/ordem-items
-        ├─ validateItemData(shape, data)
-        ├─ canManageItem(profile, category, section)
-        ├─ validateRefs(scoutId / profileId exists; scout.section matches)
+        STRING/TEXT · ATIVIDADE · NOMEACAO · NOITES · MEMBER_REF ·
+        NOITES_REF · PROFILE_REF · SCOUT_OR_PROFILE_REF
+  └─> POST /api/ordem-items   (apps/api/app/routers/ordem_items.py)
+        ├─ validate_item_data(shape, data)      # app/core/ordem_categories.py
+        ├─ can_manage_item(profile, category, section)  # app/core/ordem_permissions.py
+        ├─ _validate_refs(scoutId/profileId exists; scout.section matches)
         └─ INSERT
 ```
 
+The catalog is **single-sourced** from `apps/api/app/core/ordem_categories.json`: the
+Python backend loads it; the web's typed copy
+(`packages/types/src/ordem-categories.generated.ts`) is generated from it by
+`npm run sync:categories` (CI guards drift with `:check`).
+
 Permissions matrix:
 
-| Category scope | ADMIN | Group-level role | Section-level role (for their section) |
+| Category scope | ADMIN | Group-level role | Section-level role (own section) |
 |---|---|---|---|
 | GROUP | yes | yes | no |
 | SECTION | yes | no | yes |
-| BOTH (with section=null) | yes | yes | no |
-| BOTH (with section set) | yes | yes (any section) | yes (only their own) |
+| BOTH (section=null) | yes | yes | no |
+| BOTH (section set) | yes | yes (any section) | yes (only their own) |
 
 Group-level roles: Chefe de Agrupamento (+ Adjunto), Secretário, Tesoureiro,
-Assistente. Section-level roles: Chefe de Unidade (+ Adjunto), Instrutor —
-all of which require `Profile.section` to be set.
+Assistente. Section-level: Chefe de Unidade (+ Adjunto), Instrutor — all require
+`Profile.section`. (`GROUP_ROLES` / `SECTION_ROLES` in `ordem_permissions.py`.)
 
 ### Phase 2: assembly into a Document
 
-`POST /api/ordens-servico/generate { from, to }` (ADMIN only):
+`POST /api/ordens-servico/generate { from, to }` (ADMIN; `ordens_servico.py`):
 
 ```
-1. Load OrdemItems where date in [from, to] AND includedInOsId IS NULL
-2. Load Scouts where joinedAt in [from, to] AND section IS NOT NULL
-3. Load ScoutNightsBadge where awardedAt in [from, to] AND scout.section IS NOT NULL
-4. resolveRefs(items)  ─────►  one query for scouts, one for profiles
-5. assembleOrdemServico(items, periodo, refs)
-     │  fold each item into the matching OrdemServicoData bucket
-     │  (see ordem-item.ts comment header for the full mapping)
-     └─ snapshot is plain strings (resolved names), not refs
-6. Auto-include admissions:
-     for each admitted scout in [from, to]:
-       data.efetivo.admissao[section].push(scoutLabel(scout))
-7. Auto-include noites de campo:
-     group badges by (section, count)
-     for each group:
-       data.noitesCampo[section].push({ count, membros: [names] })
-8. Transaction:
-     a) DocumentSequence.upsert       (next OS number, type=ORDEM_SERVICO year=0)
-     b) Document.create               (content = JSON.stringify(assembled))
-     c) OrdemItem.updateMany          (includedInOsId = doc.id) — locks them
-9. Return { id, identifier, itemCount, autoAdmissions, autoNightsBadges }
+1. Load OrdemItems  : date in [from,to] AND includedInOsId IS NULL
+2. Load Scouts      : joinedAt in [from,to] AND section IS NOT NULL   (admissions)
+3. Load NightsBadge : awardedAt in [from,to] AND scout.section NOT NULL
+4. resolve_refs(items)            # one query for scouts, one for profiles
+5. assemble_ordem_servico(...)    # fold each item into its OrdemServicoData bucket
+                                  #   (app/core/ordem_assembler.py + ordem_servico.py);
+                                  #   snapshot holds resolved names, not refs
+6. Auto-include admissions  → efetivo.admissao[section]
+7. Auto-include noites      → group badges by (section,count) → noitesCampo[section]
+8. Transaction: bump DocumentSequence (with_for_update) → Document.create
+   (content = JSON) → mark source items includedInOsId
+9. Return { …document, identifier, itemCount, autoAdmissions, autoNightsBadges }
 ```
 
-The snapshot is immutable from then on. Items already `includedInOsId`
-return 409 from PATCH/DELETE — preserves the OS document's historical
-accuracy. The OS PDF renderer reads only `Document.content`; the original
-items are not consulted at render time.
+The snapshot is immutable thereafter. Items already `includedInOsId` return 409
+from PATCH/DELETE. The OS PDF reads only `Document.content`.
 
 ## PDF rendering
 
-Runs in **`apps/api`** (the only PDF generator now), via
-`@qtscout/core/pdf-generator`. Single browser launch per request, ~5–8 s cold:
+`apps/api/app/pdf/` — `render.py` launches Playwright (Chromium) and runs
+`page.pdf()` (A4; 1/2/2.5/2 cm margins; footer; `print_background`). The Docker
+image installs Chromium (`playwright install --with-deps chromium`).
 
-- Local dev: `puppeteer` (full bundle).
-- Production: `puppeteer-core` + `@sparticuz/chromium-min`
-  (Chromium binary fetched from GitHub release at startup).
-- These deps live in `@qtscout/core`, not in the web app.
+- `html_builders.py` — meeting body (incl. the CA-only signature page) and the
+  document body/signature; `format_date_pt` for pt-PT dates.
+- `os_content.py` — renders the `OrdemServicoData` snapshot into the OS body.
+- `templates/{meeting,document}.html.j2` — Jinja2 page shells holding the CSS
+  (copied verbatim from the old generator for visual fidelity); `assets/` holds
+  the base64-embedded header logos. Fonts: Lato + Caveat (handwritten fallback).
 
-Header logos ship inside the package at `packages/core/assets/images/` and are
-resolved relative to the module (`import.meta.url`), with a `process.cwd()/public`
-fallback; they are base64-embedded into the HTML. The API returns the PDF as a
-binary body via `apps/api/src/lib/pdf-response.ts`.
-
-Meeting and Document each have a dedicated HTML generator
-(`generateMeetingHTML`, `generateDocumentHTML`). Fonts come from
-`fonts.googleapis.com` (Lato + Caveat — Caveat is the handwritten fallback
-when a signer hasn't uploaded a signature image). Header logos are
-base64-embedded.
-
-Signature block: "Saudações Escutistas," → signature image (or Caveat
-name) → "Name (Role 1, Role 2)". Centered.
+Endpoints: `GET /api/{documents,meetings}/{id}/pdf?download=`. Signature block:
+"Saudações Escutistas," → signature image (or Caveat name) → "Name (Role 1, …)".
 
 ## SIIE imports
 
-Two endpoints, same shape:
+Two ADMIN-only multipart endpoints, same shape:
 
 ```
-ADMIN uploads xlsx
-  └─> POST /api/scouts/import           (members)
-  └─> POST /api/ordem-items/import-activities
+POST /api/scouts/import                 (members; app/core/siie_import.py)
+POST /api/ordem-items/import-activities (activities; siie_atividades_import.py)
 
-For each: parse → validate → batch upsert
-  1. xlsx.read + sheet_to_json
-  2. mapRow / mapActivityRow per row (pure functions in lib/siie-*.ts)
-     - field mapping
-     - section derived from CNE category letter / Sigla Seccao
-     - date parsing handles DD/MM/YYYY and Excel serial
-  3. ONE pre-fetch query for existing rows (by NIN or externalId)
-     + scouts also pre-fetches all profile emails for leader linking
-  4. Promise.all of per-row prisma.X.upsert (single statement)
-     try/catch per row → granular error reporting in the summary
-  5. Activities: rows with includedInOsId are skipped (immutable)
-     Scouts: profile link applied only on create (preserves manual edits)
+For each: read (openpyxl) → map per row → pre-fetch → per-row upsert
+  1. load_workbook → rows as dicts keyed by header
+  2. map_row / map_activity_row (pure): field mapping, section from CNE category
+     letter / Sigla Seccao, date parsing (DD/MM/YYYY + Excel serial)
+  3. ONE pre-fetch (existing by NIN / externalId); scouts also pre-fetch profile
+     emails for leader linking
+  4. per-row upsert with per-row commit + try/except (granular error summary)
+  5. Activities: rows already in an OS are skipped. Scouts: profile link applied
+     only on create (preserves manual edits).
 ```
 
-Section mapping (members): last character of `Categoria` →
-`L→ALCATEIA, E→EXPEDICAO, P→COMUNIDADE, C→CLA`, else null (leaders).
+Section mapping — members: last letter of `Categoria`
+(`L→ALCATEIA, E→EXPEDICAO, P→COMUNIDADE, C→CLA`, else null = leader).
+Activities: a single-letter `Sigla Seccao` → its section; else null (Agrupamento).
 
-Section mapping (activities): only a single-letter `Sigla Seccao` →
-its section; multi-letter or empty → null (Agrupamento-level).
+## Database workflow (SQLAlchemy + Alembic)
 
-## Database workflow
-
-The `_prisma_migrations` table has a historical rolled-back row that makes
-`prisma migrate dev` refuse to run. The workaround is documented in
-`CLAUDE.md`. In short:
-
-1. Edit `packages/db/prisma/schema.prisma`.
-2. Author `packages/db/prisma/migrations/<ts>_<name>/migration.sql` manually.
-3. Execute via Supabase MCP + insert into `_prisma_migrations` in the
-   same statement.
-4. `npm run db:generate` (runs `prisma generate` in `@qtscout/db`).
-5. **Restart the dev server.** Turbopack caches `@prisma/client`.
-
-Prisma config (`packages/db/prisma.config.ts`) loads env from
-`apps/web/.env.local` (single source of truth during the monorepo transition).
-
-The schema is the source of truth, the migrations are the audit trail —
-they're applied in the same transaction so the two stay in sync, but the
-canonical "what fields exist" answer comes from the schema file.
+- Models in `apps/api/app/models/` map the existing tables — snake_case Python attrs
+  to **exact camelCase columns** (`mapped_column("createdAt", …)`); PG enums bound
+  with `create_type=False`; cuid/uuid id factories.
+- `apps/api/app/db.py` normalises `DATABASE_URL` for asyncpg and disables the
+  prepared-statement cache (`statement_cache_size=0`) — required for the Supabase
+  transaction pooler (pgbouncer). Alembic uses `DIRECT_URL`.
+- The schema pre-existed (Prisma), so Alembic is **baseline-stamped** at
+  `65d0b607c636` (no DDL). New changes: edit a model →
+  `uv run alembic revision --autogenerate -m "…"` → `uv run alembic upgrade head`.
+- Response parity: `apps/api/app/schemas/base.py` — `ORMModel` emits camelCase keys;
+  `PrismaDateTime` serialises datetimes as UTC `…000Z` so the web's `new Date()`
+  parsing is unchanged.
 
 ## Feature flags
 
-Three booleans via `@flags-sdk/vercel`, default `true`:
-
-- `oficio-enabled`
-- `circular-enabled`
-- `ordem-servico-enabled`
-
-Read server-side in `apps/web/src/app/(app)/layout.tsx` and passed down to the
-sidebar + documents list as `enabledDocTypes`. The OS flag also controls
-visibility of the `/ordem-servico` nav entry. `apps/web/src/middleware.ts`
-gates the `/documents` page by type. The Vercel Flags dashboard owns the
-overrides. Flags currently live **only in `apps/web`** (UI visibility +
-page gating); the API does not yet enforce them on create/generate — adding
-that is a follow-up if document-type gating must hold for non-browser clients.
+Three booleans via `@flags-sdk/vercel`, default `true`: `oficio-enabled`,
+`circular-enabled`, `ordem-servico-enabled`. Read server-side in
+`apps/web/src/app/(app)/layout.tsx`, passed to the sidebar + documents list as
+`enabledDocTypes`; the OS flag also gates the `/ordem-servico` nav entry.
+`apps/web/src/middleware.ts` gates `/documents` by type. Flags live **only in
+`apps/web`** (UI visibility); the API does not enforce them.
 
 ## Deployment
 
-Two Vercel projects from one repo:
-
-- **web** → root directory `apps/web` (Next.js, auto-detected). Env:
-  `NEXT_PUBLIC_*` + `NEXT_PUBLIC_API_URL` (the API's public origin) + the
-  Supabase/flags vars its server side still needs.
-- **api** → root directory `apps/api` (Hono). Env: `DATABASE_URL`,
-  `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
-  `SUPABASE_SECRET_KEY`, `MISTRAL_API_KEY`, `WEB_ORIGIN` (CORS allow-list).
-  The PDF route needs elevated `maxDuration`/memory (was the only entry in the
-  old root `vercel.json`).
-
-CORS: `apps/api/src/index.ts` allows `WEB_ORIGIN` (defaults to
-`http://localhost:3000`) and the `Authorization` header.
+- **Web** → Vercel project `qtscout` (Next.js). Env: `NEXT_PUBLIC_*` +
+  `NEXT_PUBLIC_API_URL` (the API's public origin) + the Supabase/flags vars its
+  server side needs.
+- **API** → Docker container on **Railway** (`apps/api/Dockerfile`; `render.yaml` is a
+  Render Blueprint alternative). Env: `DATABASE_URL`, `DIRECT_URL`,
+  `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`,
+  `MISTRAL_API_KEY`, `WEB_ORIGIN` (CORS allow-list). `$PORT` is platform-provided;
+  the entrypoint is gunicorn + UvicornWorker. CORS (`app/main.py`) allows
+  `WEB_ORIGIN` + the `Authorization` header. Full cutover steps: `apps/api/DEPLOY.md`.
 
 ## Commands
 
-Run from the repo root (Turborepo fans out to workspaces):
-
-- `npm run dev` — starts web (:3000) **and** api (:3001) in parallel.
-- `npm run build` / `npm run typecheck` / `npm run lint`.
-- `npm run db:generate | db:migrate | db:seed` — proxy to `@qtscout/db`.
-- `npm run docs:sync | docs:check` — regenerate/verify `ordem-categories.md`.
-- `npm run test:e2e` — Playwright; its `webServer` runs `npm run dev` (both).
+- **API** (from `apps/api/`, `uv`): `uv run uvicorn app.main:app --reload --port 3001`,
+  `uv run pytest`, `uv run ruff check app`, `uv run mypy app`,
+  `uv run python scripts/export_openapi.py`, `uv run alembic …`.
+- **Web** (root): `npm run dev` (web :3000), `npm run build` / `typecheck` /
+  `lint`, `npm run gen:api-types`, `npm run sync:categories[:check]`,
+  `npm run docs:sync | docs:check`, `npm run test:e2e`.
+- Local full stack: run the API and point the web's `NEXT_PUBLIC_API_URL` at it
+  (or at Railway).
 
 ## Conventions
 
 - pt-PT user-facing strings everywhere. Code/identifiers in English.
 - No emojis in code or UI unless asked.
-- Server routes: handle dynamic params as
-  `{ params }: { params: Promise<{ id: string }> }`.
-- Prefer `prisma.X.upsert` over find + create/update — one query.
-- For batches: parallel upserts with per-row `try/catch`, not transaction
-  arrays (so a single P2002 doesn't roll back the whole import).
-- Don't add comments that restate what the code does. Comments should
-  explain a non-obvious *why* (invariant, gotcha, link to incident).
-- API routes are admin-gated by `session.user.role !== 'ADMIN'` checks at
-  the top — never trust the client.
+- Web server routes: dynamic params are `Promise<{ id: string }>`.
+- API: FastAPI path/query params via the function signature; raw bodies as
+  `Annotated[dict, Body()]` where pt-PT 400 messages must match the old API.
+- DB writes: per-row upsert with per-row commit + `try/except` for batches
+  (so one conflict doesn't roll back a whole import); `with_for_update` for
+  sequence bumps.
+- The OS catalog is single-sourced via `ordem_categories.json` — edit the JSON,
+  run `npm run sync:categories`.
+- Comments explain a non-obvious *why*, not what the code does.
+- Admin-gate via the `AdminUser` dependency — never trust the client.
