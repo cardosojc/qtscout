@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Server.
     port: int = 3001
 
+    # Diagnostic: when true, exposes GET /api/_debug/timing (slowness probe).
+    debug_timing: bool = False
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.web_origin.split(",") if o.strip()]
