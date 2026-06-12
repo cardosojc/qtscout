@@ -8,7 +8,8 @@ Backend for QTScout — meeting minutes + document management for **Agrupamento 
 
 - **FastAPI** + Pydantic v2 (the OpenAPI schema is the FE/BE contract)
 - **SQLAlchemy 2.0** (async, asyncpg) + **Alembic** against Supabase Postgres
-- **Supabase** auth (Bearer JWT) — `supabase-py` for service-role admin ops
+- **Supabase** auth (Bearer JWT, verified offline via JWKS/ES256 with a
+  `/auth/v1/user` fallback) — GoTrue REST for service-role admin ops
 - **Playwright** (Chromium) + **Jinja2** for PDF rendering
 - **openpyxl** for SIIE xlsx imports
 - Tooling: **uv**, ruff, mypy, pytest
