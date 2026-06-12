@@ -83,21 +83,24 @@ async def request_timing(
     total_ms = (time.perf_counter() - start) * 1000.0
 
     auth_ms = bucket.get("auth", 0.0)
+    acquire_ms = bucket.get("db_acquire", 0.0)
     profile_ms = bucket.get("profiledb", 0.0)
-    handler_ms = max(total_ms - auth_ms - profile_ms, 0.0)
+    handler_ms = max(total_ms - auth_ms - acquire_ms - profile_ms, 0.0)
     response.headers["Server-Timing"] = (
         f"auth;dur={auth_ms:.1f}, "
+        f"dbacquire;dur={acquire_ms:.1f}, "
         f"profiledb;dur={profile_ms:.1f}, "
         f"handler;dur={handler_ms:.1f}, "
         f"total;dur={total_ms:.1f}"
     )
     _timing_log.info(
-        "%s %s -> %d total=%.1fms auth=%.1fms profiledb=%.1fms handler=%.1fms",
+        "%s %s -> %d total=%.1fms auth=%.1fms dbacquire=%.1fms profiledb=%.1fms handler=%.1fms",
         request.method,
         request.url.path,
         response.status_code,
         total_ms,
         auth_ms,
+        acquire_ms,
         profile_ms,
         handler_ms,
     )

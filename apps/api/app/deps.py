@@ -28,6 +28,8 @@ async def current_user(
     sb_user = await verify_supabase_token(token)
     if not sb_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    with track("db_acquire"):
+        await session.connection()  # forces pool checkout + pool_pre_ping
     with track("profiledb"):
         profile = await session.scalar(select(Profile).where(Profile.id == sb_user["id"]))
     if profile is None:
