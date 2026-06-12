@@ -1,9 +1,12 @@
 import { test as setup } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
-import { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 import { TEST_USER } from './helpers/auth'
 
-async function ensureTestUser() {
+// Provisions the test user, its profile, and the meeting types directly via the
+// Supabase service-role client (PostgREST), which bypasses RLS. The backend is
+// now FastAPI/Python, so there is no Prisma client here anymore.
+async function ensureTestData() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
 
@@ -18,64 +21,69 @@ async function ensureTestUser() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  const prisma = new PrismaClient()
+  // 1. Upsert the auth user via the GoTrue Admin API.
+  const { data: existingUsers } = await supabase.auth.admin.listUsers()
+  const existing = existingUsers?.users.find((u) => u.email === TEST_USER.email)
 
-  try {
-    // 1. Upsert auth user via Supabase Admin API
-    const { data: existingUsers } = await supabase.auth.admin.listUsers()
-    const existing = existingUsers?.users.find((u) => u.email === TEST_USER.email)
+  let userId: string
+  if (existing) {
+    userId = existing.id
+    // Reset password in case it drifted.
+    await supabase.auth.admin.updateUserById(userId, { password: TEST_USER.password })
+  } else {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+      email_confirm: true,
+      user_metadata: { name: TEST_USER.name, username: TEST_USER.username },
+    })
+    if (error) throw new Error(`Failed to create test user: ${error.message}`)
+    userId = data.user.id
+  }
 
-    let userId: string
+  // 2. Ensure the profile row (service role bypasses RLS). `createdAt`/`updatedAt`
+  //    are NOT NULL with no DB default (Prisma used to manage them in-app), so we
+  //    set them explicitly. Select-then-update/insert mirrors the old Prisma
+  //    upsert: update only name/role on an existing row, full insert otherwise.
+  const now = new Date().toISOString()
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle()
 
-    if (existing) {
-      userId = existing.id
-      // Reset password in case it drifted
-      await supabase.auth.admin.updateUserById(userId, {
-        password: TEST_USER.password,
-      })
-    } else {
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: TEST_USER.email,
-        password: TEST_USER.password,
-        email_confirm: true,
-        user_metadata: { name: TEST_USER.name, username: TEST_USER.username },
-      })
-      if (error) throw new Error(`Failed to create test user: ${error.message}`)
-      userId = data.user.id
-    }
-
-    // 2. Upsert profile in database
-    await prisma.profile.upsert({
-      where: { id: userId },
-      update: { name: TEST_USER.name, role: 'ADMIN' },
-      create: {
+  const { error: profileError } = existingProfile
+    ? await supabase
+        .from('profiles')
+        .update({ name: TEST_USER.name, role: 'ADMIN', updatedAt: now })
+        .eq('id', userId)
+    : await supabase.from('profiles').insert({
         id: userId,
         username: TEST_USER.username,
         email: TEST_USER.email,
         name: TEST_USER.name,
         role: 'ADMIN',
-      },
-    })
+        createdAt: now,
+        updatedAt: now,
+      })
+  if (profileError) throw new Error(`Failed to provision profile: ${profileError.message}`)
 
-    // 3. Ensure meeting types exist
-    await prisma.meetingType.upsert({
-      where: { code: 'CA' },
-      update: {},
-      create: { code: 'CA', name: 'Conselho de Agrupamento', description: 'Reunião do conselho' },
-    })
-    await prisma.meetingType.upsert({
-      where: { code: 'RD' },
-      update: {},
-      create: { code: 'RD', name: 'Reunião de Direção', description: 'Reunião da direção' },
-    })
-  } finally {
-    await prisma.$disconnect()
-  }
+  // 3. Ensure the meeting types exist. ignoreDuplicates so an existing row's id
+  //    (referenced by meetings.meetingTypeId) is never rewritten; the generated
+  //    id + timestamps are only used when inserting a brand-new row.
+  const { error: typesError } = await supabase.from('meeting_types').upsert(
+    [
+      { id: randomUUID(), code: 'CA', name: 'Conselho de Agrupamento', description: 'Reunião do conselho', createdAt: now, updatedAt: now },
+      { id: randomUUID(), code: 'RD', name: 'Reunião de Direção', description: 'Reunião da direção', createdAt: now, updatedAt: now },
+    ],
+    { onConflict: 'code', ignoreDuplicates: true }
+  )
+  if (typesError) throw new Error(`Failed to upsert meeting types: ${typesError.message}`)
 }
 
 setup('create test user and authenticate', async ({ page }) => {
   // Provision test data before logging in
-  await ensureTestUser()
+  await ensureTestData()
 
   // Sign in via the UI and persist the session
   await page.goto('/auth/signin')
