@@ -24,6 +24,10 @@ Env var mapping (Hono → FastAPI service):
 | `MISTRAL_API_KEY`            | `MISTRAL_API_KEY`                       |
 | `WEB_ORIGIN`                 | the web origin(s), e.g. `https://qtscout.vercel.app` (comma-sep) |
 
+Optional: `JWT_LOCAL_VERIFY` (default `true`) — access tokens are verified
+offline against Supabase's JWKS; set `false` to force the `/auth/v1/user`
+network path (e.g. if you need server-side revocation to take effect immediately).
+
 ## 1. Provision the service
 
 - **Render**: New + → Blueprint → this repo (`render.yaml`). Fill the env vars.

@@ -30,9 +30,10 @@ aliases. Internal TS packages ship raw TS (no build); web consumes them via
 - **Web**: Next.js 15 App Router (Turbopack), React 19, TypeScript 5, TipTap,
   Tailwind 4, SWR. Unchanged by the migration; stays on Vercel.
 - **API**: FastAPI + Pydantic v2, `uv`; SQLAlchemy 2.0 async (asyncpg) +
-  Alembic; Supabase auth (JWT verified via `/auth/v1/user`); **Playwright
-  (Chromium) + Jinja2** for PDF; **openpyxl** for SIIE xlsx; httpx → Mistral
-  for AI rewrite. Tooling: ruff, mypy, pytest.
+  Alembic; Supabase auth (access tokens verified offline via JWKS/ES256, with a
+  `/auth/v1/user` fallback); **Playwright (Chromium) + Jinja2** for PDF;
+  **openpyxl** for SIIE xlsx; httpx → Mistral for AI rewrite. Tooling: ruff,
+  mypy, pytest.
 - Supabase Postgres (shared by both); `DATABASE_URL` (transaction pooler) +
   `DIRECT_URL` (Alembic).
 
@@ -53,9 +54,13 @@ One identity (Supabase), two transports: cookies for the web shell, **Bearer
 tokens** for the API.
 
 - API: routes depend on `CurrentUser` / `AdminUser` (`apps/api/app/deps.py`).
-  `current_user` extracts the Bearer token, validates it against Supabase
-  (`GET {SUPABASE_URL}/auth/v1/user`, `apps/api/app/auth.py`), loads the `Profile`
-  by id, and returns `SessionUser {id, email, name, username, role}`.
+  `current_user` extracts the Bearer token and verifies it **offline against
+  Supabase's JWKS** (ES256; keys fetched once + cached, warmed at startup),
+  falling back to `GET {SUPABASE_URL}/auth/v1/user` when `jwt_local_verify` is
+  off or local verification fails (`apps/api/app/auth.py`). It then loads the
+  `Profile` by id (`sub`) and returns `SessionUser {id, email, name, username,
+  role}`. Offline verification can't see server-side revocation until the
+  short-lived token expires — set `JWT_LOCAL_VERIFY=false` to force the API path.
   `AdminUser` adds the ADMIN check. Errors render as `{"error": ...}` to match
   the old API (exception handler in `app/main.py`).
 - Client: `const { user, loading, signOut } = useAuth()` from
@@ -76,7 +81,9 @@ tokens** for the API.
 - Engine: `apps/api/app/db.py` normalises the Prisma-style `DATABASE_URL` for asyncpg
   and **disables the prepared-statement cache** (`statement_cache_size=0`) —
   required because the app connects through the Supabase transaction pooler
-  (pgbouncer). `DIRECT_URL` is used by Alembic.
+  (pgbouncer). `pool_pre_ping` is **off** (its liveness round-trip cost ~100–200ms
+  per request through the pooler — measured) with `pool_recycle=1800` as the
+  staleness guard instead. `DIRECT_URL` is used by Alembic.
 - **Migrations** (`apps/api/migrations/`): the schema already existed (Prisma), so
   Alembic is **baseline-stamped** at `65d0b607c636` (no DDL). New changes:
   edit a model → `uv run alembic revision --autogenerate -m "…"` →
