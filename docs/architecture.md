@@ -96,10 +96,14 @@ Bearer tokens for the API.
    `supabase.auth.getSession()` and sends `Authorization: Bearer <jwt>` to
    `NEXT_PUBLIC_API_URL`. `useAuth()` hydrates the user via `/api/auth/profile`.
 3. **API auth** (`apps/api/app/deps.py`, `auth.py`): `current_user` extracts the
-   Bearer token, validates it against Supabase (`GET {SUPABASE_URL}/auth/v1/user`,
-   httpx), then loads the `Profile` by Supabase user id and returns
+   Bearer token and verifies it **offline against Supabase's JWKS** (ES256; keys
+   cached, warmed at startup), falling back to `GET {SUPABASE_URL}/auth/v1/user`
+   (httpx) when `jwt_local_verify` is off or local verification fails. It then
+   loads the `Profile` by Supabase user id (`sub`) and returns
    `SessionUser {id, email, name, username, role}`. `AdminUser` adds the ADMIN
-   check. Routes depend on `CurrentUser` / `AdminUser`.
+   check. Routes depend on `CurrentUser` / `AdminUser`. Offline verification
+   can't observe server-side revocation until the short-lived token expires —
+   set `JWT_LOCAL_VERIFY=false` to force the network path.
 4. **Other clients** authenticate against Supabase (e.g. password grant) and
    send the `access_token` as Bearer — identical server path.
 
@@ -216,7 +220,9 @@ Activities: a single-letter `Sigla Seccao` → its section; else null (Agrupamen
   with `create_type=False`; cuid/uuid id factories.
 - `apps/api/app/db.py` normalises `DATABASE_URL` for asyncpg and disables the
   prepared-statement cache (`statement_cache_size=0`) — required for the Supabase
-  transaction pooler (pgbouncer). Alembic uses `DIRECT_URL`.
+  transaction pooler (pgbouncer). `pool_pre_ping` is **off** (its per-checkout
+  liveness round-trip cost ~100–200ms through the pooler — measured) with
+  `pool_recycle=1800` as the staleness guard. Alembic uses `DIRECT_URL`.
 - The schema pre-existed (Prisma), so Alembic is **baseline-stamped** at
   `65d0b607c636` (no DDL). New changes: edit a model →
   `uv run alembic revision --autogenerate -m "…"` → `uv run alembic upgrade head`.
