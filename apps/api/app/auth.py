@@ -17,7 +17,6 @@ import jwt
 from jwt import PyJWKClient
 
 from app.config import get_settings
-from app.timing import track
 
 settings = get_settings()
 
@@ -83,12 +82,11 @@ async def _verify_via_api(token: str) -> dict[str, Any] | None:
 
 async def verify_supabase_token(token: str) -> dict[str, Any] | None:
     """Return the Supabase user dict for a valid access token, else None."""
-    with track("auth"):
-        if settings.jwt_local_verify:
-            local = await asyncio.to_thread(_verify_jwt_local, token)
-            if local is not None:
-                return local
-        return await _verify_via_api(token)
+    if settings.jwt_local_verify:
+        local = await asyncio.to_thread(_verify_jwt_local, token)
+        if local is not None:
+            return local
+    return await _verify_via_api(token)
 
 
 async def prefetch_jwks() -> None:

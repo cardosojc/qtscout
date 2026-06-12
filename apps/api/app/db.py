@@ -7,12 +7,9 @@ Supabase *transaction* pooler (pgbouncer), asyncpg's prepared-statement cache is
 disabled (`statement_cache_size=0`) — otherwise queries fail intermittently.
 """
 
-import logging
-import time
 from collections.abc import AsyncGenerator
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -55,29 +52,6 @@ engine = create_async_engine(
 )
 
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-# --- TEMPORARY: pool reuse probe (slowness fix #1) -------------------------
-# If `connect` fires about as often as `checkout`, connections are NOT being
-# reused — every request pays a fresh pgbouncer/TLS handshake. Remove after.
-_pool_log = logging.getLogger("uvicorn.error")
-_pool_stats = {"connect": 0, "checkout": 0}
-
-
-@event.listens_for(engine.sync_engine, "connect")
-def _on_pool_connect(_dbapi_conn: object, _rec: object) -> None:
-    _pool_stats["connect"] += 1
-    _pool_log.info(
-        "DB pool: NEW physical connection #%d (checkouts so far=%d) t=%.3f",
-        _pool_stats["connect"],
-        _pool_stats["checkout"],
-        time.time(),
-    )
-
-
-@event.listens_for(engine.sync_engine, "checkout")
-def _on_pool_checkout(_dbapi_conn: object, _rec: object, _proxy: object) -> None:
-    _pool_stats["checkout"] += 1
-# --------------------------------------------------------------------------
 
 
 async def get_session() -> AsyncGenerator[AsyncSession]:
