@@ -5,8 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 async function authHeader(): Promise<Record<string, string>> {
+  // Diagnostic: measure the per-request token acquisition gap (remove after).
+  const t0 = performance.now()
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug(`[timing] getSession ${(performance.now() - t0).toFixed(1)}ms`)
+  }
   const token = session?.access_token
   return token ? { Authorization: `Bearer ${token}` } : {}
 }

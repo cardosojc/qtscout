@@ -15,6 +15,7 @@ from app.db import get_session
 from app.models import Profile
 from app.models.enums import UserRole
 from app.schemas.session import SessionUser
+from app.timing import track
 
 
 async def current_user(
@@ -27,7 +28,8 @@ async def current_user(
     sb_user = await verify_supabase_token(token)
     if not sb_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    profile = await session.scalar(select(Profile).where(Profile.id == sb_user["id"]))
+    with track("profiledb"):
+        profile = await session.scalar(select(Profile).where(Profile.id == sb_user["id"]))
     if profile is None:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return SessionUser(

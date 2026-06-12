@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.timing import track
 
 settings = get_settings()
 
@@ -29,13 +30,14 @@ def bearer_from_header(auth_header: str | None) -> str | None:
 async def verify_supabase_token(token: str) -> dict[str, Any] | None:
     """Return the Supabase user dict for a valid access token, else None."""
     try:
-        resp = await _http.get(
-            f"{settings.supabase_url}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": settings.supabase_publishable_key,
-            },
-        )
+        with track("auth"):
+            resp = await _http.get(
+                f"{settings.supabase_url}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": settings.supabase_publishable_key,
+                },
+            )
     except httpx.HTTPError:
         return None
     if resp.status_code != 200:
