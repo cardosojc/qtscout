@@ -21,9 +21,11 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_publishable_key: str
     supabase_secret_key: str
-    # Optional: when set, JWTs are verified locally (HS256) instead of via a
-    # network call to supabase.auth.get_user(). Falls back to the network path.
-    supabase_jwt_secret: str | None = None
+    # When true (default), access tokens are verified offline against Supabase's
+    # JWKS (ES256) instead of via a per-request GET /auth/v1/user network call.
+    # Falls back to the network path on failure. Set false to force the API path
+    # (e.g. if you need server-side revocation to take effect immediately).
+    jwt_local_verify: bool = True
 
     # AI (rich-text editor polish/formal features).
     mistral_api_key: str | None = None
