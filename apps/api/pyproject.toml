@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "QTScout backend API (FastAPI). Meeting minutes + document management for Agrupamento 61 - Santa Maria dos Olivais (CNE)."
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi>=0.115",
+    "fastapi[standard]>=0.115",
     "uvicorn[standard]>=0.34",
     "gunicorn>=23.0",
     "sqlalchemy[asyncio]>=2.0.36",
