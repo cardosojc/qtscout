@@ -34,7 +34,8 @@ network path (e.g. if you need server-side revocation to take effect immediately
 - **Railway**: New service → Deploy from repo → set root directory `apps/api`
   (uses `apps/api/Dockerfile`). Add the same env vars. `$PORT` is provided.
 
-The image installs Chromium for PDF rendering (`playwright install --with-deps`).
+PDF rendering is pure-Python (xhtml2pdf) — no browser or system libs, so the
+image needs no extra build steps and PDFs work in-process on any host.
 
 ## 2. Baseline-stamp Alembic (one-time, no DDL)
 

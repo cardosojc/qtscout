@@ -1,5 +1,5 @@
 # QTScout FastAPI service. Deployed as a container (Railway/Render).
-# Includes Chromium for Playwright-based PDF rendering.
+# PDF rendering is pure-Python (xhtml2pdf) — no browser or system libs needed.
 FROM python:3.13-slim AS base
 
 # uv for fast, reproducible installs.
@@ -15,9 +15,6 @@ WORKDIR /app
 # Install dependencies first (cached layer) from the lockfile.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
-
-# Chromium + system libs for Playwright. Run after deps so the playwright CLI exists.
-RUN uv run playwright install --with-deps chromium
 
 # Application code.
 COPY . .

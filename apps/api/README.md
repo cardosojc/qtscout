@@ -10,7 +10,7 @@ Backend for QTScout — meeting minutes + document management for **Agrupamento 
 - **SQLAlchemy 2.0** (async, asyncpg) + **Alembic** against Supabase Postgres
 - **Supabase** auth (Bearer JWT, verified offline via JWKS/ES256 with a
   `/auth/v1/user` fallback) — GoTrue REST for service-role admin ops
-- **Playwright** (Chromium) + **Jinja2** for PDF rendering
+- **xhtml2pdf** (pure-Python, no browser) + **Jinja2** for PDF rendering
 - **openpyxl** for SIIE xlsx imports
 - Tooling: **uv**, ruff, mypy, pytest
 
@@ -37,10 +37,11 @@ through `uv run alembic revision --autogenerate` + `uv run alembic upgrade head`
 
 ## Deployment
 
-Container on Railway/Render (see `Dockerfile`). The image installs Chromium for
-Playwright. Set the env vars from `.env.example`; the platform provides `$PORT`.
-The Next.js web app stays on Vercel and points `NEXT_PUBLIC_API_URL` at this
-service.
+Container on Railway/Render (see `Dockerfile`); PDF rendering is pure-Python
+(xhtml2pdf), so the image needs no browser/system libs and also runs as-is on
+hosts that install only Python deps (e.g. FastAPI Cloud). Set the env vars from
+`.env.example`; the platform provides `$PORT`. The Next.js web app stays on
+Vercel and points `NEXT_PUBLIC_API_URL` at this service.
 
 ## Layout
 
@@ -54,6 +55,6 @@ app/
   models/        SQLAlchemy models (11 tables)
   schemas/       Pydantic request/response models
   core/          ordem assembler/resolver/permissions, SIIE import, ano_escutista
-  pdf/           Jinja2 templates + Playwright renderer
+  pdf/           Jinja2 templates + xhtml2pdf renderer + fonts/assets
 migrations/      Alembic
 ```

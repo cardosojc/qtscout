@@ -178,15 +178,14 @@ def generate_os_content(data: dict[str, Any]) -> str:
     secretario = data.get("secretarioAgrupamento") or ""
     if local_data or chefe or secretario:
         chefe_block = (
-            f'<div><p style="font-size:11px;color:#6b7280;margin:0;">Chefe de Agrupamento</p>'
-            f'<p style="font-weight:600;margin:4px 0 0 0;">{chefe}</p></div>'
+            f'<p style="font-size:11px;color:#6b7280;margin:0;">Chefe de Agrupamento</p>'
+            f'<p style="font-weight:600;margin:4px 0 0 0;">{chefe}</p>'
             if chefe
-            else "<div></div>"
+            else ""
         )
         sec_block = (
-            f'<div style="text-align:right;"><p style="font-size:11px;color:#6b7280;margin:0;">'
-            f'Secretário de Agrupamento</p>'
-            f'<p style="font-weight:600;margin:4px 0 0 0;">{secretario}</p></div>'
+            f'<p style="font-size:11px;color:#6b7280;margin:0;">Secretário de Agrupamento</p>'
+            f'<p style="font-weight:600;margin:4px 0 0 0;">{secretario}</p>'
             if secretario
             else ""
         )
@@ -194,8 +193,10 @@ def generate_os_content(data: dict[str, Any]) -> str:
         parts.append(
             '<div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">'
             f"{local_block}"
-            '<div style="display:flex;justify-content:space-between;gap:40px;margin-top:30px;">'
-            f"{chefe_block}{sec_block}</div></div>"
+            '<table style="width:100%;margin-top:30px;"><tr>'
+            f'<td style="width:50%;vertical-align:top;">{chefe_block}</td>'
+            f'<td style="width:50%;vertical-align:top;text-align:right;">{sec_block}</td>'
+            "</tr></table></div>"
         )
 
     return "".join(parts)

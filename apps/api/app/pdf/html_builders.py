@@ -43,25 +43,22 @@ def _signature_lines(attendees: list[str], chefe: str, secretario: str) -> str:
             else ""
         )
         return (
-            '<div style="width: 45%;">'
             '<div style="border-bottom: 1px solid #374151; height: 40px; margin-bottom: 5px;"></div>'
             '<p style="font-size: 12px; color: #374151; margin: 0; text-align: center; '
             f'font-weight: 500;">{person["name"]}</p>{role}'
             '<p style="font-size: 10px; color: #6b7280; margin: 2px 0 0 0; text-align: center;">'
-            "Assinatura</p></div>"
+            "Assinatura</p>"
         )
 
     rows = []
     for i in range(0, len(signatories), 2):
         left = cell(signatories[i])
-        right = (
-            cell(signatories[i + 1])
-            if i + 1 < len(signatories)
-            else '<div style="width: 45%;"></div>'
-        )
+        right = cell(signatories[i + 1]) if i + 1 < len(signatories) else ""
         rows.append(
-            '<div style="display: flex; justify-content: space-between; margin-bottom: 60px;">'
-            f"{left}{right}</div>"
+            '<table style="width: 100%; margin-bottom: 50px;"><tr>'
+            f'<td style="width: 50%; padding-right: 5%; vertical-align: top;">{left}</td>'
+            f'<td style="width: 50%; padding-left: 5%; vertical-align: top;">{right}</td>'
+            "</tr></table>"
         )
     return "".join(rows)
 
@@ -130,7 +127,7 @@ def build_meeting_body(meeting: dict[str, Any]) -> str:
                 f'font-weight: 600;">{secretario} (Secretário)</span>'
             )
         tags.extend(f'<span class="attendee-tag">{name}</span>' for name in attendees)
-        participantes = f'<h2>Participantes</h2><div class="attendees">{"".join(tags)}</div>'
+        participantes = f'<h2>Participantes</h2><div class="attendees">{" ".join(tags)}</div>'
 
     agenda_html = ""
     if items:
@@ -172,16 +169,17 @@ def build_meeting_body(meeting: dict[str, Any]) -> str:
     signature = _signature_page(attendees, chefe, secretario) if mt.get("code") == "CA" else ""
 
     return (
-        '<div class="content"><div class="meeting-info"><div class="meeting-info-grid"><div>'
+        '<div class="content"><div class="meeting-info">'
+        '<table class="meeting-info-table"><tr><td>'
         f'<div class="info-item"><span class="info-label">Identificador:</span> '
         f'{meeting.get("identifier", "")}</div>'
         f'<div class="info-item"><span class="info-label">Tipo:</span> {mt.get("name", "")}</div>'
         f'<div class="info-item"><span class="info-label">Data:</span> '
         f'{format_date_pt(meeting["date"])}</div>'
-        f"{horario}</div><div>{local}"
+        f"{horario}</td><td>{local}"
         f'<div class="info-item"><span class="info-label">Criado por:</span> '
         f'{created_by.get("name") or created_by.get("email", "")}</div>'
-        f"</div></div></div>{participantes}{agenda_html}{signature}</div>"
+        f"</td></tr></table></div>{participantes}{agenda_html}{signature}</div>"
     )
 
 
