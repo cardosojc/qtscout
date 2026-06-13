@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
-from playwright.async_api import PdfMargins, async_playwright
+from playwright.async_api import Browser, PdfMargins, Playwright, async_playwright
 
+from app.config import get_settings
 from app.pdf.html_builders import (
     DOC_TYPE_LABELS,
     build_document_parts,
@@ -45,9 +46,19 @@ def _header_ctx() -> dict[str, Any]:
     return {**_HEADER, "left_img": _img("scouthouse61.jpeg"), "right_img": _img("cne.jpeg")}
 
 
+async def _launch_browser(p: Playwright) -> Browser:
+    """Connect to a remote Chromium over CDP when BROWSER_WS_URL is set (hosts
+    that can't bundle Chromium, e.g. FastAPI Cloud); otherwise launch locally
+    (Railway's image bakes Chromium in)."""
+    ws_url = get_settings().browser_ws_url
+    if ws_url:
+        return await p.chromium.connect_over_cdp(ws_url)
+    return await p.chromium.launch(headless=True)
+
+
 async def _render(html: str) -> bytes:
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await _launch_browser(p)
         try:
             page = await browser.new_page()
             await page.set_content(html, wait_until="networkidle")

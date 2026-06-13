@@ -28,6 +28,12 @@ Optional: `JWT_LOCAL_VERIFY` (default `true`) — access tokens are verified
 offline against Supabase's JWKS; set `false` to force the `/auth/v1/user`
 network path (e.g. if you need server-side revocation to take effect immediately).
 
+Optional: `BROWSER_WS_URL` — for PDF rendering. Unset, the app launches Chromium
+locally (Railway/Render bundle it via the Dockerfile). On hosts that only install
+Python deps and can't bundle Chromium + its system libs (e.g. **FastAPI Cloud**),
+set this to a remote Chromium CDP endpoint (Browserless, or a self-hosted
+`browserless/chromium` container) and the app connects over CDP instead.
+
 ## 1. Provision the service
 
 - **Render**: New + → Blueprint → this repo (`render.yaml`). Fill the env vars.

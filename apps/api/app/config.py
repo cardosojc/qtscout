@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     # AI (rich-text editor polish/formal features).
     mistral_api_key: str | None = None
 
+    # PDF rendering (Playwright/Chromium). When set, connect to a remote Chromium
+    # over CDP (e.g. a Browserless endpoint) instead of launching one locally.
+    # Required on hosts that can't bundle Chromium + its system libs (e.g. FastAPI
+    # Cloud, which only installs Python deps). Unset on Railway, where the Docker
+    # image bakes in Chromium and a local launch works.
+    browser_ws_url: str | None = None
+
     # CORS: comma-separated list of allowed web origins.
     web_origin: str = "http://localhost:3000"
 
