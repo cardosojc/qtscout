@@ -31,7 +31,7 @@ aliases. Internal TS packages ship raw TS (no build); web consumes them via
   Tailwind 4, SWR. Unchanged by the migration; stays on Vercel.
 - **API**: FastAPI + Pydantic v2, `uv`; SQLAlchemy 2.0 async (asyncpg) +
   Alembic; Supabase auth (access tokens verified offline via JWKS/ES256, with a
-  `/auth/v1/user` fallback); **Playwright (Chromium) + Jinja2** for PDF;
+  `/auth/v1/user` fallback); **xhtml2pdf (pure-Python) + Jinja2** for PDF;
   **openpyxl** for SIIE xlsx; httpx → Mistral for AI rewrite. Tooling: ruff,
   mypy, pytest.
 - Supabase Postgres (shared by both); `DATABASE_URL` (transaction pooler) +
@@ -148,13 +148,18 @@ PDF for OS reads the snapshotted JSON: `apps/api/app/pdf/os_content.py`.
 
 ## PDF generation
 
-`apps/api/app/pdf/`: `render.py` launches Playwright (Chromium) and runs
-`page.pdf(...)` (A4, 1/2/2.5/2cm margins, footer). `html_builders.py` builds the
-meeting body (incl. the CA-only signature page) and document body/signature;
-`os_content.py` renders the OS snapshot. Page shells + CSS are Jinja2 templates
-(`templates/meeting.html.j2`, `document.html.j2`); header images in
-`pdf/assets/`. Endpoints: `GET /api/{documents,meetings}/{id}/pdf?download=`.
-The Docker image installs Chromium (`playwright install --with-deps chromium`).
+`apps/api/app/pdf/`: `render.py` runs **xhtml2pdf (`pisa`)** — pure-Python, no
+browser — synchronously off the event loop (`run_in_threadpool`); a
+`link_callback` resolves local `@font-face`/asset paths while passing `data:`
+URIs through. `html_builders.py` builds the meeting body (incl. the CA-only
+signature page) and document body/signature; `os_content.py` renders the OS
+snapshot. Page shells + CSS are Jinja2 templates (`templates/meeting.html.j2`,
+`document.html.j2`) using xhtml2pdf's subset — **table-based layout (no
+flexbox/grid)**, static `@frame` header/footer (repeating, with page numbers via
+`<pdf:pagenumber>`), and local fonts in `pdf/fonts/` (Lato, Caveat); header
+images in `pdf/assets/`. Endpoints: `GET /api/{documents,meetings}/{id}/pdf?download=`.
+No browser or system libs are needed, so PDF rendering runs in-process on **any**
+host (Railway/Docker **and** FastAPI Cloud).
 
 ## Scouts (members)
 

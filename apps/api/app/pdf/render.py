@@ -1,13 +1,18 @@
-"""Render meeting/document PDFs with Playwright (Chromium). Ports the launch +
-page.pdf options from pdf-generator.ts. Templates supply the page shell + CSS.
+"""Render meeting/document PDFs with xhtml2pdf (pisa) — pure-Python, no browser.
+
+Templates supply the page shell + CSS (xhtml2pdf subset: tables for layout,
+static @frame header/footer, local @font-face). The synchronous pisa renderer
+runs off the event loop via run_in_threadpool so the routers stay async.
 """
 
 import base64
+import io
 from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
-from playwright.async_api import PdfMargins, async_playwright
+from starlette.concurrency import run_in_threadpool
+from xhtml2pdf import pisa
 
 from app.pdf.html_builders import (
     DOC_TYPE_LABELS,
@@ -23,12 +28,6 @@ _HEADER = {
     "line1": "Agrupamento 61 - Santa Maria dos Olivais",
     "line2": "Escutismo Católico Português",
 }
-_FOOTER = (
-    '<div style="font-size: 8px; width: 100%; text-align: center; margin-bottom: 10px; '
-    'color: #666;"><div style="margin-top: 5px;">CNE - instituição de utilidade pública'
-    "</div></div>"
-)
-_MARGIN: PdfMargins = {"top": "1cm", "right": "2cm", "bottom": "2.5cm", "left": "2cm"}
 
 
 def _img(filename: str) -> str:
@@ -45,22 +44,21 @@ def _header_ctx() -> dict[str, Any]:
     return {**_HEADER, "left_img": _img("scouthouse61.jpeg"), "right_img": _img("cne.jpeg")}
 
 
-async def _render(html: str) -> bytes:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        try:
-            page = await browser.new_page()
-            await page.set_content(html, wait_until="networkidle")
-            return await page.pdf(
-                format="A4",
-                margin=_MARGIN,
-                display_header_footer=True,
-                header_template="<span></span>",
-                footer_template=_FOOTER,
-                print_background=True,
-            )
-        finally:
-            await browser.close()
+def _link_callback(uri: str, rel: str) -> str:
+    """Resolve relative @font-face / asset URIs (e.g. ``fonts/Lato-Regular.ttf``)
+    to absolute paths under app/pdf. Data URIs (DB-stored signature images) and
+    absolute paths pass through unchanged — pisa handles those directly."""
+    if uri.startswith(("data:", "http:", "https:")) or Path(uri).is_absolute():
+        return uri
+    return str((_DIR / uri).resolve())
+
+
+def _render(html: str) -> bytes:
+    buf = io.BytesIO()
+    status = pisa.CreatePDF(src=html, dest=buf, link_callback=_link_callback, encoding="utf-8")
+    if status.err:
+        raise RuntimeError(f"PDF generation failed ({status.err} error(s))")
+    return buf.getvalue()
 
 
 async def generate_meeting_pdf(meeting: dict[str, Any]) -> bytes:
@@ -69,7 +67,7 @@ async def generate_meeting_pdf(meeting: dict[str, Any]) -> bytes:
         body=build_meeting_body(meeting),
         **_header_ctx(),
     )
-    return await _render(html)
+    return await run_in_threadpool(_render, html)
 
 
 async def generate_document_pdf(doc: dict[str, Any]) -> bytes:
@@ -85,4 +83,4 @@ async def generate_document_pdf(doc: dict[str, Any]) -> bytes:
         signature_block=signature_block,
         **_header_ctx(),
     )
-    return await _render(html)
+    return await run_in_threadpool(_render, html)

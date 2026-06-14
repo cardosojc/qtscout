@@ -29,7 +29,7 @@ apps/
     │   ├── main.py config.py db.py deps.py auth.py supabase_admin.py
     │   ├── routers/  models/  schemas/   # 13 routers · 11 models · Pydantic schemas
     │   ├── core/                 # ordem_*, siie_*, document_utils, ordem_categories(.json)
-    │   └── pdf/                  # render.py (Playwright) + html_builders + templates + assets
+    │   └── pdf/                  # render.py (xhtml2pdf) + html_builders + templates + fonts + assets
     ├── migrations/               # Alembic (baseline-stamped)
     └── scripts/                  # parity_check.py, export_openapi.py
 
@@ -176,9 +176,16 @@ from PATCH/DELETE. The OS PDF reads only `Document.content`.
 
 ## PDF rendering
 
-`apps/api/app/pdf/` — `render.py` launches Playwright (Chromium) and runs
-`page.pdf()` (A4; 1/2/2.5/2 cm margins; footer; `print_background`). The Docker
-image installs Chromium (`playwright install --with-deps chromium`).
+`apps/api/app/pdf/` — `render.py` renders with **xhtml2pdf (`pisa`)**, a
+pure-Python HTML→PDF engine (no browser, no system libs), run synchronously off
+the event loop via `run_in_threadpool`. A `link_callback` resolves local
+`@font-face`/asset paths and passes `data:` URIs (DB-stored signatures) through.
+Templates use xhtml2pdf's CSS subset: **table-based layout (no flexbox/grid)**,
+static `@frame` header/footer that repeat per page (page numbers via
+`<pdf:pagenumber>`), and vendored fonts in `pdf/fonts/` (Lato, Caveat). Because
+nothing native is required, PDF rendering runs in-process on any host — the
+Docker image needs no extra build steps, and it also works on hosts that install
+only Python deps (e.g. FastAPI Cloud).
 
 - `html_builders.py` — meeting body (incl. the CA-only signature page) and the
   document body/signature; `format_date_pt` for pt-PT dates.
