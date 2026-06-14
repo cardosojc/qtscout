@@ -29,6 +29,7 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
     "anyio>=4.7",
+    "pymupdf>=1.24",  # PDF inspection in tests (page count + overlap regression guard)
 ]
 
 [tool.ruff]

@@ -7,12 +7,16 @@
     @font-face { font-family: 'Lato'; src: url('fonts/Lato-Regular.ttf'); }
     @font-face { font-family: 'Lato'; src: url('fonts/Lato-Bold.ttf'); font-weight: bold; }
 
+    /* xhtml2pdf pagination: content flows in the @page MARGIN box; the header/
+       footer are static @frames that repeat per page. Do NOT add a content
+       @frame — an explicit content frame breaks overflow (content piles up and
+       overlaps on one page instead of breaking). Units in pt (cm is mis-parsed).
+       A4 = 595x842pt; ~2cm side margins. */
     @page {
-      size: a4;
-      margin: 0;
-      @frame header_frame { -pdf-frame-content: headerContent; left: 2cm; top: 1cm; width: 17cm; height: 2.2cm; }
-      @frame content_frame { left: 2cm; top: 3.4cm; width: 17cm; height: 24cm; }
-      @frame footer_frame { -pdf-frame-content: footerContent; left: 2cm; top: 27.7cm; width: 17cm; height: 1cm; }
+      size: a4 portrait;
+      margin: 96pt 57pt 50pt 57pt;
+      @frame header_frame { -pdf-frame-content: headerContent; left: 57pt; top: 28pt; width: 481pt; height: 62pt; }
+      @frame footer_frame { -pdf-frame-content: footerContent; left: 57pt; top: 800pt; width: 481pt; height: 22pt; }
     }
     body { font-family: 'Lato'; font-size: 12px; line-height: 1.5; color: #333; }
 
