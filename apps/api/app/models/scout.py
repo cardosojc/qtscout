@@ -65,7 +65,7 @@ class Scout(Base):
     )
     created_at: Mapped[datetime] = mapped_column("createdAt", server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", server_default=func.now(), onupdate=func.now()
+        "updatedAt", server_default=func.now(), default=func.now(), onupdate=func.now()
     )
 
 
@@ -81,7 +81,7 @@ class ScoutNightsBadge(Base):
     awarded_at: Mapped[datetime] = mapped_column("awardedAt", DateTime)
     created_at: Mapped[datetime] = mapped_column("createdAt", server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", server_default=func.now(), onupdate=func.now()
+        "updatedAt", server_default=func.now(), default=func.now(), onupdate=func.now()
     )
 
 

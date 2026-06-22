@@ -39,16 +39,30 @@
     .meeting-info-table td { width: 50%; vertical-align: top; }
     .info-item { margin-bottom: 6px; }
     .info-label { font-weight: bold; color: #374151; }
-    .agenda-item { background: #f0f9ff; padding: 12px; margin-bottom: 8px; border-left: 4px solid #3b82f6; }
-    .agenda-item h4 { margin: 0 0 4px 0; color: #1e40af; }
-    .agenda-item p { margin: 0; color: #6b7280; font-size: 13px; }
+    /* agenda: blue title strip + white body card (one-cell table so the card
+       paints as one continuous box — a styled div fragments its background per
+       child block in xhtml2pdf) */
+    .agenda-block { margin-bottom: 10px; }
+    .agenda-title { background: #eff6ff; border-left: 4px solid #2563eb; padding: 7px 12px; }
+    .agenda-title h4 { margin: 0; color: #1e40af; font-size: 13px; }
+    .agenda-body { width: 100%; }
+    .agenda-body td { background: #f8fafc; border-left: 4px solid #2563eb; padding: 6px 16px 8px 16px; }
+    .agenda-desc { margin: 4px 0; color: #6b7280; font-size: 13px; }
     .action-item { background: #fff7ed; padding: 12px; margin-bottom: 8px; border-left: 4px solid #f59e0b; }
     .action-item h4 { margin: 0 0 4px 0; color: #d97706; }
     .action-details { font-size: 11px; color: #6b7280; margin-top: 4px; }
     .attendees { margin-top: 6px; }
     .attendee-tag { display: inline-block; background: #e5e7eb; color: #374151; font-size: 11px; padding: 3px 7px; margin: 0 4px 4px 0; }
-    .content-section { padding: 0; margin: 10px 0 10px 12px; }
-    .content-section ul, .content-section ol { margin: 8px 0; padding-left: 22px; }
+    .content-section { padding: 0; margin: 0; }
+    .content-section p { margin: 6px 0; color: #374151; }
+    .content-section ul, .content-section ol { margin: 4px 0 8px 18px; padding-left: 0; }
+    .content-section ul ul, .content-section ul ol,
+    .content-section ol ul, .content-section ol ol { margin-top: 4px; margin-bottom: 4px; }
+    .content-section ul { list-style-type: disc; }
+    .content-section ul ul { list-style-type: circle; }
+    .content-section ol { list-style-type: decimal; }
+    .content-section li { margin-bottom: 4px; color: #374151; }
+    .content-section li p { margin: 0; }
     .page-break { page-break-before: always; }
     .content table { width: 100%; border-collapse: collapse; margin: 12px 0; }
     .content th, .content td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; }

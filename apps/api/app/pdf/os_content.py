@@ -88,11 +88,18 @@ def generate_os_content(data: dict[str, Any]) -> str:
     periodo = data.get("periodo") or {}
     de, ate = periodo.get("de"), periodo.get("ate")
     periodo_line = ""
-    if de or ate:
+    if de and ate:
+        periodo_text = f"De {de} a {ate}"
+    elif de:
+        periodo_text = f"De {de}"
+    elif ate:
+        periodo_text = f"até {ate}"
+    else:
+        periodo_text = ""
+    if periodo_text:
         periodo_line = (
-            '<p style="margin:0 0 20px 0;font-size:13px;color:#374151;"><strong>Período:</strong> '
-            f'{f"De {de}" if de else ""}{" a " if de and ate else ""}'
-            f'{f"até {ate}" if ate else ""}</p>'
+            '<p style="margin:0 0 20px 0;font-size:13px;color:#374151;">'
+            f"<strong>Período:</strong> {periodo_text}</p>"
         )
 
     det = data.get("determinacoes") or {}
@@ -165,7 +172,8 @@ def generate_os_content(data: dict[str, Any]) -> str:
     parts.append(_sub_title("Distinções e Prémios"))
     distincoes = (justica.get("distincoesPremios") or "").strip()
     parts.append(
-        f'<p style="margin:4px 0 4px 16px;font-style:italic;white-space:pre-wrap;">{distincoes}</p>'
+        '<p style="margin:4px 0 4px 16px;font-style:italic;">'
+        f'{distincoes.replace(chr(10), "<br/>")}</p>'
         if distincoes
         else _NADA
     )
