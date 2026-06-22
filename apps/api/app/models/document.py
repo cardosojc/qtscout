@@ -24,7 +24,7 @@ class Document(Base):
     content: Mapped[str] = mapped_column(String, server_default=text("''"))
     created_at: Mapped[datetime] = mapped_column("createdAt", server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", server_default=func.now(), onupdate=func.now()
+        "updatedAt", server_default=func.now(), default=func.now(), onupdate=func.now()
     )
     created_by_id: Mapped[str] = mapped_column("createdById", String, ForeignKey("profiles.id"))
     signed_by_id: Mapped[str | None] = mapped_column(
@@ -78,7 +78,7 @@ class OrdemItem(Base):
     data: Mapped[Any] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column("createdAt", server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", server_default=func.now(), onupdate=func.now()
+        "updatedAt", server_default=func.now(), default=func.now(), onupdate=func.now()
     )
     created_by_id: Mapped[str] = mapped_column("createdById", String, ForeignKey("profiles.id"))
     included_in_os_id: Mapped[str | None] = mapped_column(

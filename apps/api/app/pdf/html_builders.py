@@ -4,10 +4,21 @@ CSS live in the Jinja2 templates).
 """
 
 import json
+import re
 from datetime import datetime
 from typing import Any
 
 from app.pdf.os_content import generate_os_content
+
+# TipTap wraps list-item text in a block <p> (`<li><p>text</p></li>`). xhtml2pdf
+# only draws list markers when the <li>'s leading content is inline, so unwrap
+# that first paragraph (keeping any nested <ul>/<ol> that follows it).
+_LI_PARAGRAPH = re.compile(r"<li>\s*<p[^>]*>(.*?)</p>", re.DOTALL)
+
+
+def _unwrap_li_paragraphs(html: str) -> str:
+    return _LI_PARAGRAPH.sub(r"<li>\1", html)
+
 
 _MONTHS_PT = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -133,13 +144,10 @@ def build_meeting_body(meeting: dict[str, Any]) -> str:
     if items:
         blocks = []
         for index, item in enumerate(items):
-            desc = f'<p>{item["description"]}</p>' if item.get("description") else ""
+            desc = f'<p class="agenda-desc">{item["description"]}</p>' if item.get("description") else ""
             content = ""
             if item.get("content") and str(item["content"]).strip() != "":
-                content = (
-                    '<div class="content-section" style="margin-top: 10px; margin-left: 15px;">'
-                    f'{item["content"]}</div>'
-                )
+                content = f'<div class="content-section">{_unwrap_li_paragraphs(str(item["content"]))}</div>'
             actions = ""
             if item.get("actionItems"):
                 action_blocks = []
@@ -160,10 +168,16 @@ def build_meeting_body(meeting: dict[str, Any]) -> str:
                     'color: #d97706; margin-bottom: 5px;">Ações a Tomar:</p>'
                     f'{"".join(action_blocks)}</div>'
                 )
-            blocks.append(
-                f'<div class="agenda-item"><h4>{index + 1}. {item.get("title", "")}</h4>'
-                f"{desc}{content}{actions}</div>"
+            title_html = (
+                f'<div class="agenda-title"><h4>{index + 1}. {item.get("title", "")}</h4></div>'
             )
+            body_inner = f"{desc}{content}{actions}"
+            body_html = (
+                f'<table class="agenda-body"><tr><td>{body_inner}</td></tr></table>'
+                if body_inner.strip()
+                else ""
+            )
+            blocks.append(f'<div class="agenda-block">{title_html}{body_html}</div>')
         agenda_html = f'<h2>Ordem de Trabalhos</h2>{"".join(blocks)}'
 
     signature = _signature_page(attendees, chefe, secretario) if mt.get("code") == "CA" else ""
@@ -190,9 +204,9 @@ def build_document_parts(doc: dict[str, Any]) -> tuple[str, str]:
         try:
             body_content = generate_os_content(json.loads(content))
         except (ValueError, TypeError):
-            body_content = f'<div class="doc-content">{content}</div>'
+            body_content = f'<div class="doc-content">{_unwrap_li_paragraphs(content)}</div>'
     else:
-        body_content = f'<div class="doc-content">{content}</div>'
+        body_content = f'<div class="doc-content">{_unwrap_li_paragraphs(content)}</div>'
 
     signed_by = doc.get("signedBy")
     signature_block = ""

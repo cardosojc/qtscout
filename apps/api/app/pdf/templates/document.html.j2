@@ -37,12 +37,22 @@
     .doc-type-badge { background: #dbeafe; color: #1e40af; font-size: 11px; font-weight: bold; padding: 2px 8px; }
     .doc-info-line { font-size: 11px; color: #6b7280; text-align: right; }
 
+    /* lists: xhtml2pdf only draws markers when list-style-type is explicit.
+       Base rule covers the OS body (bare inline-styled <ul>); .doc-content
+       rules add spacing/nesting for TipTap-authored ofício/circular bodies. */
+    ul, ol { list-style-type: disc; }
+    ol { list-style-type: decimal; }
+    ul ul { list-style-type: circle; }
+
     /* document body */
     .doc-content { margin-top: 16px; line-height: 1.7; }
     .doc-content p { margin: 8px 0; }
     .doc-content h1, .doc-content h2, .doc-content h3 { color: #1e40af; margin: 16px 0 8px 0; }
-    .doc-content ul, .doc-content ol { padding-left: 24px; margin: 8px 0; }
+    .doc-content ul, .doc-content ol { margin: 8px 0 8px 22px; padding-left: 0; }
+    .doc-content ul ul, .doc-content ul ol,
+    .doc-content ol ul, .doc-content ol ol { margin-top: 4px; margin-bottom: 4px; }
     .doc-content li { margin: 4px 0; }
+    .doc-content li p { margin: 0; }
     .doc-content strong { font-weight: bold; }
     .doc-content em { font-style: italic; }
 
