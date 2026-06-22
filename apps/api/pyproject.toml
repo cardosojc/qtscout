@@ -18,6 +18,11 @@ dependencies = [
     "openpyxl>=3.1",
     "jinja2>=3.1",
     "xhtml2pdf>=0.2.16",
+    # svglib 1.6.0 (a transitive dep of xhtml2pdf) added rlPyCairo -> pycairo,
+    # which needs system cairo/pkg-config/cmake at build time and breaks pure-
+    # Python deploys (FastAPI Cloud). We render no SVG, so pin below 1.6 to keep
+    # the dependency tree wheel-only / no native build.
+    "svglib<1.6",
     "python-multipart>=0.0.18",
     "cuid>=0.4",
 ]
