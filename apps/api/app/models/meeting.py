@@ -21,7 +21,7 @@ class MeetingType(Base):
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column("createdAt", server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", server_default=func.now(), onupdate=func.now()
+        "updatedAt", server_default=func.now(), default=func.now(), onupdate=func.now()
     )
 
 
@@ -40,7 +40,7 @@ class Meeting(Base):
     action_items: Mapped[Any | None] = mapped_column("actionItems", JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column("createdAt", server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", server_default=func.now(), onupdate=func.now()
+        "updatedAt", server_default=func.now(), default=func.now(), onupdate=func.now()
     )
     # Maintained by a DB trigger (Portuguese tsvector). Read-only from the app.
     content_tsvector: Mapped[Any | None] = mapped_column("contentTsvector", TSVECTOR, nullable=True)
