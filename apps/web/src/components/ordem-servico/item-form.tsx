@@ -4,8 +4,9 @@ import { apiFetch } from '@/lib/api-client'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { CategorySpec, OrdemSection } from '@qtscout/types/ordem-item'
-import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS } from '@qtscout/types/ordem-item'
-import { scoutDisplayName, type Scout } from '@qtscout/types/scout'
+import { ETAPAS_PROGRESSO, ESPECIALIDADES, MERITO_ESPECIALISTA, ORDEM_SECTIONS, ORDEM_SECTION_LABELS } from '@qtscout/types/ordem-item'
+import { scoutDisplayName, NIGHTS_BADGE_COUNTS, type Scout } from '@qtscout/types/scout'
+import { matchesQuery } from '@/lib/text-search'
 
 type LeaderProfile = {
   id: string
@@ -35,6 +36,66 @@ const fieldCls =
   'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500'
 const labelCls = 'block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1'
 
+function ScoutChecklist({
+  scouts,
+  selected,
+  onToggle,
+}: {
+  scouts: Scout[]
+  selected: string[]
+  onToggle: (id: string, checked: boolean) => void
+}) {
+  const [query, setQuery] = useState('')
+  const filtered = useMemo(
+    () =>
+      query.trim()
+        ? scouts.filter((s) =>
+            matchesQuery(`${scoutDisplayName(s)} ${s.numeroAssociado ?? ''}`, query),
+          )
+        : scouts,
+    [scouts, query],
+  )
+  return (
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Pesquisar membro…"
+          className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none"
+        />
+        {selected.length > 0 && (
+          <span className="px-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {selected.length} selecionado{selected.length === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+      <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+        {scouts.length === 0 ? (
+          <p className="p-3 text-xs text-amber-700 dark:text-amber-300">
+            Sem membros para esta secção. <Link href="/membros" className="underline">Criar primeiro</Link>.
+          </p>
+        ) : filtered.length === 0 ? (
+          <p className="p-3 text-xs text-gray-500 dark:text-gray-400">Sem resultados.</p>
+        ) : filtered.map((s) => (
+          <label key={s.id} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+            <input
+              type="checkbox"
+              checked={selected.includes(s.id)}
+              onChange={(e) => onToggle(s.id, e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">
+              {scoutDisplayName(s)}{s.numeroAssociado ? ` (${s.numeroAssociado})` : ''}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmit, onCancel }: Props) {
   const [date, setDate] = useState(todayISO())
   const [section, setSection] = useState<OrdemSection | ''>(defaultSection ?? '')
@@ -51,12 +112,15 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
   const [scoutIds, setScoutIds] = useState<string[]>([])
   const [profileId, setProfileId] = useState('')
   const [refKind, setRefKind] = useState<'scout' | 'profile'>('scout')
+  const [etapa, setEtapa] = useState('')
+  const [noitesCount, setNoitesCount] = useState('')
+  const [especialidade, setEspecialidade] = useState('')
 
   // Pickers' data
   const [scouts, setScouts] = useState<Scout[]>([])
   const [leaders, setLeaders] = useState<LeaderProfile[]>([])
 
-  const needsScoutPicker = ['MEMBER_REF', 'NOITES_REF', 'SCOUT_OR_PROFILE_REF'].includes(category.shape)
+  const needsScoutPicker = ['MEMBER_REF', 'NOITES_REF', 'SCOUT_OR_PROFILE_REF', 'PROGRESSO_REF', 'NOITES_CAMPO_REF', 'ESPECIALIDADE_REF'].includes(category.shape)
   const needsLeaderPicker = ['PROFILE_REF', 'SCOUT_OR_PROFILE_REF'].includes(category.shape)
 
   useEffect(() => {
@@ -87,12 +151,26 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
     setScoutIds([])
     setProfileId('')
     setRefKind('scout')
+    setEtapa('')
+    setNoitesCount('')
+    setEspecialidade('')
   }, [category.key])
+
+  // The chosen etapa is section-specific; clear it if the section changes away
+  // from the one it belongs to.
+  useEffect(() => {
+    if (etapa && !(section && (ETAPAS_PROGRESSO[section] as readonly string[]).includes(etapa))) {
+      setEtapa('')
+    }
+  }, [section, etapa])
 
   const sortedScouts = useMemo(
     () => [...scouts].sort((a, b) => scoutDisplayName(a).localeCompare(scoutDisplayName(b))),
     [scouts]
   )
+
+  const toggleScout = (id: string, checked: boolean) =>
+    setScoutIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,6 +196,15 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
           break
         case 'MEMBER_REF':
           data = { scoutId }
+          break
+        case 'PROGRESSO_REF':
+          data = { scoutIds, etapa }
+          break
+        case 'NOITES_CAMPO_REF':
+          data = { scoutIds, count: parseInt(noitesCount, 10) }
+          break
+        case 'ESPECIALIDADE_REF':
+          data = { scoutIds, especialidade }
           break
         case 'NOITES_REF':
           data = { count: parseInt(count, 10), scoutIds }
@@ -301,6 +388,83 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
         </div>
       )}
 
+      {category.shape === 'PROGRESSO_REF' && (
+        <div className="space-y-3">
+          <div>
+            <label className={labelCls}>Etapa</label>
+            <select
+              value={etapa}
+              onChange={(e) => setEtapa(e.target.value)}
+              required
+              disabled={!section}
+              className={fieldCls}
+            >
+              <option value="">{section ? '— Selecione —' : 'Selecione a secção primeiro'}</option>
+              {section && ETAPAS_PROGRESSO[section].map((et) => (
+                <option key={et} value={et}>{et}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Membros</label>
+            <ScoutChecklist scouts={sortedScouts} selected={scoutIds} onToggle={toggleScout} />
+          </div>
+        </div>
+      )}
+
+      {category.shape === 'NOITES_CAMPO_REF' && (
+        <div className="space-y-3">
+          <div>
+            <label className={labelCls}>Noites de Campo</label>
+            <select
+              value={noitesCount}
+              onChange={(e) => setNoitesCount(e.target.value)}
+              required
+              className={fieldCls}
+            >
+              <option value="">— Selecione —</option>
+              {NIGHTS_BADGE_COUNTS.map((n) => (
+                <option key={n} value={n}>{n} Noites de Campo</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Membros</label>
+            <ScoutChecklist scouts={sortedScouts} selected={scoutIds} onToggle={toggleScout} />
+          </div>
+        </div>
+      )}
+
+      {category.shape === 'ESPECIALIDADE_REF' && (
+        <div className="space-y-3">
+          <div>
+            <label className={labelCls}>Especialidade</label>
+            <select
+              value={especialidade}
+              onChange={(e) => setEspecialidade(e.target.value)}
+              required
+              className={fieldCls}
+            >
+              <option value="">— Selecione —</option>
+              <optgroup label="Insígnias">
+                {MERITO_ESPECIALISTA.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Especialidades">
+                {ESPECIALIDADES.map((e) => (
+                  <option key={e} value={e}>{e}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Membros</label>
+            <ScoutChecklist scouts={sortedScouts} selected={scoutIds} onToggle={toggleScout} />
+          </div>
+        </div>
+      )}
+
       {category.shape === 'NOITES_REF' && (
         <div className="space-y-3">
           <div>
@@ -316,27 +480,7 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
           </div>
           <div>
             <label className={labelCls}>Membros</label>
-            <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
-              {sortedScouts.length === 0 ? (
-                <p className="p-3 text-xs text-gray-500 dark:text-gray-400">
-                  Sem membros para esta secção.
-                </p>
-              ) : sortedScouts.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                  <input
-                    type="checkbox"
-                    checked={scoutIds.includes(s.id)}
-                    onChange={(e) =>
-                      setScoutIds((prev) =>
-                        e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id)
-                      )
-                    }
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">{scoutDisplayName(s)}</span>
-                </label>
-              ))}
-            </div>
+            <ScoutChecklist scouts={sortedScouts} selected={scoutIds} onToggle={toggleScout} />
           </div>
         </div>
       )}

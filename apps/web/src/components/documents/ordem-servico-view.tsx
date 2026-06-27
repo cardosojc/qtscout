@@ -1,4 +1,5 @@
-import { type OrdemServicoData, type OSAtividade, type OSNomeacao, type OSNoitesMilestone } from '@qtscout/types/ordem-servico'
+import { type OrdemServicoData, type OSAtividade, type OSNomeacao, type OSNoitesMilestone, type OSProgresso, type OSEspecialidade } from '@qtscout/types/ordem-servico'
+import { ETAPAS_PROGRESSO, type OrdemSection } from '@qtscout/types/ordem-item'
 
 const SECCAO_LABELS = {
   alcateia: 'Alcateia',
@@ -59,6 +60,68 @@ function NoitesMilestoneItems({ items }: { items: OSNoitesMilestone[] }) {
           <p className="font-medium text-gray-800 dark:text-gray-200">{m.count} noites de campo</p>
           <ul className="ml-4 space-y-0.5">
             {m.membros.map((nome, j) => (
+              <li key={j} className="text-gray-800 dark:text-gray-200">{nome}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ProgressoItems({ items, section }: { items: (OSProgresso | string)[]; section: SeccaoKey }) {
+  if (nadaConsta(items)) return <p className="ml-4 text-gray-600 dark:text-gray-400">Nada consta</p>
+  // Legacy snapshots stored plain name strings — render flat.
+  if (items.every((i) => typeof i === 'string')) {
+    return <ListItems items={items as string[]} />
+  }
+  const groups = new Map<string, string[]>()
+  for (const it of items) {
+    const etapa = typeof it === 'string' ? '' : it.etapa ?? ''
+    const nome = typeof it === 'string' ? it : it.nome ?? ''
+    groups.set(etapa, [...(groups.get(etapa) ?? []), nome])
+  }
+  const order = ETAPAS_PROGRESSO[section.toUpperCase() as OrdemSection] ?? []
+  const ordered = [
+    ...order.filter((e) => groups.has(e)),
+    ...[...groups.keys()].filter((e) => !order.includes(e)),
+  ]
+  return (
+    <div className="ml-4 space-y-2">
+      {ordered.map((etapa) => (
+        <div key={etapa}>
+          <p className="font-medium text-gray-800 dark:text-gray-200">{etapa || 'Sem etapa'}</p>
+          <ul className="ml-4 space-y-0.5">
+            {(groups.get(etapa) ?? []).map((nome, j) => (
+              <li key={j} className="text-gray-800 dark:text-gray-200">{nome}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EspecialidadeItems({ items }: { items: (OSEspecialidade | string)[] }) {
+  if (nadaConsta(items)) return <p className="ml-4 text-gray-600 dark:text-gray-400">Nada consta</p>
+  // Legacy snapshots stored plain name strings — render flat.
+  if (items.every((i) => typeof i === 'string')) {
+    return <ListItems items={items as string[]} />
+  }
+  const groups = new Map<string, string[]>()
+  for (const it of items) {
+    const esp = typeof it === 'string' ? '' : it.especialidade ?? ''
+    const nome = typeof it === 'string' ? it : it.nome ?? ''
+    groups.set(esp, [...(groups.get(esp) ?? []), nome])
+  }
+  const ordered = [...groups.keys()].sort((a, b) => a.localeCompare(b, 'pt'))
+  return (
+    <div className="ml-4 space-y-2">
+      {ordered.map((esp) => (
+        <div key={esp}>
+          <p className="font-medium text-gray-800 dark:text-gray-200">{esp || 'Sem especialidade'}</p>
+          <ul className="ml-4 space-y-0.5">
+            {(groups.get(esp) ?? []).map((nome, j) => (
               <li key={j} className="text-gray-800 dark:text-gray-200">{nome}</li>
             ))}
           </ul>
@@ -200,7 +263,16 @@ export function OrdemServicoView({ data }: { data: OrdemServicoData }) {
       {SECCOES.map((key) => (
         <div key={key}>
           <SubTitle>{SECCAO_LABELS[key]}</SubTitle>
-          <ListItems items={data.sistemaProgresso[key]} />
+          <ProgressoItems items={data.sistemaProgresso[key]} section={key} />
+        </div>
+      ))}
+
+      {/* 6b. Especialidades */}
+      <SectionTitle>Especialidades</SectionTitle>
+      {SECCOES.map((key) => (
+        <div key={key}>
+          <SubTitle>{SECCAO_LABELS[key]}</SubTitle>
+          <EspecialidadeItems items={data.especialidades[key]} />
         </div>
       ))}
 
