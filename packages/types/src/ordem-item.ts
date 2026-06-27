@@ -1,5 +1,7 @@
 import type { OSAtividade, OSNomeacao, OSNoitesMilestone } from '@qtscout/types/ordem-servico'
+import { isNightsBadgeCount } from './scout'
 import { ORDEM_CATEGORIES } from './ordem-categories.generated'
+import { ESPECIALIDADES } from './especialidades.generated'
 
 export const ORDEM_SECTIONS = ['ALCATEIA', 'EXPEDICAO', 'COMUNIDADE', 'CLA'] as const
 export type OrdemSection = (typeof ORDEM_SECTIONS)[number]
@@ -11,6 +13,32 @@ export const ORDEM_SECTION_LABELS: Record<OrdemSection, string> = {
   CLA: 'Clã',
 }
 
+/**
+ * Progress-system stages (etapas) per section. Mirrored in
+ * apps/api/app/core/ordem_categories.py (ETAPAS_PROGRESSO) — keep both in sync.
+ */
+export const ETAPAS_PROGRESSO: Record<OrdemSection, readonly string[]> = {
+  ALCATEIA: ['Pata Tenra', 'Lobo Valente', 'Lobo Cortês', 'Lobo Amigo'],
+  EXPEDICAO: ['Apelo', 'Aliança', 'Rumo', 'Descoberta'],
+  COMUNIDADE: ['Desprendimento', 'Conhecimento', 'Vontade', 'Construção'],
+  CLA: ['Caminho', 'Comunidade', 'Serviço', 'Partida'],
+}
+
+const ALL_ETAPAS: ReadonlySet<string> = new Set(Object.values(ETAPAS_PROGRESSO).flat())
+
+/**
+ * Higher-level insígnias awarded on top of especialidades. Mirrored in
+ * apps/api/app/core/especialidades.py (MERITO_ESPECIALISTA) — keep both in sync.
+ */
+export const MERITO_ESPECIALISTA = ['Mérito', 'Especialista'] as const
+
+export { ESPECIALIDADES }
+
+const ALL_ESPECIALIDADES: ReadonlySet<string> = new Set<string>([
+  ...ESPECIALIDADES,
+  ...MERITO_ESPECIALISTA,
+])
+
 export type ItemShape =
   | 'STRING'
   | 'TEXT'
@@ -21,6 +49,9 @@ export type ItemShape =
   | 'NOITES_REF'
   | 'PROFILE_REF'
   | 'SCOUT_OR_PROFILE_REF'
+  | 'PROGRESSO_REF'
+  | 'NOITES_CAMPO_REF'
+  | 'ESPECIALIDADE_REF'
 
 export type ItemScope = 'GROUP' | 'SECTION' | 'BOTH'
 
@@ -69,6 +100,17 @@ export type ItemValue = StringData | OSAtividade | OSNomeacao | OSNoitesMileston
 export type ValidateResult =
   | { ok: true; value: Record<string, unknown> }
   | { ok: false; error: string }
+
+/** Normalise a multi-member ref to a deduped scout-id array, accepting the bulk
+ * `scoutIds` array or a legacy single `scoutId`. */
+function readScoutIds(d: Record<string, unknown>): string[] {
+  const ids = Array.isArray(d.scoutIds)
+    ? d.scoutIds.filter((i): i is string => typeof i === 'string' && i !== '')
+    : typeof d.scoutId === 'string' && d.scoutId
+      ? [d.scoutId]
+      : []
+  return [...new Set(ids)]
+}
 
 export function validateItemData(shape: ItemShape, data: unknown): ValidateResult {
   if (data === null || typeof data !== 'object') {
@@ -124,6 +166,37 @@ export function validateItemData(shape: ItemShape, data: unknown): ValidateResul
         return { ok: false, error: 'Membro obrigatório' }
       }
       return { ok: true, value: { scoutId: d.scoutId } }
+    }
+    case 'PROGRESSO_REF': {
+      const scoutIds = readScoutIds(d)
+      if (scoutIds.length === 0) {
+        return { ok: false, error: 'Membro obrigatório' }
+      }
+      if (typeof d.etapa !== 'string' || !ALL_ETAPAS.has(d.etapa)) {
+        return { ok: false, error: 'Etapa obrigatória' }
+      }
+      return { ok: true, value: { scoutIds, etapa: d.etapa } }
+    }
+    case 'NOITES_CAMPO_REF': {
+      const scoutIds = readScoutIds(d)
+      if (scoutIds.length === 0) {
+        return { ok: false, error: 'Membro obrigatório' }
+      }
+      const count = Number(d.count)
+      if (!isNightsBadgeCount(count)) {
+        return { ok: false, error: 'Número de noites inválido' }
+      }
+      return { ok: true, value: { scoutIds, count } }
+    }
+    case 'ESPECIALIDADE_REF': {
+      const scoutIds = readScoutIds(d)
+      if (scoutIds.length === 0) {
+        return { ok: false, error: 'Membro obrigatório' }
+      }
+      if (typeof d.especialidade !== 'string' || !ALL_ESPECIALIDADES.has(d.especialidade)) {
+        return { ok: false, error: 'Especialidade obrigatória' }
+      }
+      return { ok: true, value: { scoutIds, especialidade: d.especialidade } }
     }
     case 'NOITES_REF': {
       const count = Number(d.count)

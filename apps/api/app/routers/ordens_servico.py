@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.document_utils import format_document_identifier
-from app.core.ordem_assembler import assemble_ordem_servico
+from app.core.ordem_assembler import add_noites_member, assemble_ordem_servico
 from app.core.ordem_resolver import resolve_refs, scout_label
 from app.core.ordem_servico import SECTION_KEY
 from app.db import get_session
@@ -75,7 +75,9 @@ async def generate(
     badges = (
         await session.execute(
             select(
-                ScoutNightsBadge.count,
+                # Alias avoids Row.count colliding with tuple.count (returns the
+                # method, not the column value).
+                ScoutNightsBadge.count.label("noites"),
                 Scout.first_name,
                 Scout.last_name,
                 Scout.numero_associado,
@@ -116,28 +118,25 @@ async def generate(
             )
         )
 
-    # Auto-include noites de campo milestones, grouped by (section, count).
-    milestone_index: dict[str, dict[str, Any]] = {}
+    # Auto-include noites de campo milestones, merged into the manually-logged
+    # buckets (grouped by section + count, deduped by member name).
     for b in badges:
         key = SECTION_KEY.get(b.section)
         if not key:
             continue
-        bucket = milestone_index.setdefault(
-            f"{key}:{b.count}", {"count": b.count, "sectionKey": key, "membros": []}
-        )
-        bucket["membros"].append(
+        add_noites_member(
+            assembled["noitesCampo"][key],
+            b.noites,
             scout_label(
                 {
                     "firstName": b.first_name,
                     "lastName": b.last_name,
                     "numeroAssociado": b.numero_associado,
                 }
-            )
+            ),
         )
-    for bucket in milestone_index.values():
-        assembled["noitesCampo"][bucket["sectionKey"]].append(
-            {"count": bucket["count"], "membros": bucket["membros"]}
-        )
+    for buckets in assembled["noitesCampo"].values():
+        buckets.sort(key=lambda x: x.get("count", 0))
 
     # Transactional: bump the OS sequence, create the Document, mark source items.
     settings = await session.scalar(select(DocumentSettings).where(DocumentSettings.type == _OS))

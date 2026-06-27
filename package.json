@@ -16,6 +16,8 @@
     "docs:check": "tsx scripts/sync-categories-doc.ts --check",
     "sync:categories": "node scripts/sync-categories.mjs",
     "sync:categories:check": "node scripts/sync-categories.mjs --check",
+    "sync:especialidades": "node scripts/sync-especialidades.mjs",
+    "sync:especialidades:check": "node scripts/sync-especialidades.mjs --check",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

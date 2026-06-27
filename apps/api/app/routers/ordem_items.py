@@ -56,7 +56,12 @@ async def _validate_refs(
     profile_ids: list[str] = []
     if shape == "MEMBER_REF" and isinstance(value.get("scoutId"), str):
         scout_ids.append(value["scoutId"])
-    if shape == "NOITES_REF" and isinstance(value.get("scoutIds"), list):
+    if shape in (
+        "NOITES_REF",
+        "PROGRESSO_REF",
+        "NOITES_CAMPO_REF",
+        "ESPECIALIDADE_REF",
+    ) and isinstance(value.get("scoutIds"), list):
         scout_ids.extend(i for i in value["scoutIds"] if isinstance(i, str))
     if shape == "PROFILE_REF" and isinstance(value.get("profileId"), str):
         profile_ids.append(value["profileId"])
@@ -89,17 +94,14 @@ def _annotated(item: OrdemItem, refs: Any) -> OrdemItemOut:
     return out
 
 
-@router.get("")
-async def list_items(
-    user: CurrentUser,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    from_: Annotated[str | None, Query(alias="from")] = None,
-    to: Annotated[str | None, Query()] = None,
-    section: Annotated[str | None, Query()] = None,
-    category: Annotated[str | None, Query()] = None,
-    included: Annotated[str | None, Query()] = None,
-) -> dict[str, list[OrdemItemOut]]:
-    conditions = []
+def _list_conditions(
+    from_: str | None,
+    to: str | None,
+    section: str | None,
+    category: str | None,
+    included: str | None,
+) -> list[Any]:
+    conditions: list[Any] = []
     if from_:
         conditions.append(OrdemItem.date >= _require_dt(from_))
     if to:
@@ -112,15 +114,61 @@ async def list_items(
         conditions.append(OrdemItem.included_in_os_id.is_not(None))
     if included == "false":
         conditions.append(OrdemItem.included_in_os_id.is_(None))
+    return conditions
 
-    items = (
-        await session.scalars(
-            select(OrdemItem)
+
+@router.get("/summary")
+async def items_summary(
+    user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    to: Annotated[str | None, Query()] = None,
+    section: Annotated[str | None, Query()] = None,
+    included: Annotated[str | None, Query()] = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Per-category counts for the grouped, paginated items list: `total` matching
+    the filters and how many of those are already `included` in an OS."""
+    conditions = _list_conditions(from_, to, section, None, included)
+    rows = (
+        await session.execute(
+            select(
+                OrdemItem.category,
+                func.count().label("total"),
+                func.count(OrdemItem.included_in_os_id).label("included"),
+            )
             .where(*conditions)
-            .options(selectinload(OrdemItem.created_by))
-            .order_by(OrdemItem.date.desc(), OrdemItem.created_at.desc())
+            .group_by(OrdemItem.category)
         )
     ).all()
+    return {
+        "summary": [
+            {"category": r.category, "total": r.total, "included": r.included} for r in rows
+        ]
+    }
+
+
+@router.get("")
+async def list_items(
+    user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    to: Annotated[str | None, Query()] = None,
+    section: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
+    included: Annotated[str | None, Query()] = None,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> dict[str, list[OrdemItemOut]]:
+    conditions = _list_conditions(from_, to, section, category, included)
+    query = (
+        select(OrdemItem)
+        .where(*conditions)
+        .options(selectinload(OrdemItem.created_by))
+        .order_by(OrdemItem.date.desc(), OrdemItem.created_at.desc())
+    )
+    if limit is not None:
+        query = query.limit(limit).offset(offset)
+    items = (await session.scalars(query)).all()
     refs = await resolve_refs(session, items)
     return {"items": [_annotated(item, refs) for item in items]}
 

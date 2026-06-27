@@ -46,6 +46,7 @@ def default_ordem_servico_data() -> dict[str, Any]:
             "investiduras": _empty_seccoes(),
         },
         "sistemaProgresso": _empty_seccoes(),
+        "especialidades": _empty_seccoes(),
         "noitesCampo": {"alcateia": [], "expedicao": [], "comunidade": [], "cla": []},
         "justicaDisciplina": {"accoesDisicplinares": [], "distincoesPremios": ""},
         "retificacoes": [],

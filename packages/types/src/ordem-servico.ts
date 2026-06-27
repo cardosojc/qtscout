@@ -14,11 +14,37 @@ export type OSNoitesMilestone = {
   membros: string[]
 }
 
+/** One Sistema de Progresso entry: a member and the etapa they reached. */
+export type OSProgresso = {
+  nome: string
+  etapa: string
+}
+
+/** One Especialidades entry: a member and the especialidade/insígnia earned. */
+export type OSEspecialidade = {
+  nome: string
+  especialidade: string
+}
+
 export type OSSeccoes = {
   alcateia: string[]
   expedicao: string[]
   comunidade: string[]
   cla: string[]
+}
+
+export type OSProgressoSeccoes = {
+  alcateia: OSProgresso[]
+  expedicao: OSProgresso[]
+  comunidade: OSProgresso[]
+  cla: OSProgresso[]
+}
+
+export type OSEspecialidadeSeccoes = {
+  alcateia: OSEspecialidade[]
+  expedicao: OSEspecialidade[]
+  comunidade: OSEspecialidade[]
+  cla: OSEspecialidade[]
 }
 
 export type OSAtividadesSeccoes = {
@@ -70,7 +96,8 @@ export type OrdemServicoData = {
     passagens: OSSeccoes
     investiduras: OSSeccoes
   }
-  sistemaProgresso: OSSeccoes
+  sistemaProgresso: OSProgressoSeccoes
+  especialidades: OSEspecialidadeSeccoes
   noitesCampo: OSNoitesSeccoes
   justicaDisciplina: {
     accoesDisicplinares: string[]
@@ -117,7 +144,8 @@ export function defaultOrdemServicoData(): OrdemServicoData {
       passagens: emptySeccoes(),
       investiduras: emptySeccoes(),
     },
-    sistemaProgresso: emptySeccoes(),
+    sistemaProgresso: { alcateia: [], expedicao: [], comunidade: [], cla: [] },
+    especialidades: { alcateia: [], expedicao: [], comunidade: [], cla: [] },
     noitesCampo: { alcateia: [], expedicao: [], comunidade: [], cla: [] },
     justicaDisciplina: { accoesDisicplinares: [], distincoesPremios: '' },
     retificacoes: [],

@@ -4,6 +4,8 @@ Port of the OS render helpers + generateOSContent in pdf-generator.ts.
 
 from typing import Any
 
+from app.core.ordem_categories import ETAPAS_PROGRESSO
+
 SECCAO_LABELS = {
     "alcateia": "Alcateia",
     "expedicao": "Expedição",
@@ -62,6 +64,49 @@ def _render_noites_list(items: list[dict[str, Any]]) -> str:
     return "".join(out)
 
 
+def _render_progresso(items: list[Any], section_key: str) -> str:
+    """Sistema de Progresso: group a section's members by the etapa they reached,
+    ordered by the section's canonical etapa sequence. Tolerates legacy snapshots
+    that stored plain name strings (rendered as a flat list)."""
+    if not items:
+        return _NADA
+    if all(isinstance(i, str) for i in items):
+        return _render_str_list(items)
+    groups: dict[str, list[str]] = {}
+    for it in items:
+        if isinstance(it, str):
+            groups.setdefault("", []).append(it)
+        else:
+            groups.setdefault(it.get("etapa") or "", []).append(it.get("nome") or "")
+    order = list(ETAPAS_PROGRESSO.get(section_key.upper(), ()))
+    ordered = [e for e in order if e in groups] + [e for e in groups if e not in order]
+    out = []
+    for etapa in ordered:
+        out.append(_sub_sub_title(etapa or "Sem etapa"))
+        out.append(_render_str_list(groups[etapa]))
+    return "".join(out)
+
+
+def _render_especialidade(items: list[Any]) -> str:
+    """Especialidades: group a section's members by especialidade, alphabetically.
+    Tolerates legacy plain-string snapshots (rendered as a flat list)."""
+    if not items:
+        return _NADA
+    if all(isinstance(i, str) for i in items):
+        return _render_str_list(items)
+    groups: dict[str, list[str]] = {}
+    for it in items:
+        if isinstance(it, str):
+            groups.setdefault("", []).append(it)
+        else:
+            groups.setdefault(it.get("especialidade") or "", []).append(it.get("nome") or "")
+    out = []
+    for esp in sorted(groups, key=lambda s: s.casefold()):
+        out.append(_sub_sub_title(esp or "Sem especialidade"))
+        out.append(_render_str_list(groups[esp]))
+    return "".join(out)
+
+
 def _sec_title(text: str) -> str:
     return (
         f'<h2 style="font-size:13px;font-weight:700;color:#1e40af;border-bottom:1px solid #e5e7eb;'
@@ -108,6 +153,7 @@ def generate_os_content(data: dict[str, Any]) -> str:
     nomeacoes = data.get("nomeacoes") or {}
     efetivo = data.get("efetivo") or {}
     sistema = data.get("sistemaProgresso") or {}
+    especialidades = data.get("especialidades") or {}
     noites = data.get("noitesCampo") or {}
     justica = data.get("justicaDisciplina") or {}
 
@@ -161,7 +207,14 @@ def generate_os_content(data: dict[str, Any]) -> str:
         parts.append(_render_str_list(saida.get(key) or []))
 
     parts.append(_sec_title("Sistema de Progresso"))
-    parts.append(_by_section(_render_str_list, sistema))
+    for key in SECCOES:
+        parts.append(_sub_title(SECCAO_LABELS[key]))
+        parts.append(_render_progresso(sistema.get(key) or [], key))
+
+    parts.append(_sec_title("Especialidades"))
+    for key in SECCOES:
+        parts.append(_sub_title(SECCAO_LABELS[key]))
+        parts.append(_render_especialidade(especialidades.get(key) or []))
 
     parts.append(_sec_title("Noites de Campo"))
     parts.append(_by_section(_render_noites_list, noites))

@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from app.core.especialidades import is_especialidade
+from app.core.scout_utils import is_nights_badge_count
+
 ItemShape = Literal[
     "STRING",
     "TEXT",
@@ -19,6 +22,9 @@ ItemShape = Literal[
     "NOITES_REF",
     "PROFILE_REF",
     "SCOUT_OR_PROFILE_REF",
+    "PROGRESSO_REF",
+    "NOITES_CAMPO_REF",
+    "ESPECIALIDADE_REF",
 ]
 ItemScope = Literal["GROUP", "SECTION", "BOTH"]
 
@@ -29,6 +35,16 @@ ORDEM_SECTION_LABELS = {
     "COMUNIDADE": "Comunidade",
     "CLA": "Clã",
 }
+
+# Progress-system stages (etapas) per section. Mirrored in
+# packages/types/src/ordem-item.ts (ETAPAS_PROGRESSO) — keep both in sync.
+ETAPAS_PROGRESSO: dict[str, tuple[str, ...]] = {
+    "ALCATEIA": ("Pata Tenra", "Lobo Valente", "Lobo Cortês", "Lobo Amigo"),
+    "EXPEDICAO": ("Apelo", "Aliança", "Rumo", "Descoberta"),
+    "COMUNIDADE": ("Desprendimento", "Conhecimento", "Vontade", "Construção"),
+    "CLA": ("Caminho", "Comunidade", "Serviço", "Partida"),
+}
+_ALL_ETAPAS = frozenset(e for etapas in ETAPAS_PROGRESSO.values() for e in etapas)
 
 
 @dataclass(frozen=True)
@@ -63,6 +79,21 @@ class ValidateResult:
     ok: bool
     value: dict[str, Any] | None = None
     error: str | None = None
+
+
+def _scout_ids(data: dict[str, Any]) -> list[str]:
+    """Normalise a multi-member ref to a deduped list of scout ids, accepting the
+    bulk `scoutIds` array or a legacy single `scoutId`."""
+    raw = data.get("scoutIds")
+    ids = (
+        [i for i in raw if isinstance(i, str) and i]
+        if isinstance(raw, list)
+        else ([data["scoutId"]] if isinstance(data.get("scoutId"), str) and data["scoutId"] else [])
+    )
+    seen: dict[str, None] = {}
+    for i in ids:
+        seen.setdefault(i, None)
+    return list(seen)
 
 
 def _to_float(value: Any) -> float | None:
@@ -125,6 +156,33 @@ def validate_item_data(shape: ItemShape, data: Any) -> ValidateResult:
         if not isinstance(scout_id, str) or not scout_id:
             return ValidateResult(False, error="Membro obrigatório")
         return ValidateResult(True, value={"scoutId": scout_id})
+
+    if shape == "PROGRESSO_REF":
+        scout_ids = _scout_ids(d)
+        if not scout_ids:
+            return ValidateResult(False, error="Membro obrigatório")
+        etapa = d.get("etapa")
+        if not isinstance(etapa, str) or etapa not in _ALL_ETAPAS:
+            return ValidateResult(False, error="Etapa obrigatória")
+        return ValidateResult(True, value={"scoutIds": scout_ids, "etapa": etapa})
+
+    if shape == "NOITES_CAMPO_REF":
+        scout_ids = _scout_ids(d)
+        if not scout_ids:
+            return ValidateResult(False, error="Membro obrigatório")
+        count = _to_float(d.get("count"))
+        if count is None or not is_nights_badge_count(int(count)):
+            return ValidateResult(False, error="Número de noites inválido")
+        return ValidateResult(True, value={"scoutIds": scout_ids, "count": int(count)})
+
+    if shape == "ESPECIALIDADE_REF":
+        scout_ids = _scout_ids(d)
+        if not scout_ids:
+            return ValidateResult(False, error="Membro obrigatório")
+        especialidade = d.get("especialidade")
+        if not is_especialidade(especialidade):
+            return ValidateResult(False, error="Especialidade obrigatória")
+        return ValidateResult(True, value={"scoutIds": scout_ids, "especialidade": especialidade})
 
     if shape == "NOITES_REF":
         count = _to_float(d.get("count"))

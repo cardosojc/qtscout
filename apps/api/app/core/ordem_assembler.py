@@ -31,6 +31,19 @@ def _ref_scout_name(data: Any, refs: ResolvedRefs) -> str:
     return scout_label(refs.scouts.get(d["scoutId"]))
 
 
+def _ref_scout_names(data: Any, refs: ResolvedRefs) -> list[str]:
+    """Resolve the member names of a bulk ref (`scoutIds`), tolerating a legacy
+    single `scoutId`."""
+    d = data or {}
+    if isinstance(d.get("scoutIds"), list):
+        ids = [i for i in d["scoutIds"] if isinstance(i, str)]
+    elif isinstance(d.get("scoutId"), str):
+        ids = [d["scoutId"]]
+    else:
+        ids = []
+    return [scout_label(refs.scouts.get(i)) for i in ids]
+
+
 def _ref_profile_nomeacao(data: Any, refs: ResolvedRefs) -> dict[str, str]:
     d = data or {}
     profile = refs.profiles.get(d["profileId"]) if isinstance(d.get("profileId"), str) else None
@@ -50,15 +63,17 @@ def _ref_mixed_nomeacao(data: Any, refs: ResolvedRefs) -> dict[str, str]:
     return {"nome": nome, "cargo": d["cargo"] if isinstance(d.get("cargo"), str) else ""}
 
 
-def _ref_noites(data: Any, refs: ResolvedRefs) -> dict[str, Any]:
-    d = data or {}
-    count = d["count"] if isinstance(d.get("count"), (int, float)) else 0
-    membros = (
-        [scout_label(refs.scouts.get(i)) for i in d["scoutIds"] if isinstance(i, str)]
-        if isinstance(d.get("scoutIds"), list)
-        else []
-    )
-    return {"count": count, "membros": membros}
+def add_noites_member(buckets: list[dict[str, Any]], count: int, membro: str) -> None:
+    """Merge a member into a section's noites-de-campo buckets, grouped by count.
+    Dedupes by name so a member logged manually *and* auto-included from a
+    milestone (same section + count) appears once. Shared by the assembler
+    (manual NOITES_CAMPO items) and the OS generator (auto badge inclusion)."""
+    for b in buckets:
+        if b.get("count") == count:
+            if membro and membro not in b["membros"]:
+                b["membros"].append(membro)
+            return
+    buckets.append({"count": count, "membros": [membro] if membro else []})
 
 
 def assemble_ordem_servico(
@@ -117,10 +132,21 @@ def assemble_ordem_servico(
             data["efetivo"]["saidaAtivo"]["dirigentes"].append(_as_string(d))
         elif category == "PROGRESSO":
             if section:
-                data["sistemaProgresso"][section].append(_ref_scout_name(d, refs))
+                etapa = d["etapa"] if isinstance((d or {}).get("etapa"), str) else ""
+                for nome in _ref_scout_names(d, refs):
+                    data["sistemaProgresso"][section].append({"nome": nome, "etapa": etapa})
+        elif category == "ESPECIALIDADE":
+            if section:
+                esp = d["especialidade"] if isinstance((d or {}).get("especialidade"), str) else ""
+                for nome in _ref_scout_names(d, refs):
+                    data["especialidades"][section].append({"nome": nome, "especialidade": esp})
         elif category == "NOITES_CAMPO":
             if section:
-                data["noitesCampo"][section].append(_ref_noites(d, refs))
+                cd = d or {}
+                count = cd["count"] if isinstance(cd.get("count"), (int, float)) else 0
+                if count:
+                    for nome in _ref_scout_names(cd, refs):
+                        add_noites_member(data["noitesCampo"][section], int(count), nome)
         elif category == "ACCAO_DISCIPLINAR":
             data["justicaDisciplina"]["accoesDisicplinares"].append(_as_string(d))
         elif category == "DISTINCAO_PREMIO":
@@ -129,4 +155,6 @@ def assemble_ordem_servico(
             data["retificacoes"].append(_as_string(d))
 
     data["justicaDisciplina"]["distincoesPremios"] = "\n\n".join(distincao_pieces)
+    for buckets in data["noitesCampo"].values():
+        buckets.sort(key=lambda b: b.get("count", 0))
     return data

@@ -19,7 +19,9 @@ Do not edit by hand — run `npm run docs:sync`.
 | `INVESTIDURA` | MEMBER_REF | SECTION | `data["efetivo"]["investiduras"][section]` |
 | `SAIDA_ATIVO_SECCAO` | MEMBER_REF | SECTION | `data["efetivo"]["saidaAtivo"][section]` |
 | `SAIDA_ATIVO_DIRIGENTE` | STRING | GROUP | `data["efetivo"]["saidaAtivo"]["dirigentes"]` |
-| `PROGRESSO` | MEMBER_REF | SECTION | `data["sistemaProgresso"][section]` |
+| `PROGRESSO` | PROGRESSO_REF | SECTION | `data["sistemaProgresso"][section]` |
+| `NOITES_CAMPO` | NOITES_CAMPO_REF | SECTION | `data["noitesCampo"][section]` |
+| `ESPECIALIDADE` | ESPECIALIDADE_REF | SECTION | `data["especialidades"][section]` |
 | `ACCAO_DISCIPLINAR` | STRING | GROUP | `data["justicaDisciplina"]["accoesDisicplinares"]` |
 | `DISTINCAO_PREMIO` | TEXT | GROUP | — |
 | `RETIFICACAO` | STRING | GROUP | `data["retificacoes"]` |
