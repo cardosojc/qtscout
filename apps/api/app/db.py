@@ -39,13 +39,17 @@ _settings = get_settings()
 
 engine = create_async_engine(
     _normalise_async_url(_settings.database_url),
-    # pool_pre_ping is intentionally OFF. Through the Supabase transaction pooler
-    # (pgbouncer) the liveness ping cost ~195ms on EVERY checkout (measured) — a
-    # validation round-trip on an already-healthy, reused connection. Dropping it
-    # removes that per-request cost. `pool_recycle` bounds connection age so a
-    # long-idle connection the pooler may have closed is replaced rather than
-    # reused; on the rare stale connection SQLAlchemy raises and recovers.
-    pool_pre_ping=False,
+    # pool_pre_ping validates each checked-out connection with a lightweight
+    # round-trip, transparently replacing one the Supabase transaction pooler (or
+    # the network) closed while it sat idle in the pool. Without it those dead
+    # connections were handed out and the request 500'd with
+    # ConnectionDoesNotExistError ("connection was closed in the middle of
+    # operation") — recovering only on the *next* request once SQLAlchemy
+    # invalidated the pool. The ping was previously disabled because it measured
+    # ~195ms/checkout, but that cost was the US↔EU region split, not the ping
+    # itself; co-located it is single-digit ms. `pool_recycle` bounds connection
+    # age as a secondary staleness guard.
+    pool_pre_ping=True,
     pool_recycle=1800,
     # Transaction pooler (pgbouncer) is incompatible with prepared statements.
     connect_args={"statement_cache_size": 0},
