@@ -1,13 +1,20 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getAccessToken, setAccessToken } from '@/lib/supabase/client'
 
 // Base origin of the standalone API service. Routes live under /api, so callers
 // keep passing `/api/...` paths and only the origin is prepended.
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 async function authHeader(): Promise<Record<string, string>> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token
+  // Prefer the cached token (kept fresh by the AuthProvider) to avoid calling
+  // getSession() per request — that acquires the gotrue lock and can block ~10s
+  // when a background refresh holds it. Only fall back to getSession() before the
+  // provider has populated the cache (bootstrap / very first request).
+  let token = getAccessToken()
+  if (!token) {
+    const { data: { session } } = await createClient().auth.getSession()
+    token = session?.access_token ?? null
+    if (token) setAccessToken(token)
+  }
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 

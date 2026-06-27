@@ -2,7 +2,7 @@
 import { apiFetch } from '@/lib/api-client'
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, setAccessToken } from '@/lib/supabase/client'
 import type { SessionUser } from '@/lib/api-schemas'
 
 type AuthContextType = {
@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // API call, so the client doesn't need to verify it here.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Keep the token cache fresh for apiFetch (set before any profile fetch).
+        setAccessToken(session?.access_token ?? null)
         if (session?.user) {
           // TOKEN_REFRESHED fires periodically with the same user — no need to
           // refetch the profile then.
