@@ -10,6 +10,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@qtscout/types/ordem-item'
 import { scoutDisplayName, type Scout } from '@qtscout/types/scout'
 import { useScouts } from '@/lib/api-hooks'
+import { matchesQuery } from '@/lib/text-search'
 
 // Stable empty fallback so the `grouped` useMemo below doesn't re-run on every
 // render while SWR data is still undefined.
@@ -30,6 +31,7 @@ export default function MembrosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [filterSection, setFilterSection] = useState<OrdemSection | ''>('')
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [query, setQuery] = useState('')
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null)
 
   // SWR caches by URL: changing section/inactive filters back and forth is
@@ -85,16 +87,23 @@ export default function MembrosPage() {
     }
   }
 
+  const filteredScouts = useMemo(() => {
+    if (!query.trim()) return scouts
+    return scouts.filter((s) =>
+      matchesQuery(`${scoutDisplayName(s)} ${s.numeroAssociado ?? ''}`, query),
+    )
+  }, [scouts, query])
+
   const grouped = useMemo(() => {
     const map: Record<OrdemSection | 'NONE', Scout[]> = {
       ALCATEIA: [], EXPEDICAO: [], COMUNIDADE: [], CLA: [], NONE: [],
     }
-    for (const s of scouts) {
+    for (const s of filteredScouts) {
       if (s.section) map[s.section].push(s)
       else map.NONE.push(s)
     }
     return map
-  }, [scouts])
+  }, [filteredScouts])
 
   if (authLoading || !user) {
     return (
@@ -164,6 +173,13 @@ export default function MembrosPage() {
       )}
 
       <div className="flex flex-wrap gap-3 items-center text-sm">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Pesquisar por nome ou nº associado…"
+          className="flex-1 min-w-[16rem] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        />
         <select
           value={filterSection}
           onChange={(e) => setFilterSection(e.target.value as OrdemSection | '')}
@@ -190,6 +206,10 @@ export default function MembrosPage() {
       ) : scouts.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center text-sm text-gray-500 dark:text-gray-400">
           Sem membros registados.
+        </div>
+      ) : filteredScouts.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          Sem resultados para “{query}”.
         </div>
       ) : (
         <div className="space-y-6">
