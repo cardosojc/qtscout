@@ -29,6 +29,8 @@ _HEADER = {
     "line2": "Escutismo Católico Português",
 }
 
+_LOCATION = "Olivais"
+
 
 def _img(filename: str) -> str:
     try:
@@ -72,13 +74,12 @@ async def generate_meeting_pdf(meeting: dict[str, Any]) -> bytes:
 
 async def generate_document_pdf(doc: dict[str, Any]) -> bytes:
     body_content, signature_block = build_document_parts(doc)
-    created_by = doc.get("createdBy") or {}
     html = _env.get_template("document.html.j2").render(
         title=doc.get("identifier", ""),
         identifier=doc.get("identifier", ""),
         type_label=DOC_TYPE_LABELS.get(doc.get("type", ""), doc.get("type", "")),
+        location=_LOCATION,
         created_at=format_date_pt(doc["createdAt"]),
-        created_by_name=created_by.get("name") or created_by.get("email", ""),
         body_content=body_content,
         signature_block=signature_block,
         **_header_ctx(),
