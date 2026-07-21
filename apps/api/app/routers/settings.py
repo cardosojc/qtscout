@@ -39,7 +39,7 @@ async def put_document_settings(
             .values(type=item.type, starting_number=item.startingNumber)
             .on_conflict_do_update(
                 index_elements=[DocumentSettings.type],
-                set_={"starting_number": item.startingNumber},
+                set_={DocumentSettings.starting_number: item.startingNumber},
             )
         )
         await session.execute(stmt)
