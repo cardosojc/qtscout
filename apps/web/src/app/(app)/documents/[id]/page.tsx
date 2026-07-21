@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import Link from 'next/link'
 import { DOCUMENT_TYPE_LABELS, type Document } from '@qtscout/types/document'
+import { highestRole } from '@qtscout/types/leader-role'
 import { OrdemServicoView } from '@/components/documents/ordem-servico-view'
 import { parseOrdemServicoData } from '@qtscout/types/ordem-servico'
 
@@ -272,10 +273,10 @@ export default function DocumentDetailPage() {
               )}
               <p className="text-sm font-semibold text-gray-900 dark:text-white">
                 {document.signedBy.name || document.signedBy.email}
-                {document.signedBy.roles && document.signedBy.roles.length > 0 && (
+                {highestRole(document.signedBy.roles ?? []) && (
                   <span className="font-normal text-gray-600 dark:text-gray-300">
                     {' '}
-                    ({document.signedBy.roles.join(', ')})
+                    ({highestRole(document.signedBy.roles ?? [])})
                   </span>
                 )}
               </p>

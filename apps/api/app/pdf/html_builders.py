@@ -8,6 +8,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from app.core.leader_roles import highest_role
 from app.pdf.os_content import generate_os_content
 
 # TipTap wraps list-item text in a block <p> (`<li><p>text</p></li>`). xhtml2pdf
@@ -212,8 +213,8 @@ def build_document_parts(doc: dict[str, Any]) -> tuple[str, str]:
     signature_block = ""
     if signed_by:
         signer_name = signed_by.get("name") or signed_by.get("email") or ""
-        roles = signed_by.get("roles") or []
-        signer_roles = f" ({', '.join(roles)})" if roles else ""
+        role = highest_role(signed_by.get("roles") or [])
+        signer_roles = f" ({role})" if role else ""
         if signed_by.get("signature"):
             mark = f'<img src="{signed_by["signature"]}" alt="Assinatura" class="signature-img" />'
         else:

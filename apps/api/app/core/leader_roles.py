@@ -18,3 +18,14 @@ LEADER_ROLES: tuple[str, ...] = (
 
 def is_leader_role(value: object) -> bool:
     return isinstance(value, str) and value in LEADER_ROLES
+
+
+def highest_role(roles: list[str]) -> str | None:
+    # "de Agrupamento" roles outrank section-level ones; LEADER_ROLES is preordered by seniority.
+    if not roles:
+        return None
+    candidates = [r for r in roles if "de Agrupamento" in r] or roles
+    for r in LEADER_ROLES:
+        if r in candidates:
+            return r
+    return candidates[0]
