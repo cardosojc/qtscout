@@ -1,0 +1,34 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "qtscout-web",
+	"compatibility_date": "2026-07-25",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Self-reference service binding, required by the adapter for internal
+			// requests (e.g. background revalidation) — name must match "name" above.
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "qtscout-web"
+		}
+	],
+	"r2_buckets": [
+		// Backs Next's Data/Full Route cache — Workers' per-request isolate model
+		// means an in-memory cache alone won't persist across requests. Create with:
+		// `wrangler r2 bucket create qtscout-web-opennext-cache`
+		{
+			"binding": "NEXT_INC_CACHE_R2_BUCKET",
+			"bucket_name": "qtscout-web-opennext-cache"
+		}
+	],
+	"flagship": [
+		{
+			"binding": "FLAGS",
+			"app_id": "21bb0a51-af9c-47fa-857f-1064fc4c0d90"
+		}
+	]
+}

@@ -1,16 +1,12 @@
 import { Sidebar } from '@/components/ui/sidebar'
-import { oficioEnabled, circularEnabled, ordemServicoEnabled } from '@/flags'
+import { getFeatureFlags } from '@/lib/flags'
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [oficio, circular, ordem] = await Promise.all([
-    oficioEnabled(),
-    circularEnabled(),
-    ordemServicoEnabled(),
-  ])
+  const { oficio, circular, ordem } = await getFeatureFlags()
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

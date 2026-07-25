@@ -45,6 +45,11 @@ prisma/*.db-journal
 # Vercel
 .vercel
 
+# Cloudflare / OpenNext
+.open-next/
+.wrangler/
+apps/web/.dev.vars
+
 # Playwright
 .auth/
 playwright-report/
