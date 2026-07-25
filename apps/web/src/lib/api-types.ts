@@ -394,6 +394,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ordem-items/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Items Summary
+         * @description Per-category counts for the grouped, paginated items list: `total` matching
+         *     the filters and how many of those are already `included` in an OS.
+         */
+        get: operations["items_summary_api_ordem_items_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ordem-items": {
         parameters: {
             query?: never;
@@ -2272,6 +2293,46 @@ export interface operations {
             };
         };
     };
+    items_summary_api_ordem_items_summary_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                section?: string | null;
+                included?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_items_api_ordem_items_get: {
         parameters: {
             query?: {
@@ -2280,6 +2341,8 @@ export interface operations {
                 section?: string | null;
                 category?: string | null;
                 included?: string | null;
+                limit?: number | null;
+                offset?: number;
             };
             header?: {
                 authorization?: string | null;
