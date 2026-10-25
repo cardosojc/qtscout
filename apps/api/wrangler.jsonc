@@ -21,6 +21,9 @@
 			"migrations_dir": "d1/migrations"
 		}
 	],
+	// Weekly backups (src/app/backup.py), expired by an R2 lifecycle rule after 180 days.
+	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "qtscout-backups" }],
+	"triggers": { "crons": ["0 3 * * 1"] },
 	// remote: the local simulator has no quickAction, so dev uses the real Browser Run.
 	"browser": { "binding": "BROWSER", "remote": true },
 	"ai": { "binding": "AI" },
