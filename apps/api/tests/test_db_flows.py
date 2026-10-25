@@ -188,3 +188,22 @@ def test_scouts_sort_ignores_accents_and_case(client: TestClient) -> None:
         ("Zé", "Silva"),
         ("Rui", "Costa"),
     ]
+
+
+def test_nights_badges_save_update_and_clear(client: TestClient) -> None:
+    scout = client.post(
+        "/api/scouts",
+        json={"firstName": "Rui", "lastName": "Sá", "dateOfBirth": "2014-01-01T00:00:00.000Z"},
+    ).json()["scout"]
+    url = f"/api/scouts/{scout['id']}/nights-badges"
+
+    def put(awarded: str | None) -> dict:  # type: ignore[type-arg]
+        resp = client.put(url, json={"badges": [{"count": 25, "awardedAt": awarded}]})
+        assert resp.status_code == 200, resp.text
+        return resp.json()  # type: ignore[no-any-return]
+
+    assert [b["awardedAt"][:10] for b in put("2026-10-01")["badges"]] == ["2026-10-01"]
+    # Saving again updates the same milestone (the upsert path).
+    assert [b["awardedAt"][:10] for b in put("2026-10-05")["badges"]] == ["2026-10-05"]
+    # An empty date removes it.
+    assert put("")["badges"] == []

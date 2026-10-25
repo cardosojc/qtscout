@@ -17,6 +17,7 @@ from app.core.text_sort import name_key
 from app.db import get_session
 from app.deps import AdminUser, CurrentUser
 from app.models import Profile, Scout, ScoutNightsBadge
+from app.models._columns import utcnow
 from app.models.enums import OrdemSection
 from app.schemas.scout import NightsBadgeOut, ScoutOut
 
@@ -377,7 +378,11 @@ async def put_nights_badges(
             .values(scout_id=scout_id, count=count, awarded_at=awarded_at)
             .on_conflict_do_update(
                 index_elements=[ScoutNightsBadge.scout_id, ScoutNightsBadge.count],
-                set_={"awarded_at": awarded_at},
+                # Column objects, not attribute names: the column is "awardedAt".
+                set_={
+                    ScoutNightsBadge.awarded_at: awarded_at,
+                    ScoutNightsBadge.updated_at: utcnow(),
+                },
             )
         )
         session.execute(stmt)
