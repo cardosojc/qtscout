@@ -36,12 +36,6 @@ export default function SettingsPage() {
     }
   }, [session, authLoading, router])
 
-  useEffect(() => {
-    if (session?.role === 'ADMIN') {
-      fetchSettings()
-    }
-  }, [session])
-
   const fetchSettings = async () => {
     startLoading('A carregar definições...')
     try {
@@ -57,6 +51,12 @@ export default function SettingsPage() {
       stopLoading()
     }
   }
+
+  useEffect(() => {
+    if (session?.role === 'ADMIN') {
+      fetchSettings()
+    }
+  }, [session])
 
   const handleChange = (type: DocumentType, value: number) => {
     setSettings((prev) =>

@@ -47,10 +47,6 @@ export default function UsersSettingsPage() {
     if (!authLoading && session && session.role !== 'ADMIN') router.replace('/')
   }, [session, authLoading, router])
 
-  useEffect(() => {
-    if (session?.role === 'ADMIN') fetchUsers()
-  }, [session])
-
   const fetchUsers = async () => {
     startLoading('A carregar utilizadores...')
     try {
@@ -66,6 +62,10 @@ export default function UsersSettingsPage() {
       stopLoading()
     }
   }
+
+  useEffect(() => {
+    if (session?.role === 'ADMIN') fetchUsers()
+  }, [session])
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     setUpdatingId(userId)
