@@ -1,0 +1,36 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "qtscout-api",
+	"main": "src/entry.py",
+	"compatibility_date": "2026-10-20",
+	"compatibility_flags": ["python_workers"],
+	// Non-Python files the app reads from disk (catalogs, PDF templates, fonts,
+	// logos). Python Workers expose bundled modules as files under the module root.
+	"rules": [
+		{ "type": "Text", "globs": ["**/*.json", "**/*.j2"], "fallthrough": true },
+		{ "type": "Data", "globs": ["**/*.woff2", "**/*.jpeg"], "fallthrough": true }
+	],
+	// Reached only through the web Worker's service binding.
+	"workers_dev": false,
+	"preview_urls": false,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "qtscout",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "d1/migrations"
+		}
+	],
+	// remote: the local simulator has no quickAction, so dev uses the real Browser Run.
+	"browser": { "binding": "BROWSER", "remote": true },
+	"ai": { "binding": "AI" },
+	"vars": {
+		"AUTH_MODE": "access",
+		"ACCESS_TEAM_DOMAIN": "snowy-hall-cc58.cloudflareaccess.com",
+		"ACCESS_AUD": "215a27e773f25d3c5e62c32a173903825dc5731c5d2dbc9def077ad81a5339c9",
+		"CF_ACCOUNT_ID": "e0186649c2b4e92b7d6b4d4751c9ab47",
+		"ACCESS_GROUP_ID": "eedbbcb8-85f2-4eab-bcb7-1cf09c3f5a15"
+	},
+	// Secret (wrangler secret put): CF_API_TOKEN.
+	"observability": { "enabled": true }
+}

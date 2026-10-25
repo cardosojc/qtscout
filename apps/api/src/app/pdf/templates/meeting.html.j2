@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+  <style>
+    {{ fonts_css }}
+
+    /* Page size + margins come from the Browser Run pdfOptions (render.py),
+       which also draws the repeating header/footer in the margins. */
+    @page { size: A4; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: 'Lato'; font-size: 12px; line-height: 1.5; color: #333; }
+
+    /* content */
+    .content { padding: 0; }
+    h1 { color: #1e40af; text-align: center; margin-bottom: 24px; font-size: 22px; border-bottom: 3px solid #1e40af; padding-bottom: 8px; }
+    h2 { color: #1e40af; margin-top: 24px; margin-bottom: 12px; font-size: 16px; border-left: 4px solid #1e40af; padding-left: 8px; }
+    h3 { color: #374151; margin-top: 16px; margin-bottom: 8px; font-size: 14px; }
+    .meeting-info { background: #f8fafc; padding: 14px; margin-bottom: 20px; border-left: 4px solid #1e40af; }
+    .meeting-info-table { width: 100%; }
+    .meeting-info-table td { width: 50%; vertical-align: top; }
+    .info-item { margin-bottom: 6px; }
+    .info-label { font-weight: bold; color: #374151; }
+    /* agenda: blue title strip + body card (a one-cell table) */
+    .agenda-block { margin-bottom: 10px; }
+    .agenda-title { background: #eff6ff; border-left: 4px solid #2563eb; padding: 7px 12px; }
+    .agenda-title h4 { margin: 0; color: #1e40af; font-size: 13px; }
+    .agenda-body { width: 100%; }
+    .agenda-body td { background: #f8fafc; border-left: 4px solid #2563eb; padding: 6px 16px 8px 16px; }
+    .agenda-desc { margin: 4px 0; color: #6b7280; font-size: 13px; }
+    .action-item { background: #fff7ed; padding: 12px; margin-bottom: 8px; border-left: 4px solid #f59e0b; }
+    .action-item h4 { margin: 0 0 4px 0; color: #d97706; }
+    .action-details { font-size: 11px; color: #6b7280; margin-top: 4px; }
+    .attendees { margin-top: 6px; }
+    .attendee-tag { display: inline-block; background: #e5e7eb; color: #374151; font-size: 11px; padding: 3px 7px; margin: 0 4px 4px 0; }
+    .content-section { padding: 0; margin: 0; }
+    .content-section p { margin: 6px 0; color: #374151; }
+    .content-section ul, .content-section ol { margin: 4px 0 8px 18px; padding-left: 0; }
+    .content-section ul ul, .content-section ul ol,
+    .content-section ol ul, .content-section ol ol { margin-top: 4px; margin-bottom: 4px; }
+    .content-section ul { list-style-type: disc; }
+    .content-section ul ul { list-style-type: circle; }
+    .content-section ol { list-style-type: decimal; }
+    .content-section li { margin-bottom: 4px; color: #374151; }
+    .content-section li p { margin: 0; }
+    .page-break { page-break-before: always; }
+    .content table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    .content th, .content td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; }
+    .content th { background: #f8fafc; font-weight: bold; color: #374151; }
+  </style>
+</head>
+<body>
+  {{ body }}
+</body>
+</html>

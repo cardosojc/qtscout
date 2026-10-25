@@ -12,14 +12,12 @@ _KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 _ISS = "https://example.cloudflareaccess.com"
 
 
-class _FakeJWKS:
-    def get_signing_key_from_jwt(self, _token: str) -> Any:
-        return type("K", (), {"key": _KEY.public_key()})()
-
-
 @pytest.fixture(autouse=True)
 def _fake_jwks(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(auth, "_jwks_client", _FakeJWKS())
+    async def signing_key(_token: str) -> Any:
+        return _KEY.public_key()
+
+    monkeypatch.setattr(auth, "_signing_key", signing_key)
 
 
 def _token(**claims: Any) -> str:
