@@ -1,5 +1,5 @@
 // Generates the web's typed especialidades list from the single source of truth
-// (apps/api/app/core/especialidades.json). Run `npm run sync:especialidades`
+// (apps/api/src/app/core/especialidades.json). Run `npm run sync:especialidades`
 // after editing the JSON; `npm run sync:especialidades:check` fails in CI if out
 // of sync.
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -7,13 +7,13 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const SRC = resolve(root, 'apps/api/app/core/especialidades.json')
+const SRC = resolve(root, 'apps/api/src/app/core/especialidades.json')
 const DST = resolve(root, 'packages/types/src/especialidades.generated.ts')
 
 const especialidades = JSON.parse(readFileSync(SRC, 'utf8'))
 const entries = especialidades.map((e) => `  ${JSON.stringify(e)},`).join('\n')
 
-const out = `// AUTO-GENERATED from apps/api/app/core/especialidades.json by \`npm run sync:especialidades\`.
+const out = `// AUTO-GENERATED from apps/api/src/app/core/especialidades.json by \`npm run sync:especialidades\`.
 // Do not edit by hand — edit the JSON (the single source of truth) and re-run.
 export const ESPECIALIDADES = [
 ${entries}

@@ -6,3 +6,10 @@ __pycache__/
 .mypy_cache/
 .env
 .env.local
+python_modules/
+local.db*
+.fastapicloud/
+.venv-workers/
+pylock.toml
+.dev.vars
+e2e.db

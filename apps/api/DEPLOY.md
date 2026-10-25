@@ -1,118 +1,52 @@
-# QTScout API — deploy & cutover runbook
+# QTScout — deploy runbook (Cloudflare)
 
-Cut over the backend from the Hono API (Vercel project `qtscout-api`) to this
-FastAPI service on Render/Railway. The Next.js web app stays on Vercel; only
-`NEXT_PUBLIC_API_URL` changes. **Keep the old Hono API running until step 7.**
+Everything runs on Cloudflare, on one hostname behind Cloudflare Access:
 
-## 0. Prerequisites
+| Piece | What | Config |
+|-------|------|--------|
+| `qtscout-web` | Next.js (OpenNext) Worker on `qtscout.cardosojcs.org` | `apps/web/wrangler.jsonc` |
+| `qtscout-api` | FastAPI Python Worker, no public route | `apps/api/wrangler.jsonc` |
+| `qtscout` | D1 database (binding `DB` on the API) | `apps/api/d1/migrations/` |
+| Access app `qtscout` | One-time PIN login for the hostname; group `qtscout-users` | Zero Trust dashboard / API |
 
-- Render or Railway account with access to this GitHub repo.
-- The env values from `apps/web/.env.local` (mapping below).
-- A Supabase **access token** for an ADMIN test user (for the parity harness):
-  sign in to the web app, then DevTools → Application → the Supabase auth entry
-  → copy `access_token`.
+The web Worker forwards `/api/*` to the API over the `API` service binding
+(`apps/web/worker.ts`). The API also uses Browser Run (`BROWSER`, PDFs) and
+Workers AI (`AI`).
 
-Env var mapping (Hono → FastAPI service):
+## API Worker
 
-| FastAPI service var          | Source (`apps/web/.env.local`)          |
-|------------------------------|-----------------------------------------|
-| `DATABASE_URL`               | `DATABASE_URL` (pooler)                 |
-| `DIRECT_URL`                 | `DIRECT_URL` (direct)                   |
-| `SUPABASE_URL`               | `NEXT_PUBLIC_SUPABASE_URL`              |
-| `SUPABASE_PUBLISHABLE_KEY`   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`  |
-| `SUPABASE_SECRET_KEY`        | `SUPABASE_SECRET_KEY`                   |
-| `MISTRAL_API_KEY`            | `MISTRAL_API_KEY`                       |
-| `WEB_ORIGIN`                 | the web origin(s), e.g. `https://qtscout.vercel.app` (comma-sep) |
-
-Optional: `JWT_LOCAL_VERIFY` (default `true`) — access tokens are verified
-offline against Supabase's JWKS; set `false` to force the `/auth/v1/user`
-network path (e.g. if you need server-side revocation to take effect immediately).
-
-## 1. Provision the service
-
-- **Render**: New + → Blueprint → this repo (`render.yaml`). Fill the env vars.
-- **Railway**: New service → Deploy from repo → set root directory `apps/api`
-  (uses `apps/api/Dockerfile`). Add the same env vars. `$PORT` is provided.
-
-PDF rendering is pure-Python (xhtml2pdf) — no browser or system libs, so the
-image needs no extra build steps and PDFs work in-process on any host.
-
-## 2. Baseline-stamp Alembic (one-time, no DDL)
-
-The 11 tables already exist (created by Prisma). Mark the baseline so future
-migrations work without recreating anything. Run **once**, locally, against the
-direct connection:
+From `apps/api/` (wrangler comes from the repo root's `node_modules`; log in
+once with `npx wrangler login`):
 
 ```bash
-cd apps/api
-cp .env.example .env   # fill DIRECT_URL etc. (or reuse the existing api/.env)
-uv run alembic stamp 65d0b607c636
+# Schema changes first (new files in d1/migrations/):
+npx wrangler d1 migrations apply qtscout --remote
+
+# Secret (once, or when the token rotates). Needs Access: Organizations,
+# Identity Providers, and Groups (Edit) — used for user create/delete.
+npx wrangler secret put CF_API_TOKEN
+
+uv run pywrangler deploy
 ```
 
-## 3. Deploy + smoke test
+Non-secret settings (`AUTH_MODE`, `ACCESS_*`, `CF_ACCOUNT_ID`,
+`ACCESS_GROUP_ID`) are `vars` in `wrangler.jsonc`. The Worker refuses requests
+if `AUTH_MODE=access` lacks `ACCESS_TEAM_DOMAIN`/`ACCESS_AUD`.
 
-Trigger the deploy. When live:
+Deploy the API before a web change that depends on it: the web's service
+binding needs `qtscout-api` to exist.
 
-```bash
-curl https://<api-host>/api/health        # -> {"ok": true}
-open  https://<api-host>/docs              # OpenAPI UI
-```
+## Web Worker
 
-## 4. Parity check (Hono vs FastAPI)
+Deployed by Workers Builds on push to `main` (`npm run deploy:cf` in
+`apps/web` does the same by hand). No build-time env is needed for the API: it
+is reached over the service binding.
 
-With both APIs up and a token, diff responses per endpoint:
+## Data
 
-```bash
-cd apps/api
-HONO_URL=https://qtscout-api.vercel.app \
-FASTAPI_URL=https://<api-host> \
-TOKEN="<supabase access token>" \
-uv run python scripts/parity_check.py
-```
+D1 is the database. Backups: D1 Time Travel restores to any minute in the last
+30 days (`npx wrangler d1 time-travel restore qtscout --timestamp …`); for an
+off-platform copy, `npx wrangler d1 export qtscout --remote --output qtscout.sql`.
 
-Investigate any `DIFF`. Spot-check writes (create meeting/document/item,
-sign/unsign, SIIE import, `POST /ordens-servico/generate`) and **download a PDF
-from each backend** and compare visually (meeting CA, OFICIO/CIRCULAR, OS).
-
-## 5. Repoint the web's types (optional, do before flipping)
-
-Wire shapes are identical by design, so this is safe and de-risks cutover:
-
-```bash
-npm run gen:api-types --workspace @qtscout/web   # refresh from openapi/openapi.json
-```
-
-Repoint **type-only** imports in `apps/web` from `@qtscout/types/*` to
-`@/lib/api-schemas` where they describe API responses. **Keep** runtime imports
-(`ORDEM_CATEGORIES`, `DOCUMENT_TYPE_LABELS`, `scoutDisplayName`,
-`validateItemData`, `defaultOrdemServicoData`/`parseOrdemServicoData`,
-`@qtscout/types/ano-escutista`) on `packages/types` / `packages/core` — those
-stay FE-side. Verify with `npm run typecheck`.
-
-## 6. (Optional) single-source the OS catalog
-
-Now safe since `packages/types` is becoming FE-only: extract the catalog to
-`packages/ordem-categories.json`, have both `packages/types/ordem-item.ts` and
-`apps/api/app/core/ordem_categories.py` load it (copy the JSON into `apps/api/` at build
-time so it lands in the image), and keep the existing catalog-drift unit tests.
-
-## 7. Flip the web → FastAPI
-
-- Vercel (web project `qtscout`): set `NEXT_PUBLIC_API_URL` = `https://<api-host>`.
-- Ensure the API's `WEB_ORIGIN` includes the web origin (CORS).
-- Redeploy the web app. Run the Playwright e2e suite against the deployed pair.
-- Watch logs; keep the Hono API up briefly as a rollback (just flip
-  `NEXT_PUBLIC_API_URL` back).
-
-## 8. Retire the Hono backend
-
-Once stable:
-
-- Delete `apps/api` (Hono), `packages/db`, `packages/auth`.
-- Trim `packages/core` to **`ano-escutista`** only (keep — FE uses it); remove
-  pdf-generator, ordem-*, siie-*, document-utils, assets.
-- **Keep `packages/types`** (FE runtime helpers + types).
-- Update root `package.json` workspaces, `turbo.json`, and remove the now-unused
-  Vercel `qtscout-api` project.
-- Update `CLAUDE.md` and `docs/architecture.md` to describe the FastAPI backend
-  (`apps/api/`), the new auth/PDF/contract flows, and this runbook.
+`scripts/pg_to_d1.py` is the one-off copy from the old Supabase Postgres (kept
+for the record; see its docstring).

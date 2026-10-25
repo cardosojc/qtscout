@@ -55,23 +55,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Register */
-        post: operations["register_api_auth_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/profile/roles": {
         parameters: {
             query?: never;
@@ -154,7 +137,14 @@ export interface paths {
         /** List Users */
         get: operations["list_users_api_users_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create User
+         * @description Give someone access: a profile row + their email in the Access group.
+         *
+         *     There are no passwords — the person signs in with a one-time PIN sent to
+         *     this email by Cloudflare Access.
+         */
+        post: operations["create_user_api_users_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1018,10 +1008,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1045,51 +1037,16 @@ export interface operations {
             };
         };
     };
-    register_api_auth_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_roles_api_profile_roles_get: {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1119,10 +1076,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1158,10 +1117,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1191,10 +1152,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1230,10 +1193,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1263,10 +1228,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1302,10 +1269,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1335,10 +1304,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1368,10 +1339,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1397,16 +1370,59 @@ export interface operations {
             };
         };
     };
+    create_user_api_users_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "cf-access-jwt-assertion"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_user_route_api_users__user_id__delete: {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 user_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1436,12 +1452,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 user_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1483,10 +1501,12 @@ export interface operations {
                 to?: string | null;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1514,10 +1534,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1551,12 +1573,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 doc_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1584,12 +1608,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 doc_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1623,12 +1649,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 doc_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1658,12 +1686,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 doc_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1693,12 +1723,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 doc_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1730,12 +1762,14 @@ export interface operations {
                 download?: string | null;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 doc_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1766,10 +1800,12 @@ export interface operations {
                 includeInactive?: boolean;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1799,10 +1835,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1838,10 +1876,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: {
             content: {
@@ -1875,12 +1915,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 scout_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1910,12 +1952,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 scout_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1945,12 +1989,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 scout_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1986,12 +2032,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 scout_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2021,12 +2069,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 scout_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2067,10 +2117,12 @@ export interface operations {
                 to?: string | null;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2098,10 +2150,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2135,12 +2189,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 meeting_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2168,12 +2224,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 meeting_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2207,12 +2265,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 meeting_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2244,12 +2304,14 @@ export interface operations {
                 download?: string | null;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 meeting_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2302,10 +2364,12 @@ export interface operations {
                 included?: string | null;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2345,10 +2409,12 @@ export interface operations {
                 offset?: number;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2378,10 +2444,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2417,10 +2485,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: {
             content: {
@@ -2454,12 +2524,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 item_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2489,12 +2561,14 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path: {
                 item_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2530,10 +2604,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2576,10 +2652,12 @@ export interface operations {
                 sortOrder?: string;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2614,10 +2692,12 @@ export interface operations {
                 sortOrder?: string;
             };
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2645,10 +2725,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2664,7 +2746,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */
@@ -2682,10 +2764,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2715,10 +2799,12 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                authorization?: string | null;
+                "cf-access-jwt-assertion"?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
         };
         requestBody: {
             content: {

@@ -15,7 +15,7 @@ export const ORDEM_SECTION_LABELS: Record<OrdemSection, string> = {
 
 /**
  * Progress-system stages (etapas) per section. Mirrored in
- * apps/api/app/core/ordem_categories.py (ETAPAS_PROGRESSO) — keep both in sync.
+ * apps/api/src/app/core/ordem_categories.py (ETAPAS_PROGRESSO) — keep both in sync.
  */
 export const ETAPAS_PROGRESSO: Record<OrdemSection, readonly string[]> = {
   ALCATEIA: ['Pata Tenra', 'Lobo Valente', 'Lobo Cortês', 'Lobo Amigo'],
@@ -28,7 +28,7 @@ const ALL_ETAPAS: ReadonlySet<string> = new Set(Object.values(ETAPAS_PROGRESSO).
 
 /**
  * Higher-level insígnias awarded on top of especialidades. Mirrored in
- * apps/api/app/core/especialidades.py (MERITO_ESPECIALISTA) — keep both in sync.
+ * apps/api/src/app/core/especialidades.py (MERITO_ESPECIALISTA) — keep both in sync.
  */
 export const MERITO_ESPECIALISTA = ['Mérito', 'Especialista'] as const
 
@@ -64,7 +64,7 @@ export type CategorySpec = {
 
 /**
  * Catalog of all item categories. **Single source of truth: the JSON at
- * `apps/api/app/core/ordem_categories.json`** (loaded by the Python backend). This
+ * `apps/api/src/app/core/ordem_categories.json`** (loaded by the Python backend). This
  * TS copy is generated from it by `npm run sync:categories` (CI guards drift
  * via `npm run sync:categories:check`). Controls shape (form rendering), scope
  * (permission checks), and assembler routing.
@@ -72,7 +72,7 @@ export type CategorySpec = {
  * When adding a category:
  *   1. Edit the JSON, run `npm run sync:categories`.
  *   2. Extend validateItemData() (here) + the Python validator if the shape is new.
- *   3. Add a `case` in the Python assembler (apps/api/app/core/ordem_assembler.py).
+ *   3. Add a `case` in the Python assembler (apps/api/src/app/core/ordem_assembler.py).
  *   4. Run `npm run docs:sync` to refresh `docs/ordem-categories.md`.
  *   5. The form (item-form.tsx) renders from `shape` automatically.
  */

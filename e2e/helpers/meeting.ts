@@ -1,11 +1,23 @@
 import { Page, expect } from '@playwright/test'
 
+// Consecutive days from tomorrow: unique within a run (each run gets a fresh
+// database) and inside the current scout year, which the meetings list shows by
+// default. Today itself is left to create.spec.
+let meetingDayOffset = 0
+function uniqueMeetingDate(): string {
+  meetingDayOffset += 1
+  const day = new Date(Date.now() + meetingDayOffset * 86_400_000)
+  return day.toISOString().split('T')[0]
+}
+
 export async function createTestMeeting(page: Page, overrides: {
   date?: string
   location?: string
   agendaTitle?: string
 } = {}) {
-  const today = overrides.date ?? new Date().toISOString().split('T')[0]
+  // Only one meeting per type and day is allowed, so each test meeting gets its
+  // own date unless the test pins one.
+  const today = overrides.date ?? uniqueMeetingDate()
 
   await page.goto('/meetings/new')
   await page.waitForLoadState('networkidle')

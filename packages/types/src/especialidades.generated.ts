@@ -1,4 +1,4 @@
-// AUTO-GENERATED from apps/api/app/core/especialidades.json by `npm run sync:especialidades`.
+// AUTO-GENERATED from apps/api/src/app/core/especialidades.json by `npm run sync:especialidades`.
 // Do not edit by hand — edit the JSON (the single source of truth) and re-run.
 export const ESPECIALIDADES = [
   "Acólito",

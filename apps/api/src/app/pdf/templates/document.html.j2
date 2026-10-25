@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+  <style>
+    {{ fonts_css }}
+
+    /* Page size + margins come from the Browser Run pdfOptions (render.py),
+       which also draws the repeating header/footer in the margins. */
+    @page { size: A4; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: 'Lato'; font-size: 13px; line-height: 1.6; color: #333; }
+
+    /* document meta */
+    .doc-meta-table { width: 100%; margin-bottom: 16px; border-bottom: 2px solid #1e40af; }
+    .doc-meta-table td { padding-bottom: 10px; vertical-align: bottom; }
+    .doc-identifier { font-size: 22px; font-weight: bold; color: #1e40af; }
+    .doc-type-badge { background: #dbeafe; color: #1e40af; font-size: 11px; font-weight: bold; padding: 2px 8px; }
+    .doc-info-line { font-size: 11px; color: #6b7280; text-align: right; }
+
+    /* lists: base rule covers the OS body (bare inline-styled <ul>);
+       .doc-content rules add spacing/nesting for TipTap-authored bodies. */
+    ul, ol { list-style-type: disc; }
+    ol { list-style-type: decimal; }
+    ul ul { list-style-type: circle; }
+
+    /* document body */
+    .doc-content { margin-top: 16px; line-height: 1.7; }
+    .doc-content p { margin: 8px 0; }
+    .doc-content h1, .doc-content h2, .doc-content h3 { color: #1e40af; margin: 16px 0 8px 0; }
+    .doc-content ul, .doc-content ol { margin: 8px 0 8px 22px; padding-left: 0; }
+    .doc-content ul ul, .doc-content ul ol,
+    .doc-content ol ul, .doc-content ol ol { margin-top: 4px; margin-bottom: 4px; }
+    .doc-content li { margin: 4px 0; }
+    .doc-content li p { margin: 0; }
+    .doc-content strong { font-weight: bold; }
+    .doc-content em { font-style: italic; }
+
+    /* signature */
+    .doc-signature { margin-top: 48px; text-align: center; }
+    .signature-greeting { font-size: 13px; color: #1f2937; margin: 0 0 12px 0; }
+    .signature-img { width: 180px; margin-bottom: 4px; }
+    .signature-handwritten { font-family: 'Caveat'; font-size: 28px; color: #1f2937; margin: 0 0 4px 0; }
+    .signature-name { font-size: 12px; color: #1f2937; margin: 0; }
+  </style>
+</head>
+<body>
+
+  <table class="doc-meta-table">
+    <tr>
+      <td>
+        <span class="doc-identifier">{{ identifier }}</span>
+        &nbsp;<span class="doc-type-badge">{{ type_label }}</span>
+      </td>
+      <td class="doc-info-line">{{ location }}, {{ created_at }}</td>
+    </tr>
+  </table>
+  {{ body_content }}
+  {{ signature_block }}
+</body>
+</html>

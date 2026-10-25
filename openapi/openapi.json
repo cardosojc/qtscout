@@ -59,7 +59,7 @@
         "operationId": "get_profile_api_auth_profile_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -71,7 +71,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -99,51 +115,6 @@
         }
       }
     },
-    "/api/auth/register": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Register",
-        "operationId": "register_api_auth_register_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "type": "object",
-                "title": "Payload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Register Api Auth Register Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/profile/roles": {
       "get": {
         "tags": [
@@ -153,7 +124,7 @@
         "operationId": "get_roles_api_profile_roles_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -165,7 +136,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -207,7 +194,7 @@
         "operationId": "put_roles_api_profile_roles_put",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -219,7 +206,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -275,7 +278,7 @@
         "operationId": "get_section_api_profile_section_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -287,7 +290,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -333,7 +352,7 @@
         "operationId": "put_section_api_profile_section_put",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -345,7 +364,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -405,7 +440,7 @@
         "operationId": "get_signature_api_profile_signature_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -417,7 +452,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -463,7 +514,7 @@
         "operationId": "put_signature_api_profile_signature_put",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -475,7 +526,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -526,7 +593,7 @@
         "operationId": "delete_signature_api_profile_signature_delete",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -538,7 +605,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -579,7 +662,7 @@
         "operationId": "list_leaders_api_profiles_leaders_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -591,7 +674,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -635,7 +734,7 @@
         "operationId": "list_users_api_users_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -647,7 +746,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -665,6 +780,84 @@
                     }
                   },
                   "title": "Response List Users Api Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create User",
+        "description": "Give someone access: a profile row + their email in the Access group.\n\nThere are no passwords — the person signs in with a one-time PIN sent to\nthis email by Cloudflare Access.",
+        "operationId": "create_user_api_users_post",
+        "parameters": [
+          {
+            "name": "cf-access-jwt-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create User Api Users Post"
                 }
               }
             }
@@ -700,7 +893,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -712,7 +905,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -772,7 +981,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -784,7 +993,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -893,7 +1118,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -905,7 +1130,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -940,7 +1181,7 @@
         "operationId": "create_document_api_documents_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -952,7 +1193,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1010,7 +1267,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1022,7 +1279,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1066,7 +1339,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1078,7 +1351,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1134,7 +1423,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1146,7 +1435,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1196,7 +1501,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1208,7 +1513,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1256,7 +1577,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1268,7 +1589,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1334,7 +1671,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1346,7 +1683,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1407,7 +1760,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1419,7 +1772,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1461,7 +1830,7 @@
         "operationId": "create_scout_api_scouts_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1473,7 +1842,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1526,7 +1911,7 @@
         "operationId": "import_scouts_api_scouts_import_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1538,7 +1923,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1595,7 +1996,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1607,7 +2008,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1655,7 +2072,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1667,7 +2084,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1727,7 +2160,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1739,7 +2172,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1789,7 +2238,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1801,7 +2250,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1852,7 +2317,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1864,7 +2329,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -1967,7 +2448,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -1979,7 +2460,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2014,7 +2511,7 @@
         "operationId": "create_meeting_api_meetings_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2026,7 +2523,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2084,7 +2597,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2096,7 +2609,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2140,7 +2669,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2152,7 +2681,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2208,7 +2753,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2220,7 +2765,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2286,7 +2847,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2298,7 +2859,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2423,7 +3000,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2435,7 +3012,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2589,7 +3182,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2601,7 +3194,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2643,7 +3252,7 @@
         "operationId": "create_item_api_ordem_items_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2655,7 +3264,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2708,7 +3333,7 @@
         "operationId": "import_activities_api_ordem_items_import_activities_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2720,7 +3345,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2777,7 +3418,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2789,7 +3430,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2849,7 +3506,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2861,7 +3518,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -2902,7 +3575,7 @@
         "operationId": "generate_api_ordens_servico_generate_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -2914,7 +3587,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -3043,7 +3732,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -3055,7 +3744,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -3172,7 +3877,7 @@
             }
           },
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -3184,7 +3889,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -3225,7 +3946,7 @@
         "operationId": "rewrite_api_ai_rewrite_post",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -3237,7 +3958,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -3257,8 +3994,10 @@
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
-                "schema": {}
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -3284,7 +4023,7 @@
         "operationId": "get_document_settings_api_settings_documents_get",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -3296,7 +4035,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],
@@ -3338,7 +4093,7 @@
         "operationId": "put_document_settings_api_settings_documents_put",
         "parameters": [
           {
-            "name": "authorization",
+            "name": "cf-access-jwt-assertion",
             "in": "header",
             "required": false,
             "schema": {
@@ -3350,7 +4105,23 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
             }
           }
         ],

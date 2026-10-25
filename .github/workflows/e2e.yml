@@ -9,17 +9,9 @@ jobs:
     timeout-minutes: 20
 
     env:
-      # Web + e2e setup (Supabase admin to seed the test user)
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-      # FastAPI backend (started by the Playwright webServer) reads these names
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.DIRECT_URL }}
-      SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      WEB_ORIGIN: http://localhost:3000
+      # Web proxies same-origin /api/* to the local API. The API (started by the
+      # Playwright webServer) uses dev auth and a throwaway SQLite database.
+      API_ORIGIN: http://localhost:3001
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +27,7 @@ jobs:
       - name: Set up uv (Python)
         uses: astral-sh/setup-uv@v5
 
-      - name: Install API dependencies + Chromium (PDF)
+      - name: Install API dependencies + Chromium (local PDF rendering)
         run: cd apps/api && uv sync --frozen && uv run playwright install --with-deps chromium
 
       - name: Install Playwright Chromium (test runner)

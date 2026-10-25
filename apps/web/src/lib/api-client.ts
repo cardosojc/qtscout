@@ -1,34 +1,27 @@
-import { createClient, getAccessToken, setAccessToken } from '@/lib/supabase/client'
-
-// Base origin of the standalone API service. Routes live under /api, so callers
-// keep passing `/api/...` paths and only the origin is prepended.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
-
-async function authHeader(): Promise<Record<string, string>> {
-  // Prefer the cached token (kept fresh by the AuthProvider) to avoid calling
-  // getSession() per request — that acquires the gotrue lock and can block ~10s
-  // when a background refresh holds it. Only fall back to getSession() before the
-  // provider has populated the cache (bootstrap / very first request).
-  let token = getAccessToken()
-  if (!token) {
-    const { data: { session } } = await createClient().auth.getSession()
-    token = session?.access_token ?? null
-    if (token) setAccessToken(token)
-  }
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+// The API is served on the same origin under /api (next.config rewrites it to
+// the API service), behind the same Cloudflare Access application as the web.
+// The browser therefore sends the Access session cookie on every call and Access
+// adds its signed JWT header — there is no token for the client to manage.
 
 /**
- * fetch() wrapper that targets the standalone API and attaches the Supabase
- * access token as a Bearer header. Drop-in for the previous relative
- * `fetch('/api/...')` calls — pass the same `/api/...` path and init.
+ * Same-origin fetch to the API. Pass `/api/...` paths.
+ *
+ * When the Access session has expired, Access answers API calls with a redirect
+ * to its (cross-origin) login page, which fetch cannot follow. Requests use
+ * `redirect: 'manual'` so that shows up as an opaque redirect; we retry once
+ * following redirects (covers ordinary same-origin redirects such as trailing
+ * slashes) and, if that still cannot complete, reload the page so the browser
+ * goes through the Access login and comes back.
  */
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers)
-  for (const [k, v] of Object.entries(await authHeader())) {
-    headers.set(k, v)
+  const res = await fetch(path, { ...init, credentials: 'same-origin', redirect: 'manual' })
+  if (res.type !== 'opaqueredirect') return res
+  try {
+    return await fetch(path, { ...init, credentials: 'same-origin' })
+  } catch (err) {
+    if (typeof window !== 'undefined') window.location.reload()
+    throw err
   }
-  return fetch(`${API_BASE}${path}`, { ...init, headers })
 }
 
 export class ApiError extends Error {

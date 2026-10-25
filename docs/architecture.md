@@ -4,39 +4,42 @@ Deeper notes for QTScout. Pair this with `CLAUDE.md` (operating notes / quick
 reference). When something here drifts from the code, the code wins — update
 this file or delete the stale section.
 
-The backend was rewritten from a Hono/TypeScript API into **FastAPI (Python)**
-(`apps/api/`). The Next.js web app (`apps/web`) is unchanged — it talks to the API
-over `fetch` + Bearer token. See `apps/api/README.md` and `apps/api/DEPLOY.md`.
+Everything runs on Cloudflare: the Next.js web (`apps/web`) and the FastAPI
+backend (`apps/api`) are two Workers on one hostname behind Cloudflare Access;
+the API is a **Python Worker on D1**. The backend was first a Hono/TS API, then
+FastAPI on Supabase Postgres (see the git history). See `apps/api/README.md`
+and `apps/api/DEPLOY.md`.
 
 ## Monorepo layout
 
 npm workspaces + Turborepo for the TS side; the backend is a self-contained
-Python service with its own tooling (`uv`).
+Python project with its own tooling (`uv`, `pywrangler`).
 
 ```
 apps/
-├── web/                          # Next.js 15 UI (no business logic / DB)
+├── web/                          # Next.js 16 UI (no business logic / DB) — Worker qtscout-web
+│   ├── worker.ts                 # Worker entry: /api/* -> API service binding, else OpenNext
 │   ├── src/app/(app)/            # Authenticated, sidebar-shell pages
 │   │   ├── meetings/ documents/ ordem-servico/ membros/ profile/ settings/ search/
-│   ├── src/app/api/              # ONLY auth recovery flows (Supabase cookie/redirect)
 │   ├── src/components/           # ordem-servico, membros, documents, editor, providers, ui
-│   ├── src/lib/                  # api-client (apiFetch), api-hooks (SWR),
-│   │                             #   api-types/api-schemas (generated), supabase/
-│   └── src/flags.ts              # Vercel flags (UI visibility + /documents gating)
-└── api/                          # FastAPI service — the backend (Docker on Railway)
-    ├── pyproject.toml  uv.lock  Dockerfile
-    ├── app/
-    │   ├── main.py config.py db.py deps.py auth.py supabase_admin.py
+│   └── src/lib/                  # api-client (apiFetch), api-hooks (SWR), flags (Flagship),
+│                                 #   api-types/api-schemas (generated)
+└── api/                          # FastAPI — Python Worker qtscout-api (no public route)
+    ├── pyproject.toml  uv.lock  wrangler.jsonc  DEPLOY.md
+    ├── src/entry.py              # Worker entrypoint (ASGI adapter, env, bindings)
+    ├── src/app/
+    │   ├── main.py config.py runtime.py db.py deps.py auth.py access_admin.py
     │   ├── routers/  models/  schemas/   # 13 routers · 11 models · Pydantic schemas
-    │   ├── core/                 # ordem_*, siie_*, document_utils, ordem_categories(.json)
-    │   └── pdf/                  # render.py (xhtml2pdf) + html_builders + templates + fonts + assets
-    ├── migrations/               # Alembic (baseline-stamped)
-    └── scripts/                  # parity_check.py, export_openapi.py
+    │   ├── core/                 # ordem_*, siie_*, document_utils, meeting_search, ordem_categories(.json)
+    │   └── pdf/                  # render.py (Browser Run) + html_builders + templates + fonts + assets
+    ├── d1/migrations/            # D1 schema (0001 generated from the models)
+    ├── scripts/                  # gen_schema, local_db, export_openapi, pg_to_d1 (one-off)
+    └── tests/                    # pytest on SQLite with the D1 schema
 
 packages/
 └── types/   # @qtscout/types — the only shared TS package: types + FE runtime
               #   helpers (labels, scoutDisplayName, ano-escutista) + the OS catalog
-              #   (ordem-categories.generated.ts ← apps/api/.../ordem_categories.json)
+              #   (ordem-categories.generated.ts <- apps/api/.../ordem_categories.json)
 
 openapi/openapi.json              # generated API contract (FE typegen source)
 ```
@@ -47,11 +50,11 @@ Internal TS packages ship **raw TypeScript** (no build), consumed by Next via
 
 ## Domain model
 
-Unchanged by the migration — same 11 tables (now SQLAlchemy models in
-`apps/api/app/models/`, mapping the existing camelCase Prisma columns).
+11 tables (SQLAlchemy models in `apps/api/src/app/models/`, keeping the
+camelCase column names the schema was born with under Prisma).
 
 ```
-Profile (Supabase Auth ↔ profiles)
+Profile (profiles; the Access email maps to Profile.email)
   │   role: ADMIN | LEADER | MEMBER             # coarse system permission
   │   roles: string[]                           # human-readable functions
   │   section: OrdemSection?                    # only meaningful with section-level roles
@@ -70,7 +73,7 @@ Scout (scouts)                                   # member, may or may not be a l
 Meeting (meetings)
   │   type: CA | RD (via MeetingType)           identifier: "{TYPE}-YYYYMMDD"
   │   agenda: Json (items, attendees, chefe, secretário)
-  │   contentTsvector                           # GIN-indexed pt full-text search
+  │   (search: FTS5 table meeting_search, kept current by the app)
   └──< MeetingAttendee (profileId)
 
 Document (documents)
@@ -87,32 +90,29 @@ OrdemItem (ordem_items)
 
 ## Auth flow
 
-Single identity (Supabase Auth), two transports — cookies for the web shell,
-Bearer tokens for the API.
+**Cloudflare Access** (one-time PIN by email) guards the whole hostname; there
+are no passwords and no sign-in pages in the app.
 
-1. User signs in via Supabase (email/password). `@supabase/ssr` stores the
-   session in cookies; `apps/web/src/middleware.ts` refreshes it on navigation.
-2. **Web → API.** `apiFetch()` reads the access token via
-   `supabase.auth.getSession()` and sends `Authorization: Bearer <jwt>` to
-   `NEXT_PUBLIC_API_URL`. `useAuth()` hydrates the user via `/api/auth/profile`.
-3. **API auth** (`apps/api/app/deps.py`, `auth.py`): `current_user` extracts the
-   Bearer token and verifies it **offline against Supabase's JWKS** (ES256; keys
-   cached, warmed at startup), falling back to `GET {SUPABASE_URL}/auth/v1/user`
-   (httpx) when `jwt_local_verify` is off or local verification fails. It then
-   loads the `Profile` by Supabase user id (`sub`) and returns
+1. Access lets a request through only for emails in the Access group
+   `qtscout-users`, and attaches a signed JWT (`Cf-Access-Jwt-Assertion`
+   header + `CF_Authorization` cookie).
+2. The web Worker forwards same-origin `/api/*` to the API Worker unchanged
+   (service binding), so the JWT travels with it. `apiFetch()` is a plain
+   same-origin fetch; when the Access session has expired it reloads the page
+   so Access can show its login.
+3. **API** (`apps/api/src/app/deps.py`, `auth.py`): `current_user` verifies the
+   JWT against the team JWKS (RS256, application `ACCESS_AUD`, issuer; keys
+   cached per isolate), then loads the `Profile` **by email** — 401 without a
+   valid token, 403 when the email has no profile — and returns
    `SessionUser {id, email, name, username, role}`. `AdminUser` adds the ADMIN
-   check. Routes depend on `CurrentUser` / `AdminUser`. Offline verification
-   can't observe server-side revocation until the short-lived token expires —
-   set `JWT_LOCAL_VERIFY=false` to force the network path.
-4. **Other clients** authenticate against Supabase (e.g. password grant) and
-   send the `access_token` as Bearer — identical server path.
+   check.
+4. Users are created/deleted by an ADMIN (`POST/DELETE /api/users`), which
+   also adds/removes the email in the Access group via the Cloudflare API
+   (`access_admin.py`). No self-registration.
 
-No per-route authZ beyond the deps; handlers check `user.role` directly.
-Service-role admin ops (register / delete user) go through
-`apps/api/app/supabase_admin.py` (GoTrue REST, `SUPABASE_SECRET_KEY`). Two endpoints
-stay in the web app (Supabase cookie/email-redirect recovery):
-`POST /api/auth/{forgot,reset}-password`. Errors render as `{"error": …}` (an
-exception handler in `app/main.py`) to match the old API.
+`AUTH_MODE=dev` + `AUTH_DEV_EMAIL` skips Access (local dev and E2E only). No
+per-route authZ beyond the deps; handlers check `user.role` directly. Errors
+render as `{"error": …}` (an exception handler in `app/main.py`).
 
 ## Ordem de Serviço pipeline
 
@@ -127,14 +127,14 @@ User picks category (filtered by permissions)
   └─> ItemForm renders inputs based on category.shape
         STRING/TEXT · ATIVIDADE · NOMEACAO · NOITES · MEMBER_REF ·
         NOITES_REF · PROFILE_REF · SCOUT_OR_PROFILE_REF
-  └─> POST /api/ordem-items   (apps/api/app/routers/ordem_items.py)
+  └─> POST /api/ordem-items   (apps/api/src/app/routers/ordem_items.py)
         ├─ validate_item_data(shape, data)      # app/core/ordem_categories.py
         ├─ can_manage_item(profile, category, section)  # app/core/ordem_permissions.py
         ├─ _validate_refs(scoutId/profileId exists; scout.section matches)
         └─ INSERT
 ```
 
-The catalog is **single-sourced** from `apps/api/app/core/ordem_categories.json`: the
+The catalog is **single-sourced** from `apps/api/src/app/core/ordem_categories.json`: the
 Python backend loads it; the web's typed copy
 (`packages/types/src/ordem-categories.generated.ts`) is generated from it by
 `npm run sync:categories` (CI guards drift with `:check`).
@@ -166,8 +166,8 @@ Assistente. Section-level: Chefe de Unidade (+ Adjunto), Instrutor — all requi
                                   #   snapshot holds resolved names, not refs
 6. Auto-include admissions  → efetivo.admissao[section]
 7. Auto-include noites      → group badges by (section,count) → noitesCampo[section]
-8. Transaction: bump DocumentSequence (with_for_update) → Document.create
-   (content = JSON) → mark source items includedInOsId
+8. One atomic D1 batch (create_numbered_document): bump DocumentSequence →
+   insert Document (content = JSON) → mark source items includedInOsId
 9. Return { …document, identifier, itemCount, autoAdmissions, autoNightsBadges }
 ```
 
@@ -176,23 +176,23 @@ from PATCH/DELETE. The OS PDF reads only `Document.content`.
 
 ## PDF rendering
 
-`apps/api/app/pdf/` — `render.py` renders with **xhtml2pdf (`pisa`)**, a
-pure-Python HTML→PDF engine (no browser, no system libs), run synchronously off
-the event loop via `run_in_threadpool`. A `link_callback` resolves local
-`@font-face`/asset paths and passes `data:` URIs (DB-stored signatures) through.
-Templates use xhtml2pdf's CSS subset: **table-based layout (no flexbox/grid)**,
-static `@frame` header/footer that repeat per page (page numbers via
-`<pdf:pagenumber>`), and vendored fonts in `pdf/fonts/` (Lato, Caveat). Because
-nothing native is required, PDF rendering runs in-process on any host — the
-Docker image needs no extra build steps, and it also works on hosts that install
-only Python deps (e.g. FastAPI Cloud).
+`apps/api/src/app/pdf/` — `render.py` sends the page HTML to **Browser Run**
+(the `BROWSER` binding, `quickAction("pdf")`: headless Chromium, A4, print
+backgrounds). The repeating header (logos + group name) and footer (page X of
+Y) are Chromium print templates, which can't load URLs or page fonts, so they
+use inline styles and data-URI logos. Page fonts (Lato, Caveat) are subset to
+Latin WOFF2 and **inlined as data URIs**: Browser Run can't fetch anything from
+our hostname, which sits behind Access. Browser Run rate-limits quick actions
+(on Workers Free, one per 10 s per account): a 429 is retried once after
+`Retry-After`, then answered with 503 and a pt-PT message.
+
+Outside the Worker the same HTML and print options go through Playwright's
+Chromium (dev dependency), so local dev and E2E get the same PDFs.
 
 - `html_builders.py` — meeting body (incl. the CA-only signature page) and the
   document body/signature; `format_date_pt` for pt-PT dates.
 - `os_content.py` — renders the `OrdemServicoData` snapshot into the OS body.
-- `templates/{meeting,document}.html.j2` — Jinja2 page shells holding the CSS
-  (copied verbatim from the old generator for visual fidelity); `assets/` holds
-  the base64-embedded header logos. Fonts: Lato + Caveat (handwritten fallback).
+- `templates/{meeting,document}.html.j2` — Jinja2 page shells holding the CSS.
 
 Endpoints: `GET /api/{documents,meetings}/{id}/pdf?download=`. Signature block:
 "Saudações Escutistas," → signature image (or Caveat name) → "Name (Role 1, …)".
@@ -220,54 +220,60 @@ Section mapping — members: last letter of `Categoria`
 (`L→ALCATEIA, E→EXPEDICAO, P→COMUNIDADE, C→CLA`, else null = leader).
 Activities: a single-letter `Sigla Seccao` → its section; else null (Agrupamento).
 
-## Database workflow (SQLAlchemy + Alembic)
+## Database (D1)
 
-- Models in `apps/api/app/models/` map the existing tables — snake_case Python attrs
-  to **exact camelCase columns** (`mapped_column("createdAt", …)`); PG enums bound
-  with `create_type=False`; cuid/uuid id factories.
-- `apps/api/app/db.py` normalises `DATABASE_URL` for asyncpg and disables the
-  prepared-statement cache (`statement_cache_size=0`) — required for the Supabase
-  transaction pooler (pgbouncer). `pool_pre_ping` is **off** (its per-checkout
-  liveness round-trip cost ~100–200ms through the pooler — measured) with
-  `pool_recycle=1800` as the staleness guard. Alembic uses `DIRECT_URL`.
-- The schema pre-existed (Prisma), so Alembic is **baseline-stamped** at
-  `65d0b607c636` (no DDL). New changes: edit a model →
-  `uv run alembic revision --autogenerate -m "…"` → `uv run alembic upgrade head`.
-- Response parity: `apps/api/app/schemas/base.py` — `ORMModel` emits camelCase keys;
-  `PrismaDateTime` serialises datetimes as UTC `…000Z` so the web's `new Date()`
-  parsing is unchanged.
+- **D1** database `qtscout` (binding `DB`). D1 has no Python driver, so
+  `apps/api/src/app/db.py` implements a minimal DB-API connection over the
+  binding and blocks on each call with Pyodide's `run_sync`. The ORM is
+  therefore **synchronous** (handlers stay `async def`, session calls have no
+  `await`). Statements returning rows use D1 `raw()` (positional columns);
+  writes use `run()` so UPDATE/DELETE report real row counts to the ORM.
+- **No interactive transactions**: each statement autocommits; `commit()` and
+  `rollback()` are no-ops on D1. Writes that must land together go through
+  `atomic_batch()` (one D1 batch = one implicit transaction): document
+  numbering and OS generation use it. D1 caps a statement at 100 bound
+  parameters.
+- Locally (uvicorn, pytest, E2E) the same code runs on stdlib `sqlite3` with the
+  same schema (`scripts/local_db.py`, the `db` test fixture).
+- Models map snake_case attrs to the camelCase columns; enums are plain
+  strings, JSON columns are text, timestamps are naive-UTC text set app-side.
+- Schema: `d1/migrations/` (`0001_init.sql` generated from the models by
+  `scripts/gen_schema.py`; later changes are new numbered files applied with
+  `wrangler d1 migrations apply`).
+- Search: FTS5 table `meeting_search` (`core/meeting_search.py`), filled by the
+  meetings router with HTML-stripped text; accent-insensitive
+  (`remove_diacritics`), prefix terms, ranked by weighted bm25.
+- Response parity: `apps/api/src/app/schemas/base.py` — `ORMModel` emits
+  camelCase keys; `PrismaDateTime` serialises datetimes as UTC `…000Z` so the
+  web's `new Date()` parsing is unchanged.
 
 ## Feature flags
 
-Three booleans via `@flags-sdk/vercel`, default `true`: `oficio-enabled`,
-`circular-enabled`, `ordem-servico-enabled`. Read server-side in
-`apps/web/src/app/(app)/layout.tsx`, passed to the sidebar + documents list as
-`enabledDocTypes`; the OS flag also gates the `/ordem-servico` nav entry.
-`apps/web/src/middleware.ts` gates `/documents` by type. Flags live **only in
-`apps/web`** (UI visibility); the API does not enforce them.
+Three booleans from the Cloudflare Flagship binding (`FLAGS`), read in
+`apps/web/src/lib/flags.ts`, default `true` (fail open): `oficio-enabled`,
+`circular-enabled`, `ordem-servico-enabled`. They gate the document types in the
+UI and the `/ordem-servico` nav entry. Flags live **only in `apps/web`** (UI
+visibility); the API does not enforce them.
 
 ## Deployment
 
-- **Web** → Vercel project `qtscout` (Next.js). Env: `NEXT_PUBLIC_*` +
-  `NEXT_PUBLIC_API_URL` (the API's public origin) + the Supabase/flags vars its
-  server side needs.
-- **API** → Docker container on **Railway** (`apps/api/Dockerfile`; `render.yaml` is a
-  Render Blueprint alternative). Env: `DATABASE_URL`, `DIRECT_URL`,
-  `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`,
-  `MISTRAL_API_KEY`, `WEB_ORIGIN` (CORS allow-list). `$PORT` is platform-provided;
-  the entrypoint is gunicorn + UvicornWorker. CORS (`app/main.py`) allows
-  `WEB_ORIGIN` + the `Authorization` header. Full cutover steps: `apps/api/DEPLOY.md`.
+- **Web** → Worker `qtscout-web` (OpenNext), custom domain
+  `qtscout.cardosojcs.org` only (`workers.dev` and preview URLs disabled), built
+  and deployed by Workers Builds on push to `main`.
+- **API** → Python Worker `qtscout-api`, no public route; deployed with
+  `uv run pywrangler deploy` from `apps/api`.
+- **Access** application `qtscout` covers the hostname (group `qtscout-users`).
+- Runbook: `apps/api/DEPLOY.md`.
 
 ## Commands
 
-- **API** (from `apps/api/`, `uv`): `uv run uvicorn app.main:app --reload --port 3001`,
-  `uv run pytest`, `uv run ruff check app`, `uv run mypy app`,
-  `uv run python scripts/export_openapi.py`, `uv run alembic …`.
+- **API** (from `apps/api/`): `uv run pytest`, `uv run ruff check src tests scripts`,
+  `uv run mypy src/app`, `uv run python scripts/export_openapi.py`,
+  `uv run pywrangler dev|deploy`, `npx wrangler d1 migrations apply qtscout`.
 - **Web** (root): `npm run dev` (web :3000), `npm run build` / `typecheck` /
   `lint`, `npm run gen:api-types`, `npm run sync:categories[:check]`,
   `npm run docs:sync | docs:check`, `npm run test:e2e`.
-- Local full stack: run the API and point the web's `NEXT_PUBLIC_API_URL` at it
-  (or at Railway).
+- Local full stack: see the root `README.md`.
 
 ## Conventions
 
@@ -276,9 +282,9 @@ Three booleans via `@flags-sdk/vercel`, default `true`: `oficio-enabled`,
 - Web server routes: dynamic params are `Promise<{ id: string }>`.
 - API: FastAPI path/query params via the function signature; raw bodies as
   `Annotated[dict, Body()]` where pt-PT 400 messages must match the old API.
-- DB writes: per-row upsert with per-row commit + `try/except` for batches
-  (so one conflict doesn't roll back a whole import); `with_for_update` for
-  sequence bumps.
+- DB writes: per-row upsert with per-row commit + `try/except` for imports (so
+  one conflict doesn't roll back a whole import); `atomic_batch` for writes
+  that must land together.
 - The OS catalog is single-sourced via `ordem_categories.json` — edit the JSON,
   run `npm run sync:categories`.
 - Comments explain a non-obvious *why*, not what the code does.

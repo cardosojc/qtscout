@@ -1,11 +1,23 @@
-from app.auth import bearer_from_header
+import pytest
+
+from app.config import Settings
 
 
-def test_bearer_from_header() -> None:
-    assert bearer_from_header("Bearer abc.def.ghi") == "abc.def.ghi"
-    assert bearer_from_header("bearer lower") == "lower"  # case-insensitive
-    assert bearer_from_header("  Bearer   spaced  ") == "spaced"
-    assert bearer_from_header(None) is None
-    assert bearer_from_header("") is None
-    assert bearer_from_header("Basic foo") is None
-    assert bearer_from_header("Bearer") is None
+def test_access_mode_requires_team_domain_and_aud() -> None:
+    with pytest.raises(ValueError, match="ACCESS_TEAM_DOMAIN"):
+        Settings(
+            database_url="x",
+            auth_mode="access",
+            access_team_domain="",
+            access_aud="",
+        )
+
+
+def test_dev_mode_requires_dev_email() -> None:
+    with pytest.raises(ValueError, match="AUTH_DEV_EMAIL"):
+        Settings(database_url="x", auth_mode="dev", auth_dev_email=None)
+
+
+def test_dev_mode_ok() -> None:
+    s = Settings(database_url="x", auth_mode="dev", auth_dev_email="a@b.pt")
+    assert s.auth_mode == "dev"

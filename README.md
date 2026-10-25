@@ -5,47 +5,45 @@ Olivais** (CNE). All user-facing strings are pt-PT.
 
 ## Architecture
 
-A monorepo with a TypeScript front end and a standalone Python backend:
+Everything runs on Cloudflare, on one hostname (`qtscout.cardosojcs.org`)
+behind Cloudflare Access:
 
-- **`apps/web`** — Next.js 15 (App Router) UI. No DB / business logic; talks to
-  the API over `fetch` + Bearer token (`NEXT_PUBLIC_API_URL`). Deploys to
-  **Vercel**.
-- **`apps/api`** — **FastAPI** service (Python, managed with `uv`). All endpoints
-  under `/api/*`; SQLAlchemy 2.0 (async) + Alembic against Supabase Postgres.
-  Deploys as a Docker container on **Railway**. See [`apps/api/README.md`](apps/api/README.md).
+- **`apps/web`** — Next.js 16 (App Router) UI, a Worker via OpenNext. No DB /
+  business logic; calls the API on same-origin `/api/*`, which the Worker entry
+  (`apps/web/worker.ts`) forwards to the API Worker over a service binding.
+- **`apps/api`** — **FastAPI** (Python, `uv`) running as a **Python Worker** on
+  **D1**, with Browser Run for PDFs and Workers AI for the editor's AI rewrite.
+  See [`apps/api/README.md`](apps/api/README.md).
 - **`packages/*`** — shared TypeScript (`@qtscout/types`): domain types + FE
   runtime helpers. Consumed by the web via `transpilePackages`.
 
-Both halves share one Supabase project (Postgres + Auth). npm workspaces +
-Turborepo cover the TS side (`apps/web`, `packages/*`); the Python API is
-standalone.
+npm workspaces + Turborepo cover the TS side (`apps/web`, `packages/*`); the
+Python API is standalone.
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20+ (Vercel builds on 24.x)
+- [Node.js](https://nodejs.org/) 20+
 - [uv](https://docs.astral.sh/uv/) (for the Python API)
-- A [Supabase](https://supabase.com/) project
 
 ## Local development
 
-Run the API and the web app together (the web's `NEXT_PUBLIC_API_URL` must point
-at the API):
-
 ```bash
-# 1. Backend (FastAPI) — from apps/api
+# 1. API — from apps/api (throwaway SQLite database, dev auth as <you>)
 cd apps/api
 uv sync
-cp .env.example .env          # fill in Supabase + DB values
-uv run uvicorn app.main:app --reload --port 3001
+uv run playwright install chromium   # local PDF rendering (optional)
+uv run python scripts/local_db.py local.db --seed you@example.pt
+AUTH_MODE=dev AUTH_DEV_EMAIL=you@example.pt \
+  uv run uvicorn app.main:app --app-dir src --reload --port 3001
 
-# 2. Frontend (Next.js) — from the repo root, in another shell
+# 2. Web — from the repo root, in another shell
 npm install
-# ensure apps/web/.env.local has NEXT_PUBLIC_API_URL=http://localhost:3001
-npm run dev                   # web on http://localhost:3000
+API_ORIGIN=http://localhost:3001 npm run dev   # web on http://localhost:3000
 ```
 
 API health check: <http://localhost:3001/api/health>. OpenAPI docs:
-<http://localhost:3001/docs>.
+<http://localhost:3001/docs>. To run the API in the real Worker runtime instead,
+see [`apps/api/README.md`](apps/api/README.md).
 
 ## Scripts (repo root)
 
@@ -55,38 +53,27 @@ API health check: <http://localhost:3001/api/health>. OpenAPI docs:
 | `npm run build` | Production build (web + packages) |
 | `npm run lint` | Lint |
 | `npm run typecheck` | Type-check (fastest signal) |
-| `npm run test:e2e` | Playwright e2e (drives the web UI → live API) |
+| `npm run test:e2e` | Playwright e2e (web UI → local API on a throwaway SQLite DB) |
 | `npm run sync:categories` | Regenerate the FE ordem-categories from the API catalog |
 
-Backend commands (from `apps/api`): `uv run pytest`, `uv run ruff check app`,
-`uv run mypy app`, `uv run alembic …`. See [`apps/api/README.md`](apps/api/README.md).
+Backend commands (from `apps/api`): `uv run pytest`, `uv run ruff check src tests scripts`,
+`uv run mypy src/app`, `uv run pywrangler dev|deploy`. See [`apps/api/README.md`](apps/api/README.md).
 
-## Environment variables
+## Configuration
 
-**Web** (`apps/web/.env.local`):
-
-| Variable | Description |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Base URL of the FastAPI service (e.g. `http://localhost:3001`) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (client-side) |
-| `SUPABASE_SECRET_KEY` | Supabase secret key (server-side; recovery flow + e2e) |
-
-**API** (`apps/api/.env`): `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`,
-`SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `WEB_ORIGIN`, optional
-`MISTRAL_API_KEY` / `JWT_LOCAL_VERIFY`. See [`apps/api/.env.example`](apps/api/.env.example).
+No secrets are needed for local development. In production, the API's
+settings are `vars` in `apps/api/wrangler.jsonc` plus one secret
+(`CF_API_TOKEN`); see [`apps/api/DEPLOY.md`](apps/api/DEPLOY.md).
 
 ## Tech stack
 
-- **Web:** Next.js 15 (App Router), React 19, TypeScript 5, Tailwind CSS 4,
-  TipTap, SWR — on Vercel.
-- **API:** FastAPI + Pydantic v2, SQLAlchemy 2.0 (async, asyncpg) + Alembic,
-  `uv`; **Playwright** (Chromium) + Jinja2 for PDF, openpyxl for SIIE imports —
-  Docker on Railway.
-- **Database:** Supabase Postgres (the schema was originally created by Prisma;
-  the API now uses SQLAlchemy + Alembic).
-- **Auth:** Supabase Auth — cookies for the web shell, Bearer JWT for the API
-  (verified offline via JWKS/ES256).
+- **Web:** Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4,
+  TipTap, SWR — a Cloudflare Worker (OpenNext).
+- **API:** FastAPI + Pydantic v2, SQLAlchemy 2.0, `uv` — a Cloudflare Python
+  Worker. Jinja2 + Browser Run for PDFs, openpyxl for SIIE imports, Workers AI.
+- **Database:** Cloudflare D1 (SQLite).
+- **Auth:** Cloudflare Access (one-time PIN by email) in front of the whole
+  hostname; the API verifies the Access JWT (JWKS/RS256).
 
 ## Further reading
 
