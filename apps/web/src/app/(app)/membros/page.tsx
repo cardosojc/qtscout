@@ -10,6 +10,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@qtscout/types/ordem-item'
 import { scoutDisplayName, type Scout } from '@qtscout/types/scout'
 import { useCampNightTotals, useScouts } from '@/lib/api-hooks'
+import { SiieExportHelp } from '@/components/siie-export-help'
 import { matchesQuery } from '@/lib/text-search'
 
 // Stable empty fallback so the `grouped` useMemo below doesn't re-run on every
@@ -184,6 +185,8 @@ export default function MembrosPage() {
           </div>
         )}
       </div>
+
+      {user.role === 'ADMIN' && <SiieExportHelp exports={['elementos', 'atividades-por-elemento']} />}
 
       {importSummary && (
         <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg shadow-sm p-4">
