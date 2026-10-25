@@ -4,6 +4,12 @@
 	"name": "qtscout-web",
 	"compatibility_date": "2026-07-25",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	// Served only on the custom domain, which sits behind the Cloudflare Access
+	// application "qtscout" (one-time PIN). The workers.dev URL is off: it has no
+	// Access in front, so the API would reject every call made from it.
+	"routes": [{ "pattern": "qtscout.cardosojcs.org", "custom_domain": true }],
+	"workers_dev": false,
+	"preview_urls": false,
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
