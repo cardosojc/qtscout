@@ -24,7 +24,7 @@ const GUIDES: Record<SiieExport, { title: string; steps: string[]; note?: string
       'Abra o menu principal (☰) e escolha Listagens › Atividades › Atividades por Elemento.',
     ],
     note:
-      'Contam as noites da coluna “N. Campo”. Cada importação substitui o histórico de cada membro, por isso importe sempre a lista completa.',
+      'Use esta lista, não a “Noites de Campo” ao lado: só esta tem as datas de cada atividade, que dão as datas das insígnias. A “Noites de Campo” mostra apenas os totais por membro e serve para confirmar, depois de importar, que os totais coincidem. Contam as noites da coluna “N. Campo”. Cada importação substitui o histórico de cada membro, por isso importe sempre a lista completa.',
   },
   atividades: {
     title: 'Atividades (botão “Importar Atividades (SIIE)”)',
@@ -67,7 +67,10 @@ export function SiieExportHelp({ exports }: { exports: SiieExport[] }) {
                 {g.steps.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
-                <li>Carregue no botão de exportar para Excel e guarde o ficheiro.</li>
+                <li>
+                  Espere que a lista acabe de carregar (aparece o total de itens no canto inferior
+                  direito) e só depois carregue no botão de exportar para Excel.
+                </li>
               </ol>
               {g.note && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{g.note}</p>}
             </div>
