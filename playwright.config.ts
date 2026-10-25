@@ -1,10 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
-import dotenv from 'dotenv'
-import path from 'path'
 
-// Load env so Supabase/DB vars are available in setup and tests. The single
-// source of truth lives in the web app during the monorepo transition.
-dotenv.config({ path: path.resolve(__dirname, 'apps/web/.env.local') })
+const E2E_EMAIL = process.env.E2E_TEST_EMAIL ?? 'e2e-test@qtscout.test'
 
 export default defineConfig({
   testDir: './e2e',
@@ -36,9 +32,10 @@ export default defineConfig({
     },
   ],
 
-  // Start both the web app (:3000) and the FastAPI backend (:3001). The web
-  // proxies /api/* to API_ORIGIN (http://localhost:3001); the API runs with
-  // AUTH_MODE=dev as the e2e user since there is no Cloudflare Access locally.
+  // Start both the web app (:3000) and the API (:3001, uvicorn). The web proxies
+  // /api/* to API_ORIGIN; the API runs with AUTH_MODE=dev as the e2e user (no
+  // Cloudflare Access locally) on a throwaway SQLite database (apps/api/e2e.db),
+  // recreated and seeded with that user on every run.
   webServer: [
     {
       command: 'npm run dev',
@@ -48,9 +45,9 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
-      command: 'uv run uvicorn app.main:app --port 3001',
+      command: `uv run python scripts/local_db.py e2e.db --seed ${E2E_EMAIL} --name 'E2E Tester' --username e2e-tester && uv run uvicorn app.main:app --app-dir src --port 3001`,
       cwd: 'apps/api',
-      env: { AUTH_MODE: 'dev', AUTH_DEV_EMAIL: process.env.E2E_TEST_EMAIL ?? 'e2e-test@qtscout.test' },
+      env: { AUTH_MODE: 'dev', AUTH_DEV_EMAIL: E2E_EMAIL, DATABASE_URL: 'sqlite:///./e2e.db' },
       url: 'http://localhost:3001/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,

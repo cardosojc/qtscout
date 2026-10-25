@@ -1,53 +1,52 @@
-# QTScout API — deploy runbook
+# QTScout — deploy runbook (Cloudflare)
 
-The API runs on **FastAPI Cloud** (`https://qtscout.fastapicloud.dev`). This
-directory is linked to the app via `.fastapicloud/cloud.json` (git-ignored).
-The web (Cloudflare Workers, `qtscout.cardosojcs.org`) proxies same-origin
-`/api/*` to it — see `rewrites()` in `apps/web/next.config.ts` (`API_ORIGIN`).
+Everything runs on Cloudflare, on one hostname behind Cloudflare Access:
 
-PDF rendering is pure-Python (xhtml2pdf), so no browser or system libraries are
-needed on the host.
+| Piece | What | Config |
+|-------|------|--------|
+| `qtscout-web` | Next.js (OpenNext) Worker on `qtscout.cardosojcs.org` | `apps/web/wrangler.jsonc` |
+| `qtscout-api` | FastAPI Python Worker, no public route | `apps/api/wrangler.jsonc` |
+| `qtscout` | D1 database (binding `DB` on the API) | `apps/api/d1/migrations/` |
+| Access app `qtscout` | One-time PIN login for the hostname; group `qtscout-users` | Zero Trust dashboard / API |
 
-## 1. Log in (once per machine)
+The web Worker forwards `/api/*` to the API over the `API` service binding
+(`apps/web/worker.ts`). The API also uses Browser Run (`BROWSER`, PDFs) and
+Workers AI (`AI`).
 
-```bash
-cd apps/api
-uv run fastapi cloud login
-uv run fastapi cloud whoami
-```
+## API Worker
 
-## 2. Environment variables
-
-Manage them with `uv run fastapi cloud env {list,get,set,delete}`. The full list
-with comments is in `.env.example`:
-
-| Var | Value |
-|-----|-------|
-| `DATABASE_URL` / `DIRECT_URL` | Supabase pooler (app) / direct connection (Alembic) |
-| `AUTH_MODE` | `access` (default; never `dev` here) |
-| `ACCESS_TEAM_DOMAIN` | `snowy-hall-cc58.cloudflareaccess.com` |
-| `ACCESS_AUD` | AUD tag of the Access application `qtscout` |
-| `CF_ACCOUNT_ID` / `ACCESS_GROUP_ID` / `CF_API_TOKEN` | Access group management (user create/delete) |
-| `MISTRAL_API_KEY` | AI rewrite |
-| `WEB_ORIGIN` | CORS origins (only matters for direct cross-origin calls) |
-
-The app refuses to start if `AUTH_MODE=access` is missing `ACCESS_TEAM_DOMAIN`
-or `ACCESS_AUD`.
-
-## 3. Deploy
+From `apps/api/` (wrangler comes from the repo root's `node_modules`; log in
+once with `npx wrangler login`):
 
 ```bash
-cd apps/api
-uv run fastapi cloud deploy
-curl https://qtscout.fastapicloud.dev/api/health   # -> {"ok": true}
+# Schema changes first (new files in d1/migrations/):
+npx wrangler d1 migrations apply qtscout --remote
+
+# Secret (once, or when the token rotates). Needs Access: Organizations,
+# Identity Providers, and Groups (Edit) — used for user create/delete.
+npx wrangler secret put CF_API_TOKEN
+
+uv run pywrangler deploy
 ```
 
-The API is reachable directly, but every route except `/api/health` requires a
-valid Access JWT, so direct calls without one get `401`.
+Non-secret settings (`AUTH_MODE`, `ACCESS_*`, `CF_ACCOUNT_ID`,
+`ACCESS_GROUP_ID`) are `vars` in `wrangler.jsonc`. The Worker refuses requests
+if `AUTH_MODE=access` lacks `ACCESS_TEAM_DOMAIN`/`ACCESS_AUD`.
 
-## 4. Database migrations
+Deploy the API before a web change that depends on it: the web's service
+binding needs `qtscout-api` to exist.
 
-Alembic is baseline-stamped at `65d0b607c636` (the schema was created by
-Prisma). For a schema change: edit a model →
-`uv run alembic revision --autogenerate -m "…"` → `uv run alembic upgrade head`
-(runs against `DIRECT_URL` from your local `.env`).
+## Web Worker
+
+Deployed by Workers Builds on push to `main` (`npm run deploy:cf` in
+`apps/web` does the same by hand). No build-time env is needed for the API: it
+is reached over the service binding.
+
+## Data
+
+D1 is the database. Backups: D1 Time Travel restores to any minute in the last
+30 days (`npx wrangler d1 time-travel restore qtscout --timestamp …`); for an
+off-platform copy, `npx wrangler d1 export qtscout --remote --output qtscout.sql`.
+
+`scripts/pg_to_d1.py` is the one-off copy from the old Supabase Postgres (kept
+for the record; see its docstring).

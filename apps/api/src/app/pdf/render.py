@@ -7,7 +7,9 @@ inline styles and data-URI logos. The page fonts (Latin-subset WOFF2) are inline
 as data URIs too — Browser Run can't fetch from our hostname, which sits behind
 Cloudflare Access.
 
-Outside the Worker there is no browser: `PdfUnavailable` is raised.
+Outside the Worker (local dev, E2E) the same HTML and print options go to a
+local Chromium via Playwright, if installed (dev dependency); otherwise
+`PdfUnavailable` is raised.
 """
 
 import asyncio
@@ -23,7 +25,7 @@ from app.pdf.html_builders import (
     build_meeting_body,
     format_date_pt,
 )
-from app.runtime import binding, to_js_obj
+from app.runtime import IN_WORKER, binding, to_js_obj
 
 _DIR = Path(__file__).parent
 _env = Environment(loader=FileSystemLoader(str(_DIR / "templates")), autoescape=False)
@@ -99,7 +101,7 @@ def _retry_after(resp: Any) -> float:
 async def _render(html: str) -> bytes:
     browser = binding("BROWSER")
     if browser is None:
-        raise PdfUnavailable("PDF rendering needs the Browser Run binding")
+        return await _render_locally(html)
     options = {
         "html": html,
         "pdfOptions": {
@@ -120,6 +122,31 @@ async def _render(html: str) -> bytes:
     if int(resp.status) != 200:
         raise RuntimeError(f"PDF generation failed (Browser Run status {resp.status})")
     return bytes(await resp.bytes())
+
+
+async def _render_locally(html: str) -> bytes:
+    """Local dev / E2E: the same Chromium print-to-PDF, via Playwright."""
+    if IN_WORKER:
+        raise PdfUnavailable("PDF rendering needs the Browser Run binding")
+    try:
+        from playwright.async_api import PdfMargins, async_playwright
+    except ImportError as err:
+        raise PdfUnavailable("Install Playwright to render PDFs locally") from err
+    async with async_playwright() as pw:
+        chromium = await pw.chromium.launch()
+        try:
+            page = await chromium.new_page()
+            await page.set_content(html, wait_until="networkidle")
+            return await page.pdf(
+                format="A4",
+                print_background=True,
+                display_header_footer=True,
+                header_template=_HEADER,
+                footer_template=_FOOTER,
+                margin=PdfMargins(**_MARGIN),  # type: ignore[typeddict-item]
+            )
+        finally:
+            await chromium.close()
 
 
 def meeting_html(meeting: dict[str, Any]) -> str:

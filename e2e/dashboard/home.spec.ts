@@ -1,30 +1,9 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Dashboard — Home Page', () => {
-  test('not authenticated shows "Entre na sua conta"', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-    const page = await context.newPage()
-
-    await page.goto('/')
-    await expect(page.getByText('Entre na sua conta')).toBeVisible()
-    await expect(
-      page.getByText('Faça login para aceder ao sistema de atas de reunião.')
-    ).toBeVisible()
-
-    await context.close()
-  })
-
-  test('not authenticated shows system title and footer', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-    const page = await context.newPage()
-
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Sistema de Atas de Reunião' })).toBeVisible()
-    await expect(page.getByText('CNE - instituição de utilidade pública')).toBeVisible()
-
-    await context.close()
-  })
-
+  // No "not signed in" case: in production Cloudflare Access handles sign-in
+  // before the app loads, and locally the API authenticates every request as
+  // the test user (AUTH_MODE=dev).
   test('authenticated user is redirected to /meetings', async ({ page }) => {
     // The home page redirects signed-in users to /meetings once the profile
     // loads (a few auth round-trips). Use waitUntil:'commit' so the initial

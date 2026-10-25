@@ -12,3 +12,4 @@ local.db*
 .venv-workers/
 pylock.toml
 .dev.vars
+e2e.db

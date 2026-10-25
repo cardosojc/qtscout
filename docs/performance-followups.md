@@ -1,5 +1,10 @@
 # Performance follow-ups
 
+> **Historical (June 2026).** Written for the FastAPI + Supabase Postgres setup.
+> Since the move to Cloudflare (Python Worker on D1, Access instead of Supabase
+> auth) the DB-hop and auth findings below no longer apply as written; the web
+> items may still be relevant.
+
 After the FastAPI migration the app felt slow on every navigation/action. A
 measurement-driven pass (June 2026) traced and fixed the per-request overhead:
 
@@ -26,7 +31,7 @@ deliberately left out of the first pass.
 handler**, i.e. the list query itself. Each DB round-trip costs ~24 ms in-region
 (API in EU → Supabase pgbouncer), and the endpoint issues several.
 
-**Where.** `apps/api/app/routers/meetings.py` (`list_meetings`, ~L45-76):
+**Where.** `apps/api/src/app/routers/meetings.py` (`list_meetings`, ~L45-76):
 - a `SELECT COUNT(*)` for pagination, then
 - a `SELECT Meeting … LIMIT/OFFSET` with `options(*_includes())`, where
   `_includes()` is `selectinload(meeting_type)`, `selectinload(created_by)`,
@@ -48,7 +53,7 @@ pooler) none of these use prepared-statement caching.
   attendee `profile` eagerly loaded, or whether the list view can omit them and
   load them only on the detail page.
 - Check the same pattern in other list endpoints (`ordem_items` also resolves
-  refs in `apps/api/app/core/ordem_resolver.py`).
+  refs in `apps/api/src/app/core/ordem_resolver.py`).
 
 **How to measure.** Re-add a lightweight `Server-Timing`/log around the handler
 (the approach used in the diagnosis), or run `EXPLAIN (ANALYZE)` for the query

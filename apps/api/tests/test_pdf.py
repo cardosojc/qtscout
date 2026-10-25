@@ -58,6 +58,15 @@ def test_document_html_oficio_signed() -> None:
     _no_external_urls(html)
 
 
-async def test_pdf_needs_browser_binding() -> None:
-    with pytest.raises(PdfUnavailable):
-        await generate_meeting_pdf(_MEETING)
+async def test_pdf_renders_locally_or_reports_unavailable() -> None:
+    # With Playwright's Chromium installed this is a real PDF; without it, the
+    # renderer reports PdfUnavailable (-> 503) rather than failing obscurely.
+    try:
+        pdf = await generate_meeting_pdf(_MEETING)
+    except PdfUnavailable:
+        pytest.skip("no local Chromium")
+    except Exception as err:  # browser binary missing
+        if "Executable doesn't exist" in str(err):
+            pytest.skip("Playwright Chromium not installed")
+        raise
+    assert pdf.startswith(b"%PDF-")

@@ -21,6 +21,8 @@ dev = [
     # Local dev server + HTTP client (the Worker uses its runtime fetch instead).
     "uvicorn[standard]>=0.34",
     "httpx>=0.28",
+    # Local PDF rendering (Chromium, same print options as Browser Run).
+    "playwright>=1.50",
     # Python Workers CLI + runtime type stubs.
     "workers-py",
     "workers-runtime-sdk",
