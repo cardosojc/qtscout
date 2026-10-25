@@ -1,20 +1,17 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-// Origin of the API service (FastAPI Cloud). The browser only ever calls the
-// same-origin `/api/*`, which is proxied there — so the Cloudflare Access
-// cookie/JWT reaches the API and there is no CORS. NEXT_PUBLIC_API_URL is the
-// previous name for the same value, accepted so existing build env keeps working.
-const apiOrigin = (process.env.API_ORIGIN ?? process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+// The browser only ever calls the same-origin `/api/*`. In production the
+// Worker entry (worker.ts) hands those to the API Worker over a service binding,
+// before Next sees them. Locally (`next dev`) there is no binding, so they are
+// proxied to API_ORIGIN (the API under `pywrangler dev` or uvicorn).
+const apiOrigin = (process.env.API_ORIGIN ?? "").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   // Workspace packages ship raw TypeScript; Next must transpile them.
   transpilePackages: ["@qtscout/types"],
   async rewrites() {
-    if (!apiOrigin) {
-      throw new Error("API_ORIGIN is not set (e.g. http://localhost:3001 or the API service URL)");
-    }
-    return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
+    return apiOrigin ? [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }] : [];
   },
 };
 

@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
+	"main": "worker.ts",
 	"name": "qtscout-web",
 	"compatibility_date": "2026-07-25",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -15,6 +15,12 @@
 		"binding": "ASSETS"
 	},
 	"services": [
+		{
+			// The API Worker (apps/api, Python + D1). worker.ts forwards /api/* to it;
+			// it has no public route of its own.
+			"binding": "API",
+			"service": "qtscout-api"
+		},
 		{
 			// Self-reference service binding, required by the adapter for internal
 			// requests (e.g. background revalidation) — name must match "name" above.
