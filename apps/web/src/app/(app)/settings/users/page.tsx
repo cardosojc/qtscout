@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
+import { useUsers } from '@/lib/api-hooks'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
 type UserRole = 'ADMIN' | 'LEADER' | 'MEMBER'
@@ -37,8 +38,12 @@ export default function UsersSettingsPage() {
   const { startLoading, stopLoading } = useLoading()
   const router = useRouter()
 
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
+  const isAdmin = session?.role === 'ADMIN'
+  const { data, isLoading: loading, error, mutate } = useUsers<User>(isAdmin)
+  const users = data?.users ?? []
+  // Local updates after a write; the server already has them, so no refetch.
+  const setUsers = (update: (prev: User[]) => User[]) =>
+    mutate((current) => ({ users: update(current?.users ?? []) }), { revalidate: false })
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [newUser, setNewUser] = useState({ name: '', username: '', email: '', role: 'MEMBER' as UserRole })
   const [creating, setCreating] = useState(false)
@@ -47,25 +52,10 @@ export default function UsersSettingsPage() {
     if (!authLoading && session && session.role !== 'ADMIN') router.replace('/')
   }, [session, authLoading, router])
 
-  const fetchUsers = async () => {
-    startLoading('A carregar utilizadores...')
-    try {
-      const res = await apiFetch('/api/users')
-      if (res.ok) {
-        const data = await res.json()
-        setUsers(data.users)
-      }
-    } catch {
-      showToast('Erro ao carregar utilizadores', 'error')
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }
-
   useEffect(() => {
-    if (session?.role === 'ADMIN') fetchUsers()
-  }, [session])
+    if (error) showToast('Erro ao carregar utilizadores', 'error')
+  }, [error, showToast])
+
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     setUpdatingId(userId)

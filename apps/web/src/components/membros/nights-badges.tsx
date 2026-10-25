@@ -1,7 +1,8 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useNightsBadges } from '@/lib/api-hooks'
 import { useToast } from '@/components/ui/toast'
 import { NIGHTS_BADGE_COUNTS, type NightsBadge, type NightsBadgeCount } from '@qtscout/types/scout'
 
@@ -25,31 +26,17 @@ function isoDay(value: string): string {
 
 export function NightsBadgesEditor({ scoutId, canEdit }: Props) {
   const { showToast } = useToast()
-  const [values, setValues] = useState<FormValues>(emptyValues())
-  const [saved, setSaved] = useState<FormValues>(emptyValues())
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading: loading, mutate } = useNightsBadges(scoutId)
+  // Stored dates per milestone, and the user's unsaved edits on top of them.
+  const saved = useMemo(() => {
+    const next = emptyValues()
+    for (const b of (data?.badges ?? []) as NightsBadge[]) next[b.count] = isoDay(b.awardedAt)
+    return next
+  }, [data])
+  const [edits, setEdits] = useState<Partial<FormValues>>({})
+  const values: FormValues = { ...saved, ...edits }
+  const setValues = (update: (prev: FormValues) => FormValues) => setEdits(update(values))
   const [submitting, setSubmitting] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/api/scouts/${scoutId}/nights-badges`)
-      if (!res.ok) return
-      const data = (await res.json()) as { badges: NightsBadge[] }
-      const next = emptyValues()
-      for (const b of data.badges) {
-        next[b.count] = isoDay(b.awardedAt)
-      }
-      setValues(next)
-      setSaved(next)
-    } finally {
-      setLoading(false)
-    }
-  }, [scoutId])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   const dirty = NIGHTS_BADGE_COUNTS.some((c) => values[c] !== saved[c])
 
@@ -69,7 +56,8 @@ export function NightsBadgesEditor({ scoutId, canEdit }: Props) {
       })
       if (res.ok) {
         showToast('Insígnias guardadas', 'success')
-        setSaved({ ...values })
+        await mutate()
+        setEdits({})
       } else {
         const data = await res.json().catch(() => ({}))
         showToast(data.error || 'Erro ao guardar', 'error')

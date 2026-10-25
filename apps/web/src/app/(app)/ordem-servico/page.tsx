@@ -1,7 +1,8 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import useSWR, { mutate } from 'swr'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
@@ -46,6 +47,72 @@ const GROUP_ROLES = [
 const SECTION_ROLES = ['Chefe de Unidade', 'Chefe de Unidade Adjunto', 'Instrutor']
 
 const ITEMS_PER_PAGE = 20
+
+const ITEMS_KEY_PREFIX = '/api/ordem-items?'
+
+/** One page of a category's items (server-paginated), loaded by its own SWR key. */
+function CategoryItems({
+  category,
+  query,
+  page,
+  onDelete,
+}: {
+  category: CategorySpec
+  query: string
+  page: number
+  onDelete: (item: ItemDTO) => void
+}) {
+  const params = new URLSearchParams(query)
+  params.set('category', category.key)
+  params.set('limit', String(ITEMS_PER_PAGE))
+  params.set('offset', String((page - 1) * ITEMS_PER_PAGE))
+  const { data, isLoading: catLoading } = useSWR<{ items: ItemDTO[] }>(
+    `${ITEMS_KEY_PREFIX}${params.toString()}`
+  )
+  const pageItems = data?.items ?? []
+  return (
+    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+      {catLoading && pageItems.length === 0 && (
+        <div className="p-4 text-sm text-gray-500 dark:text-gray-400">A carregar...</div>
+      )}
+      {pageItems.map((item) => (
+        <div key={item.id} className="p-4 flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              {item.section && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                  {ORDEM_SECTION_LABELS[item.section]}
+                </span>
+              )}
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date(item.date).toLocaleDateString('pt-PT')}
+              </span>
+              {item.includedInOsId && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                  incluído
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-800 dark:text-gray-200 break-words">
+              {summarizeData(category, item.data)}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              por {item.createdBy.name || item.createdBy.email}
+            </p>
+          </div>
+          {!item.includedInOsId && (
+            <button
+              onClick={() => onDelete(item)}
+              className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
+            >
+              Eliminar
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function summarizeData(category: CategorySpec, data: Record<string, unknown>): string {
   const display = (data?._display ?? {}) as Record<string, unknown>
@@ -111,16 +178,9 @@ export default function OrdemServicoPage() {
   const { startLoading, stopLoading } = useLoading()
 
   const [profile, setProfile] = useState<ProfileMeta | null>(null)
-  // Per-category counts (drives the group headers + page counts).
-  const [summary, setSummary] = useState<CategorySummary[]>([])
-  // The currently-loaded page of items for each category (server-paginated).
-  const [itemsByCat, setItemsByCat] = useState<Record<string, ItemDTO[]>>({})
-  const [loadingCat, setLoadingCat] = useState<Record<string, boolean>>({})
-  const [loading, setLoading] = useState(true)
   const [filterIncluded, setFilterIncluded] = useState<'pending' | 'all'>('pending')
   const [filterSection, setFilterSection] = useState<OrdemSection | ''>('')
   const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set())
-  const [pageByType, setPageByType] = useState<Record<string, number>>({})
 
   const toggleType = (key: string) =>
     setCollapsedTypes((prev) => {
@@ -177,12 +237,18 @@ export default function OrdemServicoPage() {
     })
   }, [profile])
 
-  const filterParams = useCallback(() => {
+  const filterQuery = useMemo(() => {
     const params = new URLSearchParams()
     if (filterIncluded === 'pending') params.set('included', 'false')
     if (filterSection) params.set('section', filterSection)
-    return params
+    return params.toString()
   }, [filterIncluded, filterSection])
+
+  // Per-category counts (drives the group headers + page counts).
+  const { data: summaryData, isLoading: loading, mutate: mutateSummary } = useSWR<{
+    summary: CategorySummary[]
+  }>(profile ? `/api/ordem-items/summary?${filterQuery}` : null)
+  const summary = useMemo(() => summaryData?.summary ?? [], [summaryData])
 
   // Counts per category (group headers), ordered by the catalog.
   const groups = useMemo(() => {
@@ -193,55 +259,21 @@ export default function OrdemServicoPage() {
     })
   }, [summary])
 
-  const fetchCategoryItems = useCallback(
-    async (categoryKey: string, page: number) => {
-      const params = filterParams()
-      params.set('category', categoryKey)
-      params.set('limit', String(ITEMS_PER_PAGE))
-      params.set('offset', String((page - 1) * ITEMS_PER_PAGE))
-      setLoadingCat((prev) => ({ ...prev, [categoryKey]: true }))
-      try {
-        const res = await apiFetch(`/api/ordem-items?${params.toString()}`)
-        if (res.ok) {
-          const data = await res.json()
-          setItemsByCat((prev) => ({ ...prev, [categoryKey]: data.items ?? [] }))
-        }
-      } finally {
-        setLoadingCat((prev) => ({ ...prev, [categoryKey]: false }))
-      }
-    },
-    [filterParams],
-  )
+  // Page per category, tied to the filters they were picked under: changing a
+  // filter starts every category again at page 1.
+  const [pageState, setPageState] = useState<{ query: string; pages: Record<string, number> }>({
+    query: filterQuery,
+    pages: {},
+  })
+  const pageByType = pageState.query === filterQuery ? pageState.pages : {}
+  const setTypePage = (key: string, page: number) =>
+    setPageState({ query: filterQuery, pages: { ...pageByType, [key]: page } })
 
-  const fetchSummary = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/api/ordem-items/summary?${filterParams().toString()}`)
-      if (res.ok) {
-        const data = await res.json()
-        setSummary(data.summary ?? [])
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [filterParams])
-
-  const setTypePage = (key: string, page: number) => {
-    setPageByType((prev) => ({ ...prev, [key]: page }))
-    fetchCategoryItems(key, page)
+  // After a write: refresh the counts and every loaded page of items.
+  const refresh = () => {
+    void mutateSummary()
+    void mutate((key) => typeof key === 'string' && key.startsWith(ITEMS_KEY_PREFIX))
   }
-
-  useEffect(() => {
-    if (profile) fetchSummary()
-  }, [profile, fetchSummary])
-
-  // When the summary changes (filters changed / refreshed), reset to page 1 and
-  // load each category's first page.
-  useEffect(() => {
-    setPageByType({})
-    setItemsByCat({})
-    for (const s of summary) if (s.total > 0) fetchCategoryItems(s.category, 1)
-  }, [summary, fetchCategoryItems])
 
   const handleCreate = async (payload: {
     category: string
@@ -258,7 +290,7 @@ export default function OrdemServicoPage() {
       showToast('Item adicionado', 'success')
       setAdding(false)
       setSelectedCategory('')
-      fetchSummary()
+      refresh()
     } else {
       const data = await res.json().catch(() => ({}))
       showToast(data.error || 'Erro ao adicionar', 'error')
@@ -275,7 +307,7 @@ export default function OrdemServicoPage() {
     const res = await apiFetch(`/api/ordem-items/${item.id}`, { method: 'DELETE' })
     if (res.ok) {
       showToast('Item eliminado', 'success')
-      fetchSummary()
+      refresh()
     } else {
       const data = await res.json().catch(() => ({}))
       showToast(data.error || 'Erro ao eliminar', 'error')
@@ -298,7 +330,7 @@ export default function OrdemServicoPage() {
           `${s.created} criadas, ${s.updated} atualizadas, ${s.skipped} ignoradas, ${s.errors.length} erros`,
           s.errors.length > 0 ? 'error' : 'success'
         )
-        fetchSummary()
+        refresh()
       } else {
         const data = await res.json().catch(() => ({}))
         showToast(data.error || 'Erro ao importar', 'error')
@@ -440,6 +472,8 @@ export default function OrdemServicoPage() {
 
             {selected && (
               <ItemForm
+                // A new category starts a fresh form (its fields depend on the shape).
+                key={selected.key}
                 category={selected}
                 defaultSection={profile?.section ?? null}
                 allowSectionPicker={profile?.role === 'ADMIN'}
@@ -496,8 +530,6 @@ export default function OrdemServicoPage() {
             const isCollapsed = collapsedTypes.has(category.key)
             const totalPages = Math.max(Math.ceil(total / ITEMS_PER_PAGE), 1)
             const page = Math.min(Math.max(pageByType[category.key] ?? 1, 1), totalPages)
-            const pageItems = itemsByCat[category.key] ?? []
-            const catLoading = loadingCat[category.key]
             return (
             <div key={category.key} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
               <button
@@ -525,46 +557,12 @@ export default function OrdemServicoPage() {
               </button>
               {!isCollapsed && (
               <>
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {catLoading && pageItems.length === 0 && (
-                  <div className="p-4 text-sm text-gray-500 dark:text-gray-400">A carregar...</div>
-                )}
-                {pageItems.map((item) => (
-                  <div key={item.id} className="p-4 flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        {item.section && (
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                            {ORDEM_SECTION_LABELS[item.section]}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(item.date).toLocaleDateString('pt-PT')}
-                        </span>
-                        {item.includedInOsId && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                            incluído
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-800 dark:text-gray-200 break-words">
-                        {summarizeData(category, item.data)}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        por {item.createdBy.name || item.createdBy.email}
-                      </p>
-                    </div>
-                    {!item.includedInOsId && (
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <CategoryItems
+                category={category}
+                query={filterQuery}
+                page={page}
+                onDelete={handleDelete}
+              />
               {totalPages > 1 && (
                 <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-sm">
                   <button

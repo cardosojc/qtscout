@@ -1,5 +1,6 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
+import { useMeetingTypes } from '@/lib/api-hooks'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -94,25 +95,19 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
-  const [meetingTypes, setMeetingTypes] = useState<{ id: string; name: string; code: string }[]>([])
+  const { data: meetingTypesData } = useMeetingTypes(!!session)
+  const meetingTypes = meetingTypesData ?? []
 
-  useEffect(() => {
-    if (session) {
-      apiFetch('/api/meeting-types')
-        .then((r) => r.ok ? r.json() : [])
-        .then(setMeetingTypes)
-        .catch(() => {})
-    }
-  }, [session])
-
-  // Clear type filters and results when switching source
-  useEffect(() => {
+  // Switching source clears the type filters and the results.
+  const changeSource = (next: Source) => {
+    if (next === source) return
+    setSource(next)
     setMeetingTypeId('')
     setDocumentType('')
     setMeetingResults([])
     setDocumentResults([])
     setHasSearched(false)
-  }, [source])
+  }
 
   const hasActiveFilter = query || meetingTypeId || documentType || dateFrom || dateTo
 
@@ -215,7 +210,7 @@ export default function SearchPage() {
             <button
               key={val}
               type="button"
-              onClick={() => setSource(val)}
+              onClick={() => changeSource(val)}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 source === val
                   ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'

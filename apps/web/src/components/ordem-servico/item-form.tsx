@@ -1,7 +1,7 @@
 'use client'
-import { apiFetch } from '@/lib/api-client'
+import { useLeaders, useScouts } from '@/lib/api-hooks'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { CategorySpec, OrdemSection } from '@qtscout/types/ordem-item'
 import { ETAPAS_PROGRESSO, ESPECIALIDADES, MERITO_ESPECIALISTA, ORDEM_SECTIONS, ORDEM_SECTION_LABELS } from '@qtscout/types/ordem-item'
@@ -116,53 +116,24 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
   const [noitesCount, setNoitesCount] = useState('')
   const [especialidade, setEspecialidade] = useState('')
 
-  // Pickers' data
-  const [scouts, setScouts] = useState<Scout[]>([])
-  const [leaders, setLeaders] = useState<LeaderProfile[]>([])
-
   const needsScoutPicker = ['MEMBER_REF', 'NOITES_REF', 'SCOUT_OR_PROFILE_REF', 'PROGRESSO_REF', 'NOITES_CAMPO_REF', 'ESPECIALIDADE_REF'].includes(category.shape)
   const needsLeaderPicker = ['PROFILE_REF', 'SCOUT_OR_PROFILE_REF'].includes(category.shape)
 
-  useEffect(() => {
-    if (!needsScoutPicker) return
-    const params = new URLSearchParams()
-    if (section) params.set('section', section)
-    apiFetch(`/api/scouts?${params.toString()}`)
-      .then((r) => r.ok ? r.json() : { scouts: [] })
-      .then((d) => setScouts(d.scouts ?? []))
-  }, [needsScoutPicker, section])
+  // Pickers' data
+  const { data: scoutsData } = useScouts({ section }, needsScoutPicker)
+  const scouts = useMemo(() => (scoutsData?.scouts ?? []) as Scout[], [scoutsData])
+  const { data: leadersData } = useLeaders(needsLeaderPicker)
+  const leaders = (leadersData?.profiles ?? []) as LeaderProfile[]
 
-  useEffect(() => {
-    if (!needsLeaderPicker) return
-    apiFetch('/api/profiles/leaders')
-      .then((r) => r.ok ? r.json() : { profiles: [] })
-      .then((d) => setLeaders(d.profiles ?? []))
-  }, [needsLeaderPicker])
-
-  // Reset fields when category changes
-  useEffect(() => {
-    setValue('')
-    setNome('')
-    setCargo('')
-    setDatas('')
-    setLocal('')
-    setCount('1')
-    setScoutId('')
-    setScoutIds([])
-    setProfileId('')
-    setRefKind('scout')
-    setEtapa('')
-    setNoitesCount('')
-    setEspecialidade('')
-  }, [category.key])
-
-  // The chosen etapa is section-specific; clear it if the section changes away
-  // from the one it belongs to.
-  useEffect(() => {
-    if (etapa && !(section && (ETAPAS_PROGRESSO[section] as readonly string[]).includes(etapa))) {
+  // The chosen etapa is section-specific: changing the section away from the
+  // one it belongs to clears it. (A new category remounts this form: the page
+  // keys it by category.)
+  const changeSection = (next: OrdemSection | '') => {
+    setSection(next)
+    if (etapa && !(next && (ETAPAS_PROGRESSO[next] as readonly string[]).includes(etapa))) {
       setEtapa('')
     }
-  }, [section, etapa])
+  }
 
   const sortedScouts = useMemo(
     () => [...scouts].sort((a, b) => scoutDisplayName(a).localeCompare(scoutDisplayName(b))),
@@ -250,7 +221,7 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
             <label className={labelCls}>Secção</label>
             <select
               value={section}
-              onChange={(e) => setSection(e.target.value as OrdemSection | '')}
+              onChange={(e) => changeSection(e.target.value as OrdemSection | '')}
               required
               className={fieldCls}
             >
@@ -267,7 +238,7 @@ export function ItemForm({ category, defaultSection, allowSectionPicker, onSubmi
             <label className={labelCls}>Destino</label>
             <select
               value={section}
-              onChange={(e) => setSection(e.target.value as OrdemSection | '')}
+              onChange={(e) => changeSection(e.target.value as OrdemSection | '')}
               className={fieldCls}
             >
               <option value="">Agrupamento</option>

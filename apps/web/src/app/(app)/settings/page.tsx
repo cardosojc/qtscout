@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
+import { useDocumentSettings } from '@/lib/api-hooks'
 import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPE_PREFIXES, type DocumentType, type DocumentSettings } from '@qtscout/types/document'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
@@ -24,10 +25,15 @@ export default function SettingsPage() {
   const { startLoading, stopLoading } = useLoading()
   const router = useRouter()
 
-  const [settings, setSettings] = useState<DocumentSettings[]>(
-    ALL_TYPES.map((type) => ({ type, startingNumber: 1 }))
-  )
-  const [loading, setLoading] = useState(true)
+  const isAdmin = session?.role === 'ADMIN'
+  const { data, isLoading: loading, error, mutate } = useDocumentSettings<DocumentSettings>(isAdmin)
+  // Stored starting numbers, with the user's unsaved edits on top.
+  const [edits, setEdits] = useState<Partial<Record<DocumentType, number>>>({})
+  const settings: DocumentSettings[] = ALL_TYPES.map((type) => ({
+    type,
+    startingNumber:
+      edits[type] ?? data?.settings.find((s) => s.type === type)?.startingNumber ?? 1,
+  }))
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -36,32 +42,12 @@ export default function SettingsPage() {
     }
   }, [session, authLoading, router])
 
-  const fetchSettings = async () => {
-    startLoading('A carregar definições...')
-    try {
-      const res = await apiFetch('/api/settings/documents')
-      if (res.ok) {
-        const data = await res.json()
-        setSettings(data.settings)
-      }
-    } catch {
-      showToast('Erro ao carregar definições', 'error')
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }
-
   useEffect(() => {
-    if (session?.role === 'ADMIN') {
-      fetchSettings()
-    }
-  }, [session])
+    if (error) showToast('Erro ao carregar definições', 'error')
+  }, [error, showToast])
 
   const handleChange = (type: DocumentType, value: number) => {
-    setSettings((prev) =>
-      prev.map((s) => (s.type === type ? { ...s, startingNumber: value } : s))
-    )
+    setEdits((prev) => ({ ...prev, [type]: value }))
   }
 
   const handleSave = async () => {
@@ -76,6 +62,8 @@ export default function SettingsPage() {
 
       if (res.ok) {
         showToast('Definições guardadas', 'success')
+        await mutate()
+        setEdits({})
       } else {
         const data = await res.json()
         showToast(data.error || 'Erro ao guardar', 'error')

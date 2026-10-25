@@ -1,13 +1,14 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ScoutForm } from '@/components/membros/scout-form'
 import { NightsBadgesEditor } from '@/components/membros/nights-badges'
+import { useScout } from '@/lib/api-hooks'
 import {
   computeNoitesCampoAtual,
   NOITES_CAMPO_SNAPSHOT_DATE,
@@ -21,24 +22,13 @@ export default function MembroDetailPage() {
   const id = params.id as string
   const { user, loading: authLoading } = useAuth()
   const { showToast } = useToast()
-  const [scout, setScout] = useState<Scout | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [snapshotInput, setSnapshotInput] = useState('0')
+  const { data, isLoading: loading, mutate } = useScout<Scout>(id, !!user)
+  const scout = data?.scout ?? null
+  const setScout = (next: Scout) => mutate({ scout: next }, { revalidate: false })
+  // null = untouched: the input shows the stored snapshot.
+  const [snapshotEdit, setSnapshotEdit] = useState<string | null>(null)
+  const snapshotInput = snapshotEdit ?? String(scout?.noitesCampoInicial ?? 0)
   const [savingSnapshot, setSavingSnapshot] = useState(false)
-
-  const fetchScout = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/api/scouts/${id}`)
-      if (res.ok) {
-        const data = await res.json()
-        setScout(data.scout)
-        setSnapshotInput(String(data.scout?.noitesCampoInicial ?? 0))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
 
   const handleSaveSnapshot = async () => {
     setSavingSnapshot(true)
@@ -51,7 +41,7 @@ export default function MembroDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setScout(data.scout)
-        setSnapshotInput(String(data.scout.noitesCampoInicial))
+        setSnapshotEdit(null)
         showToast('Snapshot guardado', 'success')
       } else {
         const data = await res.json().catch(() => ({}))
@@ -61,10 +51,6 @@ export default function MembroDetailPage() {
       setSavingSnapshot(false)
     }
   }
-
-  useEffect(() => {
-    if (user) fetchScout()
-  }, [user, fetchScout])
 
   if (authLoading || loading) {
     return (
@@ -152,7 +138,7 @@ export default function MembroDetailPage() {
                   min={0}
                   step={1}
                   value={snapshotInput}
-                  onChange={(e) => setSnapshotInput(e.target.value)}
+                  onChange={(e) => setSnapshotEdit(e.target.value)}
                   className="w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-500 dark:text-gray-400">noites</span>

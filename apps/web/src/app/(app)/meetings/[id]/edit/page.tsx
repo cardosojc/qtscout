@@ -1,13 +1,35 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
 import { useRouter, useParams } from 'next/navigation'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form'
 import type { AgendaItem } from '@qtscout/types/meeting'
+import { meetingKey, refreshCached, useMeeting } from '@/lib/api-hooks'
+import type { MeetingOut } from '@/lib/api-schemas'
+
+// API meeting -> form fields. The agenda is either a bare item list (older
+// meetings) or an object that also carries attendees, chefe and secretário.
+function toFormData(data: MeetingOut): MeetingFormData {
+  const agendaObj = data.agenda as
+    | { items?: AgendaItem[]; attendeeNames?: string[]; chefeAgrupamento?: string; secretario?: string }
+    | AgendaItem[]
+  const isList = Array.isArray(agendaObj)
+  return {
+    meetingTypeId: data.meetingTypeId,
+    date: new Date(data.date).toISOString().split('T')[0],
+    startTime: data.startTime || '',
+    endTime: data.endTime || '',
+    location: data.location || '',
+    agendaItems: isList ? agendaObj : agendaObj?.items || [],
+    attendees: isList ? [] : agendaObj?.attendeeNames || [],
+    chefeAgrupamento: isList ? '' : agendaObj?.chefeAgrupamento || '',
+    secretario: isList ? '' : agendaObj?.secretario || '',
+  }
+}
 
 export default function EditMeetingPage() {
   const { user: session } = useAuth()
@@ -16,71 +38,12 @@ export default function EditMeetingPage() {
   const params = useParams()
   const meetingId = params.id as string
 
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [meetingFound, setMeetingFound] = useState(true)
+  const { data: meeting, error, isLoading: initialLoading } = useMeeting(meetingId)
+  const meetingFound = !error
 
-  // Raw meeting data from API
-  const [meetingData, setMeetingData] = useState<{
-    meetingTypeId: string
-    date: string
-    startTime: string
-    endTime: string
-    location: string
-    agendaItems: AgendaItem[]
-    attendees: string[]
-    chefeAgrupamento: string
-    secretario: string
-  } | null>(null)
-
-  const fetchMeeting = useCallback(async () => {
-    try {
-      const response = await apiFetch(`/api/meetings/${meetingId}`)
-      if (response.ok) {
-        const data = await response.json()
-
-        const agendaObj = data.agenda as { items?: AgendaItem[], attendeeNames?: string[], chefeAgrupamento?: string, secretario?: string } | AgendaItem[]
-
-        let loadedItems: AgendaItem[] = []
-        let attendees: string[] = []
-        let chefeAgrupamento = ''
-        let secretario = ''
-
-        if (Array.isArray(agendaObj)) {
-          loadedItems = agendaObj
-        } else {
-          loadedItems = agendaObj?.items || []
-          attendees = agendaObj?.attendeeNames || []
-          chefeAgrupamento = agendaObj?.chefeAgrupamento || ''
-          secretario = agendaObj?.secretario || ''
-        }
-
-        setMeetingData({
-          meetingTypeId: data.meetingTypeId,
-          date: new Date(data.date).toISOString().split('T')[0],
-          startTime: data.startTime || '',
-          endTime: data.endTime || '',
-          location: data.location || '',
-          agendaItems: loadedItems,
-          attendees,
-          chefeAgrupamento,
-          secretario,
-        })
-      } else {
-        setMeetingFound(false)
-      }
-    } catch (error) {
-      console.error('Error fetching meeting:', error)
-      setMeetingFound(false)
-    } finally {
-      setInitialLoading(false)
-    }
-  }, [meetingId])
-
-  useEffect(() => {
-    if (meetingId) fetchMeeting()
-  }, [meetingId, fetchMeeting])
-
-  const initialData = useMemo(() => meetingData ?? undefined, [meetingData])
+  // The form reads this once, when it mounts (it is keyed by meeting id), so a
+  // background refresh of the meeting never overwrites edits in progress.
+  const initialData = useMemo(() => (meeting ? toFormData(meeting) : undefined), [meeting])
 
   const handleAutoSave = useCallback(async (data: MeetingFormData) => {
     const response = await apiFetch(`/api/meetings/${meetingId}`, {
@@ -101,6 +64,7 @@ export default function EditMeetingPage() {
       }),
     })
     if (!response.ok) throw new Error('Failed to save')
+    void refreshCached(meetingKey(meetingId))
   }, [meetingId])
 
   const handleSubmit = async (data: MeetingFormData) => {
@@ -125,6 +89,7 @@ export default function EditMeetingPage() {
 
       if (response.ok) {
         showToast('Reunião atualizada com sucesso', 'success')
+        await refreshCached(meetingKey(meetingId))
         router.push(`/meetings/${meetingId}`)
       } else {
         showToast('Erro ao atualizar reunião', 'error')
@@ -135,7 +100,7 @@ export default function EditMeetingPage() {
     }
   }
 
-  if (initialLoading) {
+  if (initialLoading || (!initialData && meetingFound)) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center" aria-busy="true" role="status">
@@ -173,6 +138,7 @@ export default function EditMeetingPage() {
         { label: 'Editar' },
       ]} />
       <MeetingForm
+        key={meetingId}
         title="Editar Reunião"
         submitLabel="Atualizar Reunião"
         submittingLabel="Atualizando..."
