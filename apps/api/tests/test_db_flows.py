@@ -167,3 +167,24 @@ def test_meeting_date_range_filter(client: TestClient) -> None:
         params={"q": "sede", "from": "2026-02-01T00:00:00.000Z", "to": "2026-02-28T00:00:00.000Z"},
     ).json()
     assert [r["date"] for r in results] == ["2026-02-10T19:00:00.000Z"]
+
+
+def test_scouts_sort_ignores_accents_and_case(client: TestClient) -> None:
+    for first, last, section in (
+        ("Zé", "Silva", "ALCATEIA"),
+        ("Álvaro", "Silva", "ALCATEIA"),
+        ("ana", "Éça", "ALCATEIA"),
+        ("Rui", "Costa", None),
+    ):
+        body = {"firstName": first, "lastName": last, "dateOfBirth": "2015-01-01T00:00:00.000Z"}
+        if section:
+            body["section"] = section
+        resp = client.post("/api/scouts", json=body)
+        assert resp.status_code in (200, 201), resp.text
+    scouts = client.get("/api/scouts").json()["scouts"]
+    assert [(s["firstName"], s["lastName"]) for s in scouts] == [
+        ("ana", "Éça"),
+        ("Álvaro", "Silva"),
+        ("Zé", "Silva"),
+        ("Rui", "Costa"),
+    ]

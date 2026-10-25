@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.text_sort import name_key
 from app.db import get_session
 from app.deps import CurrentUser
 from app.models import Profile
@@ -18,8 +19,7 @@ async def list_leaders(
     user: CurrentUser, session: Annotated[Session, Depends(get_session)]
 ) -> dict[str, list[LeaderProfileOut]]:
     result = session.scalars(
-        select(Profile)
-        .where(Profile.role.in_([UserRole.ADMIN, UserRole.LEADER]))
-        .order_by(Profile.name.asc())
+        select(Profile).where(Profile.role.in_([UserRole.ADMIN, UserRole.LEADER]))
     )
-    return {"profiles": [LeaderProfileOut.model_validate(p) for p in result.all()]}
+    profiles = sorted(result.all(), key=lambda p: name_key(p.name))
+    return {"profiles": [LeaderProfileOut.model_validate(p) for p in profiles]}

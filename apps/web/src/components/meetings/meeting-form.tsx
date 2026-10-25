@@ -286,7 +286,6 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMeetingType, date, startTime, endTime, location, agendaItems, attendees, chefeAgrupamento, secretario, onAutoSave])
 
   useEffect(() => {

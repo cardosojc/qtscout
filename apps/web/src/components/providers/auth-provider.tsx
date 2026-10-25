@@ -55,6 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setUser(null)
+    // A full page load on purpose: the logout URL is served by Cloudflare Access,
+    // not by Next, and must clear the Access session cookie.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = ACCESS_LOGOUT_URL
   }
 

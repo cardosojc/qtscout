@@ -91,7 +91,9 @@ export function ScoutForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
     setValues((prev) => ({ ...prev, [key]: value }))
 
-  const Input = ({ label, field, type = 'text' }: { label: string; field: keyof FormValues; type?: string }) => (
+  // A render helper, not a component: a component defined here would be a new
+  // type on every render, remounting the input (and losing focus) per keystroke.
+  const textField = (label: string, field: keyof FormValues, type = 'text') => (
     <div>
       <label className={labelCls}>{label}</label>
       <input
@@ -118,7 +120,7 @@ export function ScoutForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
             <label className={labelCls}>Apelido</label>
             <input type="text" value={values.lastName} onChange={(e) => set('lastName', e.target.value)} required className={fieldCls} />
           </div>
-          <Input label="Nº de Associado" field="numeroAssociado" />
+          {textField('Nº de Associado', 'numeroAssociado')}
           <div>
             <label className={labelCls}>Data de Nascimento</label>
             <input type="date" value={values.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} required className={fieldCls} />
@@ -144,8 +146,8 @@ export function ScoutForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
               <option value="M">Masculino</option>
             </select>
           </div>
-          <Input label="Cartão de Cidadão" field="cc" />
-          <Input label="NIF" field="nif" />
+          {textField('Cartão de Cidadão', 'cc')}
+          {textField('NIF', 'nif')}
         </div>
       </fieldset>
 
@@ -153,46 +155,46 @@ export function ScoutForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
         <legend className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 px-2">Morada</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2">
-            <Input label="Rua / morada" field="morada" />
+            {textField('Rua / morada', 'morada')}
           </div>
-          <Input label="Código Postal" field="codigoPostal" />
-          <Input label="Localidade" field="localidade" />
+          {textField('Código Postal', 'codigoPostal')}
+          {textField('Localidade', 'localidade')}
         </div>
       </fieldset>
 
       <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <legend className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 px-2">Contactos</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input label="Email" field="email" type="email" />
-          <Input label="Telemóvel" field="telemovel" type="tel" />
-          <Input label="Telefone" field="telefone" type="tel" />
+          {textField('Email', 'email', 'email')}
+          {textField('Telemóvel', 'telemovel', 'tel')}
+          {textField('Telefone', 'telefone', 'tel')}
         </div>
       </fieldset>
 
       <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <legend className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 px-2">Pai</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input label="Nome" field="paiNome" />
-          <Input label="Telefone" field="paiTelefone" type="tel" />
-          <Input label="Email" field="paiEmail" type="email" />
+          {textField('Nome', 'paiNome')}
+          {textField('Telefone', 'paiTelefone', 'tel')}
+          {textField('Email', 'paiEmail', 'email')}
         </div>
       </fieldset>
 
       <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <legend className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 px-2">Mãe</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input label="Nome" field="maeNome" />
-          <Input label="Telefone" field="maeTelefone" type="tel" />
-          <Input label="Email" field="maeEmail" type="email" />
+          {textField('Nome', 'maeNome')}
+          {textField('Telefone', 'maeTelefone', 'tel')}
+          {textField('Email', 'maeEmail', 'email')}
         </div>
       </fieldset>
 
       <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <legend className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 px-2">Encarregado de Educação</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input label="Nome" field="encarregadoNome" />
-          <Input label="Telefone" field="encarregadoTelefone" type="tel" />
-          <Input label="Email" field="encarregadoEmail" type="email" />
+          {textField('Nome', 'encarregadoNome')}
+          {textField('Telefone', 'encarregadoTelefone', 'tel')}
+          {textField('Email', 'encarregadoEmail', 'email')}
         </div>
       </fieldset>
 

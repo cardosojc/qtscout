@@ -45,8 +45,9 @@ is reached over the service binding.
 ## Data
 
 D1 is the database. Backups: D1 Time Travel restores to any minute in the last
-30 days (`npx wrangler d1 time-travel restore qtscout --timestamp …`); for an
-off-platform copy, `npx wrangler d1 export qtscout --remote --output qtscout.sql`.
+30 days (`npx wrangler d1 time-travel restore qtscout --timestamp …`). For an
+off-platform copy run `scripts/backup_d1.sh` (dated SQL export to
+`~/qtscout-backups`, private permissions).
 
 `scripts/pg_to_d1.py` is the one-off copy from the old Supabase Postgres (kept
 for the record; see its docstring).

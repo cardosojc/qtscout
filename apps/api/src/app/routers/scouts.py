@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.scout_utils import NIGHTS_BADGE_COUNTS, is_nights_badge_count
 from app.core.siie_import import map_row
+from app.core.text_sort import name_key
 from app.db import get_session
 from app.deps import AdminUser, CurrentUser
 from app.models import Profile, Scout, ScoutNightsBadge
@@ -75,13 +76,17 @@ async def list_scouts(
         conditions.append(Scout.section == OrdemSection(section))
     if not includeInactive:
         conditions.append(Scout.active.is_(True))
-    rows = (
-        session.scalars(
-            select(Scout)
-            .where(*conditions)
-            .order_by(Scout.section.asc(), Scout.last_name.asc(), Scout.first_name.asc())
-        )
-    ).all()
+    rows = (session.scalars(select(Scout).where(*conditions))).all()
+    # Section (unassigned last, as before on Postgres), then surname, first name.
+    rows = sorted(
+        rows,
+        key=lambda s: (
+            s.section is None,
+            s.section or "",
+            name_key(s.last_name),
+            name_key(s.first_name),
+        ),
+    )
     return {"scouts": [ScoutOut.model_validate(s) for s in rows]}
 
 
