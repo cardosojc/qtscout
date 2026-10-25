@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-// Origin of the API service (Railway today). The browser only ever calls the
+// Origin of the API service (FastAPI Cloud). The browser only ever calls the
 // same-origin `/api/*`, which is proxied there — so the Cloudflare Access
 // cookie/JWT reaches the API and there is no CORS. NEXT_PUBLIC_API_URL is the
 // previous name for the same value, accepted so existing build env keeps working.

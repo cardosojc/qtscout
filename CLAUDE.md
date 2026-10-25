@@ -15,7 +15,8 @@ see `apps/api/DEPLOY.md` and the git history.)
   `apiFetch()` (`apps/web/src/lib/api-client.ts`) on same-origin `/api/*`,
   proxied to `API_ORIGIN`.
 - `apps/api/` — **FastAPI service** (Python, `uv`). All endpoints under `/api/*`.
-  Deployed as a Docker container on **Railway** (web stays on Vercel).
+  Deployed on **FastAPI Cloud** (`qtscout.fastapicloud.dev`; `apps/api/DEPLOY.md`).
+  The web runs on Cloudflare Workers at `qtscout.cardosojcs.org`.
 - `packages/types` (`@qtscout/types`) — the only shared TS package: pure types
   **+ FE runtime helpers** (labels, the OS catalog, `scoutDisplayName`,
   validators, `ano-escutista`). No backend deps.
@@ -163,7 +164,7 @@ flexbox/grid)**, static `@frame` header/footer (repeating, with page numbers via
 `<pdf:pagenumber>`), and local fonts in `pdf/fonts/` (Lato, Caveat); header
 images in `pdf/assets/`. Endpoints: `GET /api/{documents,meetings}/{id}/pdf?download=`.
 No browser or system libs are needed, so PDF rendering runs in-process on **any**
-host (Railway/Docker **and** FastAPI Cloud).
+host, including FastAPI Cloud.
 
 ## Scouts (members)
 

@@ -37,11 +37,10 @@ through `uv run alembic revision --autogenerate` + `uv run alembic upgrade head`
 
 ## Deployment
 
-Container on Railway/Render (see `Dockerfile`); PDF rendering is pure-Python
-(xhtml2pdf), so the image needs no browser/system libs and also runs as-is on
-hosts that install only Python deps (e.g. FastAPI Cloud). Set the env vars from
-`.env.example`; the platform provides `$PORT`. The Next.js web app stays on
-Vercel and points `NEXT_PUBLIC_API_URL` at this service.
+FastAPI Cloud — see [`DEPLOY.md`](DEPLOY.md). PDF rendering is pure-Python
+(xhtml2pdf), so no browser or system libs are needed. Env vars are listed in
+`.env.example`. The web (Cloudflare Workers) proxies same-origin `/api/*` to
+this service (`API_ORIGIN`).
 
 ## Layout
 

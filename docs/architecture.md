@@ -18,15 +18,14 @@ apps/
 ├── web/                          # Next.js 15 UI (no business logic / DB)
 │   ├── src/app/(app)/            # Authenticated, sidebar-shell pages
 │   │   ├── meetings/ documents/ ordem-servico/ membros/ profile/ settings/ search/
-│   ├── src/app/api/              # ONLY auth recovery flows (Supabase cookie/redirect)
 │   ├── src/components/           # ordem-servico, membros, documents, editor, providers, ui
 │   ├── src/lib/                  # api-client (apiFetch), api-hooks (SWR),
-│   │                             #   api-types/api-schemas (generated), supabase/
+│   │                             #   api-types/api-schemas (generated)
 │   └── src/flags.ts              # Vercel flags (UI visibility + /documents gating)
-└── api/                          # FastAPI service — the backend (Docker on Railway)
-    ├── pyproject.toml  uv.lock  Dockerfile
+└── api/                          # FastAPI service — the backend (FastAPI Cloud)
+    ├── pyproject.toml  uv.lock  DEPLOY.md
     ├── app/
-    │   ├── main.py config.py db.py deps.py auth.py supabase_admin.py
+    │   ├── main.py config.py db.py deps.py auth.py access_admin.py
     │   ├── routers/  models/  schemas/   # 13 routers · 11 models · Pydantic schemas
     │   ├── core/                 # ordem_*, siie_*, document_utils, ordem_categories(.json)
     │   └── pdf/                  # render.py (xhtml2pdf) + html_builders + templates + fonts + assets
@@ -183,9 +182,8 @@ the event loop via `run_in_threadpool`. A `link_callback` resolves local
 Templates use xhtml2pdf's CSS subset: **table-based layout (no flexbox/grid)**,
 static `@frame` header/footer that repeat per page (page numbers via
 `<pdf:pagenumber>`), and vendored fonts in `pdf/fonts/` (Lato, Caveat). Because
-nothing native is required, PDF rendering runs in-process on any host — the
-Docker image needs no extra build steps, and it also works on hosts that install
-only Python deps (e.g. FastAPI Cloud).
+nothing native is required, PDF rendering runs in-process on any host that
+installs only Python deps, including FastAPI Cloud.
 
 - `html_builders.py` — meeting body (incl. the CA-only signature page) and the
   document body/signature; `format_date_pt` for pt-PT dates.
@@ -248,15 +246,14 @@ Three booleans via `@flags-sdk/vercel`, default `true`: `oficio-enabled`,
 
 ## Deployment
 
-- **Web** → Vercel project `qtscout` (Next.js). Env: `NEXT_PUBLIC_*` +
-  `NEXT_PUBLIC_API_URL` (the API's public origin) + the Supabase/flags vars its
-  server side needs.
-- **API** → Docker container on **Railway** (`apps/api/Dockerfile`; `render.yaml` is a
-  Render Blueprint alternative). Env: `DATABASE_URL`, `DIRECT_URL`,
-  `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`,
-  `MISTRAL_API_KEY`, `WEB_ORIGIN` (CORS allow-list). `$PORT` is platform-provided;
-  the entrypoint is gunicorn + UvicornWorker. CORS (`app/main.py`) allows
-  `WEB_ORIGIN` + the `Authorization` header. Full cutover steps: `apps/api/DEPLOY.md`.
+- **Web** → Cloudflare Workers (OpenNext), Worker `qtscout-web`, custom domain
+  `qtscout.cardosojcs.org` only (`workers.dev` disabled). The whole hostname is
+  behind the Cloudflare Access application `qtscout` (one-time PIN; group
+  `qtscout-users`). `next.config.ts` rewrites `/api/*` to `API_ORIGIN` (build
+  env; falls back to the legacy `NEXT_PUBLIC_API_URL`).
+- **API** → FastAPI Cloud (`https://qtscout.fastapicloud.dev`), deployed with
+  `uv run fastapi cloud deploy`. Env vars are in `apps/api/.env.example`;
+  `apps/api/DEPLOY.md` is the runbook.
 
 ## Commands
 
@@ -266,8 +263,8 @@ Three booleans via `@flags-sdk/vercel`, default `true`: `oficio-enabled`,
 - **Web** (root): `npm run dev` (web :3000), `npm run build` / `typecheck` /
   `lint`, `npm run gen:api-types`, `npm run sync:categories[:check]`,
   `npm run docs:sync | docs:check`, `npm run test:e2e`.
-- Local full stack: run the API and point the web's `NEXT_PUBLIC_API_URL` at it
-  (or at Railway).
+- Local full stack: run the API with `AUTH_MODE=dev AUTH_DEV_EMAIL=<you>` and the
+  web with `API_ORIGIN=http://localhost:3001`.
 
 ## Conventions
 

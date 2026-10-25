@@ -7,16 +7,16 @@ Olivais** (CNE). All user-facing strings are pt-PT.
 
 A monorepo with a TypeScript front end and a standalone Python backend:
 
-- **`apps/web`** — Next.js 15 (App Router) UI. No DB / business logic; talks to
-  the API over `fetch` + Bearer token (`NEXT_PUBLIC_API_URL`). Deploys to
-  **Vercel**.
+- **`apps/web`** — Next.js 15 (App Router) UI. No DB / business logic; calls
+  the API on same-origin `/api/*`, proxied to `API_ORIGIN`. Deploys to
+  **Cloudflare Workers** (`qtscout.cardosojcs.org`, behind Cloudflare Access).
 - **`apps/api`** — **FastAPI** service (Python, managed with `uv`). All endpoints
   under `/api/*`; SQLAlchemy 2.0 (async) + Alembic against Supabase Postgres.
-  Deploys as a Docker container on **Railway**. See [`apps/api/README.md`](apps/api/README.md).
+  Deploys to **FastAPI Cloud**. See [`apps/api/README.md`](apps/api/README.md).
 - **`packages/*`** — shared TypeScript (`@qtscout/types`): domain types + FE
   runtime helpers. Consumed by the web via `transpilePackages`.
 
-Both halves share one Supabase project (Postgres + Auth). npm workspaces +
+Both halves share one Supabase Postgres database; sign-in is Cloudflare Access. npm workspaces +
 Turborepo cover the TS side (`apps/web`, `packages/*`); the Python API is
 standalone.
 
@@ -79,14 +79,14 @@ Backend commands (from `apps/api`): `uv run pytest`, `uv run ruff check app`,
 ## Tech stack
 
 - **Web:** Next.js 15 (App Router), React 19, TypeScript 5, Tailwind CSS 4,
-  TipTap, SWR — on Vercel.
+  TipTap, SWR — on Cloudflare Workers (OpenNext).
 - **API:** FastAPI + Pydantic v2, SQLAlchemy 2.0 (async, asyncpg) + Alembic,
-  `uv`; **Playwright** (Chromium) + Jinja2 for PDF, openpyxl for SIIE imports —
-  Docker on Railway.
+  `uv`; xhtml2pdf + Jinja2 for PDF, openpyxl for SIIE imports — on FastAPI
+  Cloud.
 - **Database:** Supabase Postgres (the schema was originally created by Prisma;
   the API now uses SQLAlchemy + Alembic).
-- **Auth:** Supabase Auth — cookies for the web shell, Bearer JWT for the API
-  (verified offline via JWKS/ES256).
+- **Auth:** Cloudflare Access (one-time PIN by email) in front of the whole
+  hostname; the API verifies the Access JWT offline (JWKS/RS256).
 
 ## Further reading
 

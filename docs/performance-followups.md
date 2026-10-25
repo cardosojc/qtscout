@@ -5,7 +5,7 @@ measurement-driven pass (June 2026) traced and fixed the per-request overhead:
 
 | Fix | PR | Effect (prod) |
 | --- | --- | --- |
-| Railway moved to EU (co-located with Supabase) | — | halved every API↔DB hop |
+| API moved to EU (co-located with Supabase) | — | halved every API↔DB hop |
 | Drop `pool_pre_ping` (+ `pool_recycle=1800`) | #9 | `profiledb` ~142 ms → ~47 ms/request |
 | De-dupe `AuthProvider` boot (one profile fetch, no `getUser`) | #10 | cold-load 4→3 calls, per-nav 3→2 |
 | Offline JWKS (ES256) token verification | #11 | auth hop ~35 ms → ~0.8 ms/request |
@@ -24,7 +24,7 @@ deliberately left out of the first pass.
 **Evidence.** After the fixes, `/api/meetings` totals ~325 ms in prod, of which
 `auth ≈ 1 ms` and the Profile lookup `≈ 47 ms` — the remaining **~278 ms is the
 handler**, i.e. the list query itself. Each DB round-trip costs ~24 ms in-region
-(Railway EU → Supabase pgbouncer), and the endpoint issues several.
+(API in EU → Supabase pgbouncer), and the endpoint issues several.
 
 **Where.** `apps/api/app/routers/meetings.py` (`list_meetings`, ~L45-76):
 - a `SELECT COUNT(*)` for pagination, then
