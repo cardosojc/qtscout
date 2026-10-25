@@ -6,6 +6,8 @@ and enum columns, and ORM updates/deletes (row counts).
 """
 
 from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
@@ -16,6 +18,8 @@ from app.main import app
 from app.models import DocumentSettings, MeetingType, Profile
 from app.models.enums import DocumentType, UserRole
 from app.schemas.session import SessionUser
+
+_MIGRATIONS = Path(__file__).parent.parent / "d1" / "migrations"
 
 ADMIN = SessionUser(
     id="admin-1", email="chefe@exemplo.pt", name="Chefe", username="chefe", role=UserRole.ADMIN
@@ -207,3 +211,39 @@ def test_nights_badges_save_update_and_clear(client: TestClient) -> None:
     assert [b["awardedAt"][:10] for b in put("2026-10-05")["badges"]] == ["2026-10-05"]
     # An empty date removes it.
     assert put("")["badges"] == []
+
+
+def test_backup_dump_restores_into_an_empty_database(client: TestClient) -> None:
+    import sqlite3
+
+    from app.backup import backup_key, dump_sql
+
+    client.post("/api/documents", json={"type": "OFICIO", "content": "<p>It's “quoted”</p>"})
+    _create_meeting(client, "2026-01-10T19:00:00.000Z", "<p>Reunião de backup</p>")
+
+    raw = get_engine().raw_connection()
+    try:
+        sql = dump_sql(raw)
+    finally:
+        raw.close()
+
+    restored = sqlite3.connect(":memory:")
+    restored.execute("PRAGMA foreign_keys = ON")
+    for migration in sorted(_MIGRATIONS.glob("*.sql")):
+        restored.executescript(migration.read_text())
+    restored.executescript(sql)
+
+    def counts(conn: Any) -> dict[str, int]:
+        tables = ["profiles", "meeting_types", "meetings", "documents", "meeting_search"]
+        return {t: conn.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0] for t in tables}
+
+    raw = get_engine().raw_connection()
+    try:
+        assert counts(restored) == counts(raw.driver_connection)
+    finally:
+        raw.close()
+    assert restored.execute("SELECT content FROM documents").fetchone()[0] == "<p>It's “quoted”</p>"
+    # Search still works on the restored data.
+    hit = "SELECT count(*) FROM meeting_search WHERE meeting_search MATCH 'reuniao'"
+    assert restored.execute(hit).fetchone()[0] == 1
+    assert backup_key().startswith("d1/qtscout-") and backup_key().endswith(".sql")

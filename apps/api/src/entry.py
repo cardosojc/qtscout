@@ -1,4 +1,5 @@
-"""Cloudflare Python Worker entrypoint: serves the FastAPI app (`app.main`).
+"""Cloudflare Python Worker entrypoint: serves the FastAPI app (`app.main`) and
+runs the weekly backup (cron trigger -> `scheduled`, see app/backup.py).
 
 Reached only through the web Worker's service binding (no public route). Heavy
 imports happen here at module level so they land in the deploy-time memory
@@ -10,6 +11,7 @@ import os
 from workers import WorkerEntrypoint, asgi
 
 import app.db  # noqa: F401  (snapshot: SQLAlchemy + models)
+from app.backup import run_backup
 from app.config import Settings
 from app.main import app
 from app.runtime import worker_env
@@ -33,3 +35,8 @@ class Default(WorkerEntrypoint):
             return await asgi.fetch(app, request, self.env, self.ctx)
         finally:
             worker_env.reset(token)
+
+    async def scheduled(self, controller, env, ctx):  # type: ignore[no-untyped-def]
+        # Bindings come from self.env (the env argument can be None here).
+        key = await run_backup(self.env)
+        print(f"Backup written to R2: {key}")

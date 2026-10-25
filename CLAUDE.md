@@ -226,7 +226,8 @@ profile emails → **per-row upsert** with per-row commit + try/except.
   `apps/api/src/app/core/` (ordem_*, siie_*, document_utils, meeting_search,
   scout_utils, leader_roles), `apps/api/src/app/pdf/`,
   `apps/api/src/app/{deps,auth,access_admin,db,runtime,config,main}.py`.
-  `apps/api/src/entry.py` — Worker entrypoint. `runtime.py` holds everything
+  `apps/api/src/entry.py` — Worker entrypoint (also the weekly backup cron:
+  `backup.py` dumps D1 to the R2 bucket `qtscout-backups`). `runtime.py` holds everything
   that differs between the Worker and local CPython (bindings, HTTP).
 - `apps/api/d1/migrations/` — D1 schema. `apps/api/scripts/` — `gen_schema.py`,
   `local_db.py`, `export_openapi.py`, `pg_to_d1.py` (one-off data copy).
