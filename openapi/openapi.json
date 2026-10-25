@@ -1978,6 +1978,230 @@
         }
       }
     },
+    "/api/scouts/import-camp-nights": {
+      "post": {
+        "tags": [
+          "scouts"
+        ],
+        "summary": "Import Camp Nights",
+        "description": "Import SIIE \"Atividades por Elemento\": each matched scout's rows are\nreplaced (SIIE is the source of truth); unknown NINs (e.g. former members)\nare counted, not stored.",
+        "operationId": "import_camp_nights_api_scouts_import_camp_nights_post",
+        "parameters": [
+          {
+            "name": "cf-access-jwt-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_camp_nights_api_scouts_import_camp_nights_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Import Camp Nights Api Scouts Import Camp Nights Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scouts/camp-nights": {
+      "get": {
+        "tags": [
+          "scouts"
+        ],
+        "summary": "Camp Night Totals",
+        "description": "Camp-night total per scout, for scouts with imported SIIE data.",
+        "operationId": "camp_night_totals_api_scouts_camp_nights_get",
+        "parameters": [
+          {
+            "name": "cf-access-jwt-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "integer"
+                    }
+                  },
+                  "title": "Response Camp Night Totals Api Scouts Camp Nights Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scouts/{scout_id}/camp-nights": {
+      "get": {
+        "tags": [
+          "scouts"
+        ],
+        "summary": "Scout Camp Nights",
+        "operationId": "scout_camp_nights_api_scouts__scout_id__camp_nights_get",
+        "parameters": [
+          {
+            "name": "scout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scout Id"
+            }
+          },
+          {
+            "name": "cf-access-jwt-assertion",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf-Access-Jwt-Assertion"
+            }
+          },
+          {
+            "name": "CF_Authorization",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cf Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoutCampNightsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/scouts/{scout_id}": {
       "get": {
         "tags": [
@@ -4209,6 +4433,24 @@
         "type": "object",
         "title": "Body_import_activities_api_ordem_items_import_activities_post"
       },
+      "Body_import_camp_nights_api_scouts_import_camp_nights_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "title": "Body_import_camp_nights_api_scouts_import_camp_nights_post"
+      },
       "Body_import_scouts_api_scouts_import_post": {
         "properties": {
           "file": {
@@ -4226,6 +4468,103 @@
         },
         "type": "object",
         "title": "Body_import_scouts_api_scouts_import_post"
+      },
+      "CampNightMilestoneOut": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "reachedOn": {
+            "type": "string",
+            "title": "Reachedon"
+          },
+          "activityId": {
+            "type": "string",
+            "title": "Activityid"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "recordedOn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recordedon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "reachedOn",
+          "activityId",
+          "description"
+        ],
+        "title": "CampNightMilestoneOut"
+      },
+      "CampNightOut": {
+        "properties": {
+          "activityId": {
+            "type": "string",
+            "title": "Activityid"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "activityType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activitytype"
+          },
+          "startDate": {
+            "type": "string",
+            "title": "Startdate"
+          },
+          "endDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enddate"
+          },
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          },
+          "campNights": {
+            "type": "integer",
+            "title": "Campnights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "activityId",
+          "description",
+          "activityType",
+          "startDate",
+          "endDate",
+          "nights",
+          "campNights"
+        ],
+        "title": "CampNightOut",
+        "description": "One SIIE activity a scout took part in (camp-night accounting)."
       },
       "CreatedByOut": {
         "properties": {
@@ -5066,6 +5405,47 @@
           "totalPages"
         ],
         "title": "Pagination"
+      },
+      "ScoutCampNightsOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "activities": {
+            "items": {
+              "$ref": "#/components/schemas/CampNightOut"
+            },
+            "type": "array",
+            "title": "Activities"
+          },
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/CampNightMilestoneOut"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "importedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "activities",
+          "milestones",
+          "importedAt"
+        ],
+        "title": "ScoutCampNightsOut"
       },
       "ScoutOut": {
         "properties": {

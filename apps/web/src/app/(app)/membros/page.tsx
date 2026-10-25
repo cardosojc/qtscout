@@ -9,7 +9,7 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ORDEM_SECTIONS, ORDEM_SECTION_LABELS, type OrdemSection } from '@qtscout/types/ordem-item'
 import { scoutDisplayName, type Scout } from '@qtscout/types/scout'
-import { useScouts } from '@/lib/api-hooks'
+import { useCampNightTotals, useScouts } from '@/lib/api-hooks'
 import { matchesQuery } from '@/lib/text-search'
 
 // Stable empty fallback so the `grouped` useMemo below doesn't re-run on every
@@ -29,6 +29,7 @@ export default function MembrosPage() {
   const { showToast, showConfirm } = useToast()
   const { startLoading, stopLoading } = useLoading()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const campFileInputRef = useRef<HTMLInputElement>(null)
   const [filterSection, setFilterSection] = useState<OrdemSection | ''>('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [query, setQuery] = useState('')
@@ -41,6 +42,8 @@ export default function MembrosPage() {
     !!user,
   )
   const scouts = data?.scouts ?? NO_SCOUTS
+  const { data: campData, mutate: mutateCampTotals } = useCampNightTotals(!!user)
+  const campTotals = campData?.totals
   const loading = isLoading
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,6 +70,34 @@ export default function MembrosPage() {
     } finally {
       stopLoading()
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  // SIIE "Atividades por Elemento": replaces each matched scout's camp-night history.
+  const handleImportCampNights = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    startLoading('A importar noites de campo...')
+    try {
+      const res = await apiFetch('/api/scouts/import-camp-nights', { method: 'POST', body: formData })
+      if (res.ok) {
+        const { summary: s } = await res.json()
+        showToast(
+          `${s.matchedScouts} membros atualizados (${s.imported} participações)` +
+            (s.unmatchedMembers ? `, ${s.unmatchedMembers} NIN sem membro` : '') +
+            (s.errorCount ? `, ${s.errorCount} linhas com erro` : ''),
+          s.errorCount > 0 ? 'error' : 'success'
+        )
+        mutateCampTotals()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Erro ao importar', 'error')
+      }
+    } finally {
+      stopLoading()
+      if (campFileInputRef.current) campFileInputRef.current.value = ''
     }
   }
 
@@ -128,6 +159,19 @@ export default function MembrosPage() {
                 type="file"
                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={handleImport}
+                className="hidden"
+              />
+            </label>
+            <label
+              title="SIIE › Elementos › Listagens › Atividades › Atividades por Elemento (exportar)"
+              className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
+            >
+              Importar noites de campo (SIIE)
+              <input
+                ref={campFileInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={handleImportCampNights}
                 className="hidden"
               />
             </label>
@@ -240,6 +284,9 @@ export default function MembrosPage() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {scout.numeroAssociado && <>Nº {scout.numeroAssociado} · </>}
                           Nascido em {new Date(scout.dateOfBirth).toLocaleDateString('pt-PT')}
+                          {campTotals?.[scout.id] != null && (
+                            <> · {campTotals[scout.id]} noites de campo</>
+                          )}
                         </p>
                       </div>
                       {user.role === 'ADMIN' && (

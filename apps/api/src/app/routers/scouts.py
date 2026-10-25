@@ -1,27 +1,63 @@
 import io
 import math
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from openpyxl import load_workbook  # type: ignore[import-untyped]
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.camp_nights import CampNightRow, map_camp_night_row, milestones_reached
+from app.core.document_utils import db_timestamp
 from app.core.scout_utils import NIGHTS_BADGE_COUNTS, is_nights_badge_count
 from app.core.siie_import import map_row
 from app.core.text_sort import name_key
-from app.db import get_session
+from app.db import atomic_batch, get_session
 from app.deps import AdminUser, CurrentUser
-from app.models import Profile, Scout, ScoutNightsBadge
+from app.models import Profile, Scout, ScoutCampNight, ScoutNightsBadge
 from app.models._columns import utcnow
 from app.models.enums import OrdemSection
-from app.schemas.scout import NightsBadgeOut, ScoutOut
+from app.models.ids import cuid_id
+from app.schemas.scout import (
+    CampNightMilestoneOut,
+    CampNightOut,
+    NightsBadgeOut,
+    ScoutCampNightsOut,
+    ScoutOut,
+)
 
 router = APIRouter(prefix="/scouts", tags=["scouts"])
+
+# Rows per multi-row INSERT: 10 params each, under D1's 100-parameter limit.
+_CAMP_ROWS_PER_INSERT = 9
+
+
+async def _read_sheet(file: UploadFile | None) -> list[dict[str, Any]]:
+    """First worksheet of an uploaded xlsx as dicts keyed by the header row."""
+    if file is None:
+        raise HTTPException(status_code=400, detail="Ficheiro não fornecido")
+    try:
+        content = await file.read()
+        workbook = load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+        if not workbook.worksheets:
+            raise HTTPException(status_code=400, detail="Folha vazia")
+        it = workbook.worksheets[0].iter_rows(values_only=True)
+        header = list(next(it, []))
+        return [
+            dict(zip(header, row, strict=False)) for row in it if any(v is not None for v in row)
+        ]
+    except HTTPException:
+        raise
+    except Exception as err:  # noqa: BLE001
+        raise HTTPException(
+            status_code=400, detail=f"Não foi possível ler o ficheiro: {err}"
+        ) from err
+
 
 # camelCase request key -> snake_case model attribute (optional string fields).
 _OPTIONAL_FIELDS = {
@@ -148,26 +184,7 @@ async def import_scouts(
     session: Annotated[Session, Depends(get_session)],
     file: Annotated[UploadFile | None, File()] = None,
 ) -> dict[str, Any]:
-    if file is None:
-        raise HTTPException(status_code=400, detail="Ficheiro não fornecido")
-
-    try:
-        content = await file.read()
-        workbook = load_workbook(io.BytesIO(content), data_only=True, read_only=True)
-        if not workbook.worksheets:
-            raise HTTPException(status_code=400, detail="Folha vazia")
-        sheet = workbook.worksheets[0]
-        it = sheet.iter_rows(values_only=True)
-        header = list(next(it, []))
-        records = [
-            dict(zip(header, row, strict=False)) for row in it if any(v is not None for v in row)
-        ]
-    except HTTPException:
-        raise
-    except Exception as err:  # noqa: BLE001
-        raise HTTPException(
-            status_code=400, detail=f"Não foi possível ler o ficheiro: {err}"
-        ) from err
+    records = await _read_sheet(file)
 
     summary: dict[str, Any] = {
         "total": len(records),
@@ -235,6 +252,131 @@ async def import_scouts(
             )
 
     return {"summary": summary}
+
+
+@router.post("/import-camp-nights")
+async def import_camp_nights(
+    admin: AdminUser,
+    session: Annotated[Session, Depends(get_session)],
+    file: Annotated[UploadFile | None, File()] = None,
+) -> dict[str, Any]:
+    """Import SIIE "Atividades por Elemento": each matched scout's rows are
+    replaced (SIIE is the source of truth); unknown NINs (e.g. former members)
+    are counted, not stored."""
+    records = await _read_sheet(file)
+    errors: list[dict[str, Any]] = []
+    by_nin: dict[str, dict[str, CampNightRow]] = {}
+    for i, record in enumerate(records):
+        mapped = map_camp_night_row(record, i + 2)
+        if not mapped.ok or mapped.payload is None:
+            errors.append({"row": mapped.row, "error": mapped.error})
+            continue
+        # Last row wins if SIIE lists the same participation twice.
+        by_nin.setdefault(mapped.payload.nin, {})[mapped.payload.activity_id] = mapped.payload
+
+    scout_ids: dict[str, str] = {
+        nin: scout_id
+        for nin, scout_id in session.execute(
+            select(Scout.numero_associado, Scout.id).where(Scout.numero_associado.is_not(None))
+        ).all()
+        if nin
+    }
+    now = db_timestamp(utcnow())
+    matched = 0
+    imported = 0
+    for nin, rows in by_nin.items():
+        scout_id = scout_ids.get(nin)
+        if scout_id is None:
+            continue
+        matched += 1
+        statements: list[tuple[str, Sequence[Any]]] = [
+            ('DELETE FROM scout_camp_nights WHERE "scoutId" = ?', (scout_id,))
+        ]
+        values = list(rows.values())
+        for start in range(0, len(values), _CAMP_ROWS_PER_INSERT):
+            chunk = values[start : start + _CAMP_ROWS_PER_INSERT]
+            placeholders = ", ".join("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" for _ in chunk)
+            params: list[Any] = []
+            for r in chunk:
+                params += [
+                    cuid_id(),
+                    scout_id,
+                    r.activity_id,
+                    r.description,
+                    r.activity_type,
+                    db_timestamp(r.start_date),
+                    db_timestamp(r.end_date) if r.end_date else None,
+                    r.nights,
+                    r.camp_nights,
+                    now,
+                ]
+            statements.append(
+                (
+                    'INSERT INTO scout_camp_nights (id, "scoutId", "activityId", description, '
+                    '"activityType", "startDate", "endDate", nights, "campNights", "createdAt") '
+                    f"VALUES {placeholders}",
+                    params,
+                )
+            )
+        atomic_batch(session, statements)
+        imported += len(values)
+
+    return {
+        "summary": {
+            "total": len(records),
+            "matchedScouts": matched,
+            "unmatchedMembers": len(by_nin) - matched,
+            "imported": imported,
+            "errors": errors[:50],
+            "errorCount": len(errors),
+        }
+    }
+
+
+@router.get("/camp-nights")
+async def camp_night_totals(
+    user: CurrentUser, session: Annotated[Session, Depends(get_session)]
+) -> dict[str, dict[str, int]]:
+    """Camp-night total per scout, for scouts with imported SIIE data."""
+    rows = session.execute(
+        select(ScoutCampNight.scout_id, func.sum(ScoutCampNight.camp_nights)).group_by(
+            ScoutCampNight.scout_id
+        )
+    ).all()
+    return {"totals": {scout_id: int(total or 0) for scout_id, total in rows}}
+
+
+@router.get("/{scout_id}/camp-nights")
+async def scout_camp_nights(
+    scout_id: str, user: CurrentUser, session: Annotated[Session, Depends(get_session)]
+) -> ScoutCampNightsOut:
+    rows = session.scalars(
+        select(ScoutCampNight)
+        .where(ScoutCampNight.scout_id == scout_id)
+        .order_by(ScoutCampNight.start_date.desc())
+    ).all()
+    recorded = {
+        b.count: b.awarded_at
+        for b in session.scalars(
+            select(ScoutNightsBadge).where(ScoutNightsBadge.scout_id == scout_id)
+        ).all()
+    }
+    milestones = [
+        CampNightMilestoneOut(
+            count=m.count,
+            reached_on=m.reached_on,
+            activity_id=m.activity_id,
+            description=m.description,
+            recorded_on=recorded.get(m.count),
+        )
+        for m in milestones_reached(list(rows))
+    ]
+    return ScoutCampNightsOut(
+        total=sum(r.camp_nights for r in rows),
+        activities=[CampNightOut.model_validate(r) for r in rows],
+        milestones=milestones,
+        imported_at=max((r.created_at for r in rows), default=None),
+    )
 
 
 @router.get("/{scout_id}")

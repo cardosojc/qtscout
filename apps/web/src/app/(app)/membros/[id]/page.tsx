@@ -8,7 +8,9 @@ import { useToast } from '@/components/ui/toast'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ScoutForm } from '@/components/membros/scout-form'
 import { NightsBadgesEditor } from '@/components/membros/nights-badges'
-import { useScout } from '@/lib/api-hooks'
+import { useScout, useScoutCampNights } from '@/lib/api-hooks'
+import { CampNightsHistory } from '@/components/membros/camp-nights-history'
+import type { NightsBadgeCount } from '@qtscout/types/scout'
 import {
   computeNoitesCampoAtual,
   NOITES_CAMPO_SNAPSHOT_DATE,
@@ -29,6 +31,12 @@ export default function MembroDetailPage() {
   const [snapshotEdit, setSnapshotEdit] = useState<string | null>(null)
   const snapshotInput = snapshotEdit ?? String(scout?.noitesCampoInicial ?? 0)
   const [savingSnapshot, setSavingSnapshot] = useState(false)
+  const { data: campNights } = useScoutCampNights(user ? id : undefined)
+  // Imported SIIE history (full, since the member joined) wins over the snapshot.
+  const siieTotal = campNights && campNights.activities.length > 0 ? campNights.total : null
+  const suggestedBadges = Object.fromEntries(
+    (campNights?.milestones ?? []).map((m) => [m.count, m.reachedOn.slice(0, 10)])
+  ) as Partial<Record<NightsBadgeCount, string>>
 
   const handleSaveSnapshot = async () => {
     setSavingSnapshot(true)
@@ -123,10 +131,18 @@ export default function MembroDetailPage() {
               Total atual
             </p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
-              {computeNoitesCampoAtual(scout)}
+              {computeNoitesCampoAtual(scout, siieTotal)}
               <span className="text-sm font-normal text-gray-500 dark:text-gray-400"> noites</span>
             </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {siieTotal != null
+                ? 'Calculado a partir das atividades registadas no SIIE.'
+                : 'Sem dados do SIIE: usa o snapshot abaixo. Importe as noites de campo na lista de Membros.'}
+            </p>
           </div>
+          {campNights && campNights.activities.length > 0 && <CampNightsHistory data={campNights} />}
+          {/* The manual snapshot only matters without SIIE data (SIIE's history is complete). */}
+          {siieTotal == null && (
           <div>
             <label className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
               Snapshot inicial ({NOITES_CAMPO_SNAPSHOT_DATE.split('-').reverse().join('/')})
@@ -158,14 +174,19 @@ export default function MembroDetailPage() {
               </p>
             )}
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Nº de noites acumuladas até esta data. O total atual junta este
-              valor à participação em atividades posteriores.
+              Nº de noites acumuladas até esta data, usado enquanto não houver
+              dados do SIIE para este membro.
             </p>
           </div>
+          )}
         </div>
 
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Insígnias</h3>
-        <NightsBadgesEditor scoutId={scout.id} canEdit={user?.role === 'ADMIN'} />
+        <NightsBadgesEditor
+          scoutId={scout.id}
+          canEdit={user?.role === 'ADMIN'}
+          suggested={suggestedBadges}
+        />
       </div>
     </main>
   )

@@ -8,6 +8,7 @@ import type {
   MeetingOut,
   MeetingTypeOut,
   NightsBadgeOut,
+  ScoutCampNightsOut,
   ScoutOut as Scout,
 } from '@/lib/api-schemas'
 import type { DocumentType } from '@qtscout/types/document'
@@ -101,6 +102,17 @@ export function useMeeting(id: string | undefined, enabled = true) {
 export const scoutKey = (id: string) => `/api/scouts/${id}`
 export function useScout<T = Scout>(id: string | undefined, enabled = true) {
   return useSWR<{ scout: T }>(enabled && id ? scoutKey(id) : null, DETAIL)
+}
+
+// Camp nights imported from SIIE ("Atividades por Elemento").
+export const campNightTotalsKey = '/api/scouts/camp-nights'
+export function useCampNightTotals(enabled = true) {
+  return useSWR<{ totals: Record<string, number> }>(enabled ? campNightTotalsKey : null)
+}
+
+export const campNightsKey = (scoutId: string) => `/api/scouts/${scoutId}/camp-nights`
+export function useScoutCampNights(scoutId: string | undefined) {
+  return useSWR<ScoutCampNightsOut>(scoutId ? campNightsKey(scoutId) : null, DETAIL)
 }
 
 export function useNightsBadges(scoutId: string) {
