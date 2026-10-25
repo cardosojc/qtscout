@@ -5,7 +5,9 @@ standalone Python service. See .env.example for the full list.
 """
 
 from functools import lru_cache
+from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,15 +19,18 @@ class Settings(BaseSettings):
     database_url: str
     direct_url: str
 
-    # Supabase auth.
-    supabase_url: str
-    supabase_publishable_key: str
-    supabase_secret_key: str
-    # When true (default), access tokens are verified offline against Supabase's
-    # JWKS (ES256) instead of via a per-request GET /auth/v1/user network call.
-    # Falls back to the network path on failure. Set false to force the API path
-    # (e.g. if you need server-side revocation to take effect immediately).
-    jwt_local_verify: bool = True
+    # Auth: Cloudflare Access (see app/auth.py). "access" verifies the Access JWT
+    # against the team JWKS + application audience. "dev" trusts every request as
+    # AUTH_DEV_EMAIL — local dev / Playwright only, never in production.
+    auth_mode: Literal["access", "dev"] = "access"
+    access_team_domain: str = ""  # e.g. snowy-hall-cc58.cloudflareaccess.com
+    access_aud: str = ""  # the Access application's AUD tag
+    auth_dev_email: str | None = None
+
+    # Access group membership management (user create/delete), app/access_admin.py.
+    cf_api_token: str | None = None
+    cf_account_id: str | None = None
+    access_group_id: str | None = None
 
     # AI (rich-text editor polish/formal features).
     mistral_api_key: str | None = None
@@ -35,6 +40,14 @@ class Settings(BaseSettings):
 
     # Server.
     port: int = 3001
+
+    @model_validator(mode="after")
+    def _check_auth(self) -> "Settings":
+        if self.auth_mode == "access" and not (self.access_team_domain and self.access_aud):
+            raise ValueError("AUTH_MODE=access requires ACCESS_TEAM_DOMAIN and ACCESS_AUD")
+        if self.auth_mode == "dev" and not self.auth_dev_email:
+            raise ValueError("AUTH_MODE=dev requires AUTH_DEV_EMAIL")
+        return self
 
     @property
     def cors_origins(self) -> list[str]:

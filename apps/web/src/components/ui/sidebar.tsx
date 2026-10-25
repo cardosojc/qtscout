@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
 import { preloadMeetings, preloadDocuments, preloadScouts } from '@/lib/api-hooks'
 import type { DocumentType } from '@qtscout/types/document'
@@ -128,15 +128,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ enabledDocTypes }: SidebarProps) {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, denied, signOut } = useAuth()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleSignOut = async () => {
     await signOut()
-    router.push('/auth/signin')
   }
 
   const { oficio, circular, ordem } = enabledDocTypes
@@ -284,13 +282,9 @@ export function Sidebar({ enabledDocTypes }: SidebarProps) {
             )
           })
         ) : (
-          <Link
-            href="/auth/signin"
-            onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-blue-100 dark:text-gray-300 hover:bg-blue-500 dark:hover:bg-gray-700 hover:text-white transition-colors"
-          >
-            Entrar
-          </Link>
+          <p className="px-3 py-2.5 text-sm text-blue-100 dark:text-gray-300">
+            {denied ? 'Sem acesso a esta aplicação. Contacte um administrador.' : null}
+          </p>
         )}
       </nav>
 

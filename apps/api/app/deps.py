@@ -6,11 +6,11 @@ The hydrated `SessionUser` mirrors `c.get('session').user`.
 
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException
-from sqlalchemy import select
+from fastapi import Cookie, Depends, Header, HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import bearer_from_header, verify_supabase_token
+from app.auth import ACCESS_JWT_COOKIE, identify
 from app.db import get_session
 from app.models import Profile
 from app.models.enums import UserRole
@@ -19,17 +19,17 @@ from app.schemas.session import SessionUser
 
 async def current_user(
     session: Annotated[AsyncSession, Depends(get_session)],
-    authorization: Annotated[str | None, Header()] = None,
+    cf_access_jwt_assertion: Annotated[str | None, Header()] = None,
+    cf_authorization: Annotated[str | None, Cookie(alias=ACCESS_JWT_COOKIE)] = None,
 ) -> SessionUser:
-    token = bearer_from_header(authorization)
-    if not token:
+    email = await identify(cf_access_jwt_assertion, cf_authorization)
+    if not email:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    sb_user = await verify_supabase_token(token)
-    if not sb_user:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    profile = await session.scalar(select(Profile).where(Profile.id == sb_user["id"]))
+    # Access authenticates the email; the profile authorizes it. An email that
+    # passed Access but has no profile is signed in yet has no access to the app.
+    profile = await session.scalar(select(Profile).where(func.lower(Profile.email) == email))
     if profile is None:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=403, detail="Sem acesso a esta aplicação")
     return SessionUser(
         id=profile.id,
         email=profile.email,

@@ -9,16 +9,17 @@ jobs:
     timeout-minutes: 20
 
     env:
-      # Web + e2e setup (Supabase admin to seed the test user)
+      # e2e setup seeds the test profile via the Supabase service role (DB only)
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-      # FastAPI backend (started by the Playwright webServer) reads these names
+      # Web proxies same-origin /api/* to the local API
+      API_ORIGIN: http://localhost:3001
+      # FastAPI backend (started by the Playwright webServer). No Cloudflare
+      # Access on localhost: dev auth mode, as the e2e test user.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DIRECT_URL: ${{ secrets.DIRECT_URL }}
-      SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      AUTH_MODE: dev
+      AUTH_DEV_EMAIL: e2e-test@qtscout.test
       WEB_ORIGIN: http://localhost:3000
 
     steps:

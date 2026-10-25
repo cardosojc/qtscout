@@ -36,12 +36,13 @@ export default defineConfig({
     },
   ],
 
-  // Start both the web app (:3000) and the FastAPI backend (:3001). The web's
-  // NEXT_PUBLIC_API_URL must point at http://localhost:3001 (apps/web/.env.local
-  // locally; the job env in CI).
+  // Start both the web app (:3000) and the FastAPI backend (:3001). The web
+  // proxies /api/* to API_ORIGIN (http://localhost:3001); the API runs with
+  // AUTH_MODE=dev as the e2e user since there is no Cloudflare Access locally.
   webServer: [
     {
       command: 'npm run dev',
+      env: { API_ORIGIN: process.env.API_ORIGIN ?? 'http://localhost:3001' },
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
@@ -49,6 +50,7 @@ export default defineConfig({
     {
       command: 'uv run uvicorn app.main:app --port 3001',
       cwd: 'apps/api',
+      env: { AUTH_MODE: 'dev', AUTH_DEV_EMAIL: process.env.E2E_TEST_EMAIL ?? 'e2e-test@qtscout.test' },
       url: 'http://localhost:3001/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,

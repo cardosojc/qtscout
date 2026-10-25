@@ -1,15 +1,15 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.access_admin import grant_access, revoke_access
 from app.db import get_session
 from app.deps import AdminUser
 from app.models import Profile
 from app.models.enums import UserRole
 from app.schemas.user import UserOut
-from app.supabase_admin import delete_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -22,6 +22,45 @@ async def list_users(
 ) -> dict[str, list[UserOut]]:
     result = await session.scalars(select(Profile).order_by(Profile.created_at.asc()))
     return {"users": [UserOut.model_validate(p) for p in result.all()]}
+
+
+@router.post("", status_code=201)
+async def create_user(
+    admin: AdminUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    payload: Annotated[dict[str, Any], Body()],
+) -> dict[str, Any]:
+    """Give someone access: a profile row + their email in the Access group.
+
+    There are no passwords — the person signs in with a one-time PIN sent to
+    this email by Cloudflare Access.
+    """
+    email = (payload.get("email") or "").strip().lower()
+    name = (payload.get("name") or "").strip()
+    username = (payload.get("username") or "").strip()
+    role = payload.get("role") or "MEMBER"
+
+    if not email or not name or not username:
+        raise HTTPException(status_code=400, detail="Todos os campos são obrigatórios")
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Email inválido")
+    if role not in _VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Papel inválido")
+    if await session.scalar(select(Profile).where(Profile.username == username)):
+        raise HTTPException(status_code=400, detail="Nome de utilizador já existe")
+    if await session.scalar(select(Profile).where(func.lower(Profile.email) == email)):
+        raise HTTPException(status_code=400, detail="Email já está registado")
+
+    # Grant Access first: if it fails, no orphan profile is left behind.
+    error = await grant_access(email)
+    if error:
+        raise HTTPException(status_code=502, detail=error)
+
+    profile = Profile(username=username, email=email, name=name, role=UserRole(role))
+    session.add(profile)
+    await session.commit()
+    await session.refresh(profile)
+    return {"message": "Utilizador criado com sucesso", "user": UserOut.model_validate(profile)}
 
 
 @router.patch("/{user_id}")
@@ -53,11 +92,12 @@ async def delete_user_route(
 ) -> dict[str, str]:
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Não pode eliminar a sua própria conta")
-    error = await delete_user(user_id)
-    if error:
-        raise HTTPException(status_code=500, detail=error)
     profile = await session.scalar(select(Profile).where(Profile.id == user_id))
-    if profile is not None:
-        await session.delete(profile)
-        await session.commit()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    error = await revoke_access(profile.email)
+    if error:
+        raise HTTPException(status_code=502, detail=error)
+    await session.delete(profile)
+    await session.commit()
     return {"message": "Utilizador eliminado"}

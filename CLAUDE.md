@@ -7,13 +7,13 @@ or files unless asked.
 ## Monorepo
 
 npm workspaces + Turborepo for the TS side; the backend is a standalone
-**FastAPI (Python)** service that the Next.js UI talks to over `fetch` + Bearer
-token. (The backend was previously a Hono/TS API — fully rewritten in Python;
+**FastAPI (Python)** service that the Next.js UI reaches through a same-origin
+`/api` proxy, behind Cloudflare Access. (The backend was previously a Hono/TS API — fully rewritten in Python;
 see `apps/api/DEPLOY.md` and the git history.)
 
 - `apps/web` — Next.js 15 UI (no DB / business logic). Calls the API via
-  `apiFetch()` (`apps/web/src/lib/api-client.ts`); base URL is
-  `NEXT_PUBLIC_API_URL`.
+  `apiFetch()` (`apps/web/src/lib/api-client.ts`) on same-origin `/api/*`,
+  proxied to `API_ORIGIN`.
 - `apps/api/` — **FastAPI service** (Python, `uv`). All endpoints under `/api/*`.
   Deployed as a Docker container on **Railway** (web stays on Vercel).
 - `packages/types` (`@qtscout/types`) — the only shared TS package: pure types
@@ -45,32 +45,36 @@ aliases. Internal TS packages ship raw TS (no build); web consumes them via
 - **Web** (root): `npm run dev` (web :3000 only now), `npm run build`,
   `npm run typecheck` (fastest signal), `npm run lint`, `npm run test:e2e`,
   `npm run gen:api-types` (regenerate FE types after the API contract changes).
-- **Local full stack**: run the API (`uv run uvicorn …`) and point the web's
-  `NEXT_PUBLIC_API_URL` at `http://localhost:3001`, or at the Railway URL.
+- **Local full stack**: run the API with `AUTH_MODE=dev AUTH_DEV_EMAIL=<you>`
+  (`uv run uvicorn …`) and the web with `API_ORIGIN=http://localhost:3001`.
 
 ## Auth
 
-One identity (Supabase), two transports: cookies for the web shell, **Bearer
-tokens** for the API.
+**Cloudflare Access** (one-time PIN by email; no passwords). Web and API share
+one hostname behind an Access application; the web proxies same-origin
+`/api/*` to the API (`rewrites()` in `apps/web/next.config.ts`, target
+`API_ORIGIN`), so the browser's Access cookie/JWT reaches the API and there is
+no CORS or client-side token.
 
 - API: routes depend on `CurrentUser` / `AdminUser` (`apps/api/app/deps.py`).
-  `current_user` extracts the Bearer token and verifies it **offline against
-  Supabase's JWKS** (ES256; keys fetched once + cached, warmed at startup),
-  falling back to `GET {SUPABASE_URL}/auth/v1/user` when `jwt_local_verify` is
-  off or local verification fails (`apps/api/app/auth.py`). It then loads the
-  `Profile` by id (`sub`) and returns `SessionUser {id, email, name, username,
-  role}`. Offline verification can't see server-side revocation until the
-  short-lived token expires — set `JWT_LOCAL_VERIFY=false` to force the API path.
-  `AdminUser` adds the ADMIN check. Errors render as `{"error": ...}` to match
-  the old API (exception handler in `app/main.py`).
-- Client: `const { user, loading, signOut } = useAuth()` from
-  `apps/web/src/components/providers/auth-provider.tsx`. All data calls go
-  through `apiFetch()`, which attaches the Supabase access token as Bearer.
+  `current_user` takes the `Cf-Access-Jwt-Assertion` header (or the
+  `CF_Authorization` cookie), verifies it **offline against the Access team
+  JWKS** (RS256 + application `ACCESS_AUD` + issuer; `apps/api/app/auth.py`),
+  then loads the `Profile` **by email** (401 no/invalid token, 403 no profile)
+  and returns `SessionUser {id, email, name, username, role}`. `AdminUser` adds
+  the ADMIN check. Errors render as `{"error": ...}` (handler in `app/main.py`).
+- `AUTH_MODE=dev` + `AUTH_DEV_EMAIL` skips Access and treats every request as
+  that email — local dev and Playwright only (no Access on localhost). Never in
+  production; settings validation requires the Access vars in `access` mode.
+- Who may sign in = the Access group `qtscout-users` (email include-list).
+  ADMIN user create/delete (`POST/DELETE /api/users`) adds/removes the email via
+  the Cloudflare API (`apps/api/app/access_admin.py`; `CF_API_TOKEN`,
+  `CF_ACCOUNT_ID`, `ACCESS_GROUP_ID`). There is no self-registration.
+- Client: `const { user, loading, denied, signOut } = useAuth()` from
+  `apps/web/src/components/providers/auth-provider.tsx`; `signOut` goes to
+  `/cdn-cgi/access/logout`. `apiFetch()` is a same-origin fetch that reloads the
+  page when an expired Access session redirects an API call to the login.
 - **No authZ middleware** beyond the deps — handlers check `user.role` directly.
-- Supabase service-role admin ops (user create/delete) go through
-  `apps/api/app/supabase_admin.py` (GoTrue REST, `SUPABASE_SECRET_KEY`).
-- Two endpoints stay in the web app (cookie/email-redirect recovery flow):
-  `POST /api/auth/{forgot,reset}-password`.
 
 ## Database / SQLAlchemy + Alembic — read carefully
 
@@ -199,12 +203,11 @@ profile emails → **per-row upsert** with per-row commit + try/except.
 
 - `apps/web/src/app/(app)/` — authenticated pages (`meetings/`, `documents/`,
   `ordem-servico/`, `membros/`, `profile/`, `settings/`, `search/`).
-- `apps/web/src/app/api/` — ONLY `auth/{forgot,reset}-password` (recovery flow).
 - `apps/web/src/lib/` — `api-client` (apiFetch), `api-hooks` (SWR),
-  `api-types`/`api-schemas` (generated), `supabase/`, `flags`.
+  `api-types`/`api-schemas` (generated), `flags`.
 - `apps/api/app/routers/` — one router per domain (13). `apps/api/app/{models,schemas}/`,
   `apps/api/app/core/` (ordem_*, siie_*, document_utils, scout_utils, leader_roles),
-  `apps/api/app/pdf/`, `apps/api/app/{deps,auth,supabase_admin,db,config,main}.py`.
+  `apps/api/app/pdf/`, `apps/api/app/{deps,auth,access_admin,db,config,main}.py`.
 - `apps/api/migrations/` — Alembic. `apps/api/scripts/` — `parity_check.py`,
   `export_openapi.py`. `apps/api/DEPLOY.md` — the cutover runbook.
 - `packages/types/src/` — domain types + FE runtime helpers.
@@ -224,14 +227,15 @@ profile emails → **per-row upsert** with per-row commit + try/except.
 - API: FastAPI path/query params via function signature; raw bodies validated
   manually for pt-PT 400 messages (`Annotated[dict, Body()]`). Web page dynamic
   params are Promises: `{ params }: { params: Promise<{ id: string }> }`.
-- Web data fetching goes through `apiFetch()` (Bearer) / SWR hooks, never
-  relative `fetch('/api/...')` — the routes live in the FastAPI service.
-- API auth is Bearer-only via `CurrentUser`/`AdminUser`.
+- Web data fetching goes through `apiFetch()` / SWR hooks (same-origin
+  `/api/...`, proxied to the FastAPI service — no Next route handlers).
+- API auth is the Access JWT via `CurrentUser`/`AdminUser`.
 - `useAuth()`'s `user.role` is `'ADMIN' | 'LEADER' | 'MEMBER'`, separate from
   `Profile.roles[]` (human-readable leader role labels).
 - The OS **catalog is duplicated** (Python BE + TS FE) — keep both in sync.
-- E2E tests in `e2e/` use Playwright with a shared `storageState`; test user is
-  `e2e-test@qtscout.test`. They drive the web UI → the live FastAPI backend.
+- E2E tests in `e2e/` use Playwright; the API runs with `AUTH_MODE=dev` as the
+  test user `e2e-test@qtscout.test` (profile seeded by `global.setup.ts`). They
+  drive the web UI → a local FastAPI backend on the real database.
 - Full-text search on Meetings uses a Portuguese `tsvector` column + GIN index
   (raw SQL in `apps/api/app/routers/search.py`).
 - Old OS documents with the legacy JSON shape still render — the OS body

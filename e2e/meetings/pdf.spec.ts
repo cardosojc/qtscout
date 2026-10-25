@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { createTestMeeting } from '../helpers/meeting'
 import { MEETING_DATA } from '../helpers/fixtures'
-import { API_BASE, getAccessToken } from '../helpers/auth'
 
 test.describe('PDF Generation', () => {
   let meetingUrl: string
@@ -89,12 +88,9 @@ test.describe('PDF Generation', () => {
     expect(filename).toMatch(/\.pdf$/)
   })
 
-  test('PDF API returns valid PDF content-type', async ({ page, context }) => {
-    // The PDF endpoint lives on the standalone API and is Bearer-authenticated.
-    const token = await getAccessToken(context)
-    const response = await page.request.get(`${API_BASE}/api/meetings/${meetingId}/pdf`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+  test('PDF API returns valid PDF content-type', async ({ page }) => {
+    // Same-origin /api is proxied to the API; locally it runs with AUTH_MODE=dev.
+    const response = await page.request.get(`/api/meetings/${meetingId}/pdf`)
 
     expect(response.status()).toBe(200)
     expect(response.headers()['content-type']).toBe('application/pdf')

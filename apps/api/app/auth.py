@@ -1,18 +1,21 @@
-"""Supabase Bearer-token verification.
+"""Cloudflare Access identity verification.
 
-Fast path: verify the access token offline against Supabase's asymmetric signing
-keys (ES256, served at the JWKS endpoint). The keys are fetched once and cached,
-so per-request auth no longer makes a network round-trip. Falls back to the
-Supabase Auth API (`GET /auth/v1/user`) when local verification is disabled or
-fails — the API path additionally catches server-side revocation, which offline
-verification cannot until the (short-lived) token expires.
+The web and the API share one hostname behind a Cloudflare Access application.
+After the user signs in (one-time PIN by email), Access attaches a signed JWT to
+every request: the `Cf-Access-Jwt-Assertion` header, plus the `CF_Authorization`
+cookie. We verify it offline against the team's JWKS (RS256, keys fetched once
+and cached) and check the application audience, so per-request auth makes no
+network round-trip. The verified email is the identity; `deps.current_user`
+maps it to a `Profile`.
+
+`AUTH_MODE=dev` skips Access entirely and authenticates every request as
+`AUTH_DEV_EMAIL` — for local development and the Playwright suite, where there
+is no Access in front of localhost. Never set it in production.
 """
 
 import asyncio
-import re
 from typing import Any
 
-import httpx
 import jwt
 from jwt import PyJWKClient
 
@@ -20,84 +23,57 @@ from app.config import get_settings
 
 settings = get_settings()
 
-_BEARER = re.compile(r"^Bearer\s+(.+)$", re.IGNORECASE)
-_http = httpx.AsyncClient(timeout=10.0)
+ACCESS_JWT_HEADER = "cf-access-jwt-assertion"
+ACCESS_JWT_COOKIE = "CF_Authorization"
 
-# Supabase serves its JWT signing keys (ES256) at this JWKS URL; PyJWKClient
-# caches them after the first fetch so verification is offline thereafter.
-_SUPABASE_BASE = settings.supabase_url.rstrip("/")
-_JWKS_URL = f"{_SUPABASE_BASE}/auth/v1/.well-known/jwks.json"
-_ISSUER = f"{_SUPABASE_BASE}/auth/v1"
-_jwks_client = PyJWKClient(_JWKS_URL)
-
-
-def bearer_from_header(auth_header: str | None) -> str | None:
-    """Extract the raw token from an `Authorization: Bearer <jwt>` header value."""
-    if not auth_header:
-        return None
-    match = _BEARER.match(auth_header.strip())
-    return match.group(1) if match else None
+_jwks_client: PyJWKClient | None = (
+    PyJWKClient(f"https://{settings.access_team_domain}/cdn-cgi/access/certs")
+    if settings.auth_mode == "access"
+    else None
+)
 
 
-def _verify_jwt_local(token: str) -> dict[str, Any] | None:
-    """Verify the token offline via JWKS; return `{id, email}` or None.
+def _verify_access_jwt(token: str) -> str | None:
+    """Verify an Access JWT offline via JWKS; return the lower-cased email or None.
 
     Synchronous (PyJWT + cached JWKS); run via a thread so a rare cache-miss
     JWKS fetch doesn't block the event loop.
     """
+    if _jwks_client is None:
+        return None
     try:
         signing_key = _jwks_client.get_signing_key_from_jwt(token)
-        claims = jwt.decode(
+        claims: dict[str, Any] = jwt.decode(
             token,
             signing_key.key,
-            algorithms=["ES256"],
-            audience="authenticated",
-            issuer=_ISSUER,
+            algorithms=["RS256"],
+            audience=settings.access_aud,
+            issuer=f"https://{settings.access_team_domain}",
         )
     except Exception:
         return None
-    sub = claims.get("sub")
-    if not isinstance(sub, str) or not sub:
+    email = claims.get("email")
+    if not isinstance(email, str) or not email:
+        # Service-token JWTs carry no email; they are not user sessions.
         return None
-    return {"id": sub, "email": claims.get("email")}
+    return email.strip().lower()
 
 
-async def _verify_via_api(token: str) -> dict[str, Any] | None:
-    """Validate the token against the Supabase Auth API (network fallback)."""
-    try:
-        resp = await _http.get(
-            f"{_SUPABASE_BASE}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": settings.supabase_publishable_key,
-            },
-        )
-    except httpx.HTTPError:
+async def identify(header_token: str | None, cookie_token: str | None) -> str | None:
+    """Return the authenticated email for this request, or None."""
+    if settings.auth_mode == "dev":
+        return settings.auth_dev_email.strip().lower() if settings.auth_dev_email else None
+    token = header_token or cookie_token
+    if not token:
         return None
-    if resp.status_code != 200:
-        return None
-    data: dict[str, Any] = resp.json()
-    return data
-
-
-async def verify_supabase_token(token: str) -> dict[str, Any] | None:
-    """Return the Supabase user dict for a valid access token, else None."""
-    if settings.jwt_local_verify:
-        local = await asyncio.to_thread(_verify_jwt_local, token)
-        if local is not None:
-            return local
-    return await _verify_via_api(token)
+    return await asyncio.to_thread(_verify_access_jwt, token)
 
 
 async def prefetch_jwks() -> None:
     """Warm the JWKS cache at startup (best-effort)."""
-    if not settings.jwt_local_verify:
+    if _jwks_client is None:
         return
     try:
         await asyncio.to_thread(_jwks_client.get_signing_keys)
     except Exception:
         pass
-
-
-async def close_http() -> None:
-    await _http.aclose()
