@@ -1,7 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useLoading } from '@/components/ui/loading-overlay'
@@ -12,6 +12,7 @@ import { DOCUMENT_TYPE_LABELS, type Document } from '@qtscout/types/document'
 import { highestRole } from '@qtscout/types/leader-role'
 import { OrdemServicoView } from '@/components/documents/ordem-servico-view'
 import { parseOrdemServicoData } from '@qtscout/types/ordem-servico'
+import { loadErrorMessage, useDocument } from '@/lib/api-hooks'
 
 export default function DocumentDetailPage() {
   const { user: session } = useAuth()
@@ -21,34 +22,12 @@ export default function DocumentDetailPage() {
   const { startLoading, stopLoading } = useLoading()
   const { showToast, showConfirm } = useToast()
 
-  const [document, setDocument] = useState<Document | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: document, error: loadError, isLoading: loading, mutate } = useDocument<Document>(
+    docId,
+    !!session,
+  )
+  const error = loadErrorMessage(loadError, 'Documento não encontrado', 'Erro ao carregar documento')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-
-  const fetchDocument = useCallback(async () => {
-    startLoading('A carregar documento...')
-    try {
-      setLoading(true)
-      const res = await apiFetch(`/api/documents/${docId}`)
-      if (res.ok) {
-        setDocument(await res.json())
-      } else if (res.status === 404) {
-        setError('Documento não encontrado')
-      } else {
-        setError('Erro ao carregar documento')
-      }
-    } catch {
-      setError('Erro ao carregar documento')
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }, [docId, startLoading, stopLoading])
-
-  useEffect(() => {
-    if (session && docId) fetchDocument()
-  }, [session, docId, fetchDocument])
 
   const handleSign = async () => {
     if (!document) return
@@ -57,7 +36,7 @@ export default function DocumentDetailPage() {
       const res = await apiFetch(`/api/documents/${document.id}/sign`, { method: 'POST' })
       if (res.ok) {
         showToast('Documento assinado', 'success')
-        await fetchDocument()
+        await mutate()
       } else {
         const data = await res.json().catch(() => ({}))
         showToast(data.error || 'Erro ao assinar', 'error')
@@ -80,7 +59,7 @@ export default function DocumentDetailPage() {
       const res = await apiFetch(`/api/documents/${document.id}/sign`, { method: 'DELETE' })
       if (res.ok) {
         showToast('Assinatura removida', 'success')
-        await fetchDocument()
+        await mutate()
       } else {
         const data = await res.json().catch(() => ({}))
         showToast(data.error || 'Erro ao remover assinatura', 'error')

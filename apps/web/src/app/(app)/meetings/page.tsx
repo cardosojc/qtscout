@@ -1,7 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
@@ -17,14 +17,18 @@ export default function MeetingsPage() {
   const { showToast, showConfirm } = useToast()
   const { startLoading, stopLoading } = useLoading()
   const router = useRouter()
-  const [currentPage, setCurrentPage] = useState(1)
   const [anoEscutista, setAnoEscutista] = useState<number | null>(getCurrentAnoEscutista().startYear)
 
   const from = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).from : ''
   const to   = anoEscutista != null ? getAnoEscutistaRange(anoEscutista).to   : ''
 
-  // Reset to the first page whenever the ano escutista filter changes.
-  useEffect(() => { setCurrentPage(1) }, [from, to])
+  // The page belongs to the ano escutista it was picked under: a new filter
+  // starts again at page 1.
+  const filterKey = `${from}|${to}`
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 })
+  const currentPage = pageState.key === filterKey ? pageState.page : 1
+  const setCurrentPage = (next: number | ((page: number) => number)) =>
+    setPageState({ key: filterKey, page: typeof next === 'function' ? next(currentPage) : next })
 
   // SWR caches by URL: returning to this page renders instantly from cache and
   // revalidates in the background instead of showing a blank spinner.

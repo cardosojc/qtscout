@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useSyncExternalStore } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -11,40 +11,41 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light')
-  const [mounted, setMounted] = useState(false)
+// The theme lives in localStorage (falling back to the system preference); a
+// same-tab event tells subscribers when toggleTheme changes it.
+const THEME_EVENT = 'qtscout-theme'
 
-  // Load theme from localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme) {
-      setTheme(savedTheme)
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark')
-    }
-    setMounted(true)
-  }, [])
+function readTheme(): Theme {
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light' || saved === 'dark') return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function subscribe(onChange: () => void) {
+  window.addEventListener('storage', onChange)
+  window.addEventListener(THEME_EVENT, onChange)
+  return () => {
+    window.removeEventListener('storage', onChange)
+    window.removeEventListener(THEME_EVENT, onChange)
+  }
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // null on the server: the theme is only known in the browser.
+  const theme = useSyncExternalStore<Theme | null>(subscribe, readTheme, () => null)
 
   // Apply theme to document
   useEffect(() => {
-    if (mounted) {
-      const root = document.documentElement
-      if (theme === 'dark') {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
-      localStorage.setItem('theme', theme)
-    }
-  }, [theme, mounted])
+    if (theme) document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+    localStorage.setItem('theme', theme === 'dark' ? 'light' : 'dark')
+    window.dispatchEvent(new Event(THEME_EVENT))
   }
 
   // Prevent hydration mismatch
-  if (!mounted) {
+  if (!theme) {
     return null
   }
 

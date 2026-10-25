@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch } from '@/lib/api-client'
+import { useMeetingTypes } from '@/lib/api-hooks'
 
 import { useState, useEffect, useRef } from 'react'
 import { RichTextEditor } from '@/components/editor/rich-text-editor-dynamic'
@@ -129,7 +129,8 @@ function ensureFixedItems(items: AgendaItem[]): AgendaItem[] {
 }
 
 export function MeetingForm({ title, submitLabel, submittingLabel, initialData, onSubmit, onCancel, onAutoSave }: MeetingFormProps) {
-  const [meetingTypes, setMeetingTypes] = useState<ExtendedMeetingType[]>([])
+  const { data: meetingTypesData } = useMeetingTypes()
+  const meetingTypes = (meetingTypesData ?? []) as ExtendedMeetingType[]
   const { startLoading, stopLoading } = useLoading()
 
   const [selectedMeetingType, setSelectedMeetingType] = useState(initialData?.meetingTypeId ?? '')
@@ -148,37 +149,17 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
   const [newAgendaTitle, setNewAgendaTitle] = useState('')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
-  // Autosave
-  const lastSavedRef = useRef<string>('')
+  // Autosave. The baseline is the loaded meeting, so opening it doesn't save.
+  // initialData is read only at mount: the edit page keys this form by meeting id.
+  const lastSavedRef = useRef<string>(
+    initialData
+      ? JSON.stringify({ ...initialData, agendaItems: ensureFixedItems(initialData.agendaItems) })
+      : ''
+  )
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const savedStatusTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [submitting, setSubmitting] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-
-  useEffect(() => {
-    apiFetch('/api/meeting-types')
-      .then(res => res.ok ? res.json() : [])
-      .then(setMeetingTypes)
-      .catch(() => {})
-  }, [])
-
-  // Sync when initialData changes (e.g. after async load in edit page)
-  useEffect(() => {
-    if (initialData) {
-      setSelectedMeetingType(initialData.meetingTypeId)
-      setDate(initialData.date)
-      setStartTime(initialData.startTime)
-      setEndTime(initialData.endTime)
-      setLocation(initialData.location)
-      setAttendees(initialData.attendees)
-      setChefeAgrupamento(initialData.chefeAgrupamento)
-      setSecretario(initialData.secretario)
-      setAgendaItems(ensureFixedItems(initialData.agendaItems))
-      lastSavedRef.current = JSON.stringify({
-        ...initialData,
-        agendaItems: ensureFixedItems(initialData.agendaItems),
-      })
-    }
-  }, [initialData])
 
   const addAttendee = () => {
     if (newAttendee.trim() && !attendees.includes(newAttendee.trim())) {
@@ -296,9 +277,10 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedMeetingType || !date) return
+    if (!selectedMeetingType || !date || submitting) return
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    setSubmitting(true)
     startLoading('A guardar...')
     try {
       await onSubmit({
@@ -313,6 +295,7 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
         secretario,
       })
     } finally {
+      setSubmitting(false)
       stopLoading()
     }
   }
@@ -574,10 +557,10 @@ export function MeetingForm({ title, submitLabel, submittingLabel, initialData, 
         <div className="flex gap-4">
           <button
             type="submit"
-            disabled={!selectedMeetingType || !date}
+            disabled={!selectedMeetingType || !date || submitting}
             className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
           >
-            {submitLabel}
+            {submitting ? submittingLabel : submitLabel}
           </button>
           <button
             type="button"

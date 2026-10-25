@@ -1,7 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api-client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useToast } from '@/components/ui/toast'
@@ -9,45 +9,57 @@ import { useLoading } from '@/components/ui/loading-overlay'
 import { RichTextEditor } from '@/components/editor/rich-text-editor-dynamic'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { DOCUMENT_TYPE_LABELS, type Document } from '@qtscout/types/document'
+import { documentKey, refreshCached, useDocument } from '@/lib/api-hooks'
 
 export default function EditDocumentPage() {
   const { user: session } = useAuth()
   const params = useParams()
   const router = useRouter()
   const docId = params.id as string
+
+  const { data: document, error } = useDocument<Document>(docId, !!session)
+
+  // OS documents are generated from items and are not editable here.
+  const isOrdemServico = document?.type === 'ORDEM_SERVICO'
+  useEffect(() => {
+    if (isOrdemServico) router.replace(`/documents/${docId}`)
+  }, [isOrdemServico, docId, router])
+
+  if (!session) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <p>Precisa fazer login.</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <p className="text-red-500">Erro ao carregar documento</p>
+      </div>
+    )
+  }
+
+  if (!document || isOrdemServico) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
+      </div>
+    )
+  }
+
+  // Keyed by id so the editor's state starts from this document's content.
+  return <EditDocumentForm key={document.id} document={document} />
+}
+
+function EditDocumentForm({ document }: { document: Document }) {
+  const router = useRouter()
+  const docId = document.id
   const { showToast } = useToast()
   const { startLoading, stopLoading } = useLoading()
-
-  const [document, setDocument] = useState<Document | null>(null)
-  const [content, setContent] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [content, setContent] = useState(document.content)
   const [submitting, setSubmitting] = useState(false)
-
-  const fetchDocument = useCallback(async () => {
-    startLoading('A carregar documento...')
-    try {
-      const res = await apiFetch(`/api/documents/${docId}`)
-      if (res.ok) {
-        const doc = await res.json()
-        if (doc.type === 'ORDEM_SERVICO') {
-          // OS documents are generated from items and are not editable here.
-          router.replace(`/documents/${doc.id}`)
-          return
-        }
-        setDocument(doc)
-        setContent(doc.content)
-      }
-    } catch {
-      showToast('Erro ao carregar documento', 'error')
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }, [docId, router, showToast, startLoading, stopLoading])
-
-  useEffect(() => {
-    if (session && docId) fetchDocument()
-  }, [session, docId, fetchDocument])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,6 +76,7 @@ export default function EditDocumentPage() {
 
       if (res.ok) {
         showToast('Documento guardado', 'success')
+        await refreshCached(documentKey(docId))
         router.push(`/documents/${docId}`)
       } else {
         const data = await res.json()
@@ -75,22 +88,6 @@ export default function EditDocumentPage() {
       setSubmitting(false)
       stopLoading()
     }
-  }
-
-  if (!session) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-        <p>Precisa fazer login.</p>
-      </div>
-    )
-  }
-
-  if (loading || !document) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-        <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
-      </div>
-    )
   }
 
   return (

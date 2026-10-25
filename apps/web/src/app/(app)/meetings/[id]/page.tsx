@@ -16,52 +16,23 @@ interface AgendaItem {
   actionItems?: AgendaActionItem[]
 }
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useLoading } from '@/components/ui/loading-overlay'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
-import type { MeetingOut as Meeting } from '@/lib/api-schemas'
+import { loadErrorMessage, useMeeting } from '@/lib/api-hooks'
 
 export default function MeetingDetailPage() {
   const { user: session } = useAuth()
   const params = useParams()
   const meetingId = params.id as string
 
-  const [meeting, setMeeting] = useState<Meeting | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: meeting, error: loadError, isLoading: loading } = useMeeting(meetingId, !!session)
+  const error = loadErrorMessage(loadError, 'Reunião não encontrada', 'Erro ao carregar reunião')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const { startLoading, stopLoading } = useLoading()
-
-  const fetchMeeting = useCallback(async () => {
-    startLoading('A carregar reunião...')
-    try {
-      setLoading(true)
-      const response = await apiFetch(`/api/meetings/${meetingId}`)
-      if (response.ok) {
-        const meetingData = await response.json()
-        setMeeting(meetingData)
-      } else if (response.status === 404) {
-        setError('Reunião não encontrada')
-      } else {
-        setError('Erro ao carregar reunião')
-      }
-    } catch (error) {
-      console.error('Error fetching meeting:', error)
-      setError('Erro ao carregar reunião')
-    } finally {
-      setLoading(false)
-      stopLoading()
-    }
-  }, [meetingId, startLoading, stopLoading])
-
-  useEffect(() => {
-    if (session && meetingId) {
-      fetchMeeting()
-    }
-  }, [session, meetingId, fetchMeeting])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-PT', {
