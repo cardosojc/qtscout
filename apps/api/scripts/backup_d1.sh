@@ -3,6 +3,9 @@
 #
 #   apps/api/scripts/backup_d1.sh [DIR]     (default: ~/qtscout-backups)
 #
+# Keeps the newest $KEEP exports (default 12) and deletes older ones. Runs weekly
+# on this Mac via launchd once scripts/install_backup_schedule.sh is run.
+#
 # D1 Time Travel already restores any minute of the last 30 days; this is the
 # off-platform copy. The file holds personal data: keep DIR private.
 #
@@ -22,6 +25,14 @@ tables=$(npx wrangler d1 execute qtscout --remote --json --command \
   | python3 -c 'import sys, json; print(" ".join(r["name"] for r in json.load(sys.stdin)[0]["results"]))')
 args=()
 for t in $tables; do args+=(--table "$t"); done
-npx wrangler d1 export qtscout --remote --output "$out" "${args[@]}"
+# Drop wrangler's pre-signed download link from the output (it ends up in the log).
+npx wrangler d1 export qtscout --remote --output "$out" "${args[@]}" 2>&1 \
+  | grep -v "r2.cloudflarestorage.com" || true
+[[ -s "$out" ]] || { echo "Export failed: $out is missing or empty" >&2; exit 1; }
 chmod 600 "$out"
 echo "Saved $out"
+
+keep="${KEEP:-12}"
+ls -1t "$dir"/qtscout-*.sql | tail -n +$((keep + 1)) | while read -r old; do
+  rm -f "$old" && echo "Removed old backup $old"
+done
