@@ -38,3 +38,31 @@ class ScoutOut(ORMModel):
 class NightsBadgeOut(ORMModel):
     count: int
     awarded_at: PrismaDateTime
+
+
+class CampNightOut(ORMModel):
+    """One SIIE activity a scout took part in (camp-night accounting)."""
+
+    activity_id: str
+    description: str
+    activity_type: str | None
+    start_date: PrismaDateTime
+    end_date: PrismaDateTime | None
+    nights: int
+    camp_nights: int
+
+
+class CampNightMilestoneOut(ORMModel):
+    count: int
+    reached_on: PrismaDateTime
+    activity_id: str
+    description: str
+    # The badge already recorded for this count (ScoutNightsBadge), if any.
+    recorded_on: PrismaDateTime | None = None
+
+
+class ScoutCampNightsOut(ORMModel):
+    total: int
+    activities: list[CampNightOut]
+    milestones: list[CampNightMilestoneOut]
+    imported_at: PrismaDateTime | None

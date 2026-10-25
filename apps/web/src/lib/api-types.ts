@@ -276,6 +276,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/scouts/import-camp-nights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Camp Nights
+         * @description Import SIIE "Atividades por Elemento": each matched scout's rows are
+         *     replaced (SIIE is the source of truth); unknown NINs (e.g. former members)
+         *     are counted, not stored.
+         */
+        post: operations["import_camp_nights_api_scouts_import_camp_nights_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scouts/camp-nights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Camp Night Totals
+         * @description Camp-night total per scout, for scouts with imported SIIE data.
+         */
+        get: operations["camp_night_totals_api_scouts_camp_nights_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scouts/{scout_id}/camp-nights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scout Camp Nights */
+        get: operations["scout_camp_nights_api_scouts__scout_id__camp_nights_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/scouts/{scout_id}": {
         parameters: {
             query?: never;
@@ -560,10 +619,48 @@ export interface components {
             /** File */
             file?: string | null;
         };
+        /** Body_import_camp_nights_api_scouts_import_camp_nights_post */
+        Body_import_camp_nights_api_scouts_import_camp_nights_post: {
+            /** File */
+            file?: string | null;
+        };
         /** Body_import_scouts_api_scouts_import_post */
         Body_import_scouts_api_scouts_import_post: {
             /** File */
             file?: string | null;
+        };
+        /** CampNightMilestoneOut */
+        CampNightMilestoneOut: {
+            /** Count */
+            count: number;
+            /** Reachedon */
+            reachedOn: string;
+            /** Activityid */
+            activityId: string;
+            /** Description */
+            description: string;
+            /** Recordedon */
+            recordedOn?: string | null;
+        };
+        /**
+         * CampNightOut
+         * @description One SIIE activity a scout took part in (camp-night accounting).
+         */
+        CampNightOut: {
+            /** Activityid */
+            activityId: string;
+            /** Description */
+            description: string;
+            /** Activitytype */
+            activityType: string | null;
+            /** Startdate */
+            startDate: string;
+            /** Enddate */
+            endDate: string | null;
+            /** Nights */
+            nights: number;
+            /** Campnights */
+            campNights: number;
         };
         /** CreatedByOut */
         CreatedByOut: {
@@ -828,6 +925,17 @@ export interface components {
             total: number;
             /** Totalpages */
             totalPages: number;
+        };
+        /** ScoutCampNightsOut */
+        ScoutCampNightsOut: {
+            /** Total */
+            total: number;
+            /** Activities */
+            activities: components["schemas"]["CampNightOut"][];
+            /** Milestones */
+            milestones: components["schemas"]["CampNightMilestoneOut"][];
+            /** Importedat */
+            importedAt: string | null;
         };
         /** ScoutOut */
         ScoutOut: {
@@ -1898,6 +2006,117 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_camp_nights_api_scouts_import_camp_nights_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "cf-access-jwt-assertion"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_camp_nights_api_scouts_import_camp_nights_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    camp_night_totals_api_scouts_camp_nights_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "cf-access-jwt-assertion"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scout_camp_nights_api_scouts__scout_id__camp_nights_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "cf-access-jwt-assertion"?: string | null;
+            };
+            path: {
+                scout_id: string;
+            };
+            cookie?: {
+                CF_Authorization?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoutCampNightsOut"];
                 };
             };
             /** @description Validation Error */

@@ -109,3 +109,36 @@ class ScoutLeader(Base):
     assigned_at: Mapped[datetime] = mapped_column(
         "assignedAt", DateTime, server_default=func.now(), default=utcnow
     )
+
+
+class ScoutCampNight(Base):
+    """A scout's participation in one SIIE activity (from "Atividades por Elemento").
+
+    SIIE is the source of truth: the import replaces a scout's rows wholesale.
+    `camp_nights` is SIIE's "N. Campo" (noitescampo): the nights that count as
+    camp nights for this scout (0 when the activity doesn't count; leaders can
+    set it below `nights`). The scout's total is the sum of `camp_nights`.
+    """
+
+    __tablename__ = "scout_camp_nights"
+    __table_args__ = (
+        UniqueConstraint("scoutId", "activityId"),
+        Index("scout_camp_nights_scoutId_idx", "scoutId"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=cuid_id)
+    scout_id: Mapped[str] = mapped_column(
+        "scoutId", String, ForeignKey("scouts.id", ondelete="CASCADE")
+    )
+    activity_id: Mapped[str] = mapped_column("activityId", String)  # SIIE idatividade
+    description: Mapped[str] = mapped_column(String)
+    activity_type: Mapped[str | None] = mapped_column("activityType", String, nullable=True)
+    start_date: Mapped[datetime] = mapped_column("startDate", DateTime)
+    end_date: Mapped[datetime | None] = mapped_column("endDate", DateTime, nullable=True)
+    nights: Mapped[int] = mapped_column(Integer, server_default=text("0"))  # nights attended
+    camp_nights: Mapped[int] = mapped_column(
+        "campNights", Integer, server_default=text("0")
+    )  # nights credited as camp nights
+    created_at: Mapped[datetime] = mapped_column(
+        "createdAt", server_default=func.now(), default=utcnow
+    )

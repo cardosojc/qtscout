@@ -2,13 +2,15 @@
 import { apiFetch } from '@/lib/api-client'
 
 import { useMemo, useState } from 'react'
-import { useNightsBadges } from '@/lib/api-hooks'
+import { campNightsKey, refreshCached, useNightsBadges } from '@/lib/api-hooks'
 import { useToast } from '@/components/ui/toast'
 import { NIGHTS_BADGE_COUNTS, type NightsBadge, type NightsBadgeCount } from '@qtscout/types/scout'
 
 type Props = {
   scoutId: string
   canEdit: boolean
+  /** Milestone dates computed from SIIE (yyyy-mm-dd by count), to fill empty ones. */
+  suggested?: Partial<Record<NightsBadgeCount, string>>
 }
 
 type FormValues = Record<NightsBadgeCount, string> // '' if not awarded
@@ -24,7 +26,7 @@ function isoDay(value: string): string {
   return value.slice(0, 10)
 }
 
-export function NightsBadgesEditor({ scoutId, canEdit }: Props) {
+export function NightsBadgesEditor({ scoutId, canEdit, suggested }: Props) {
   const { showToast } = useToast()
   const { data, isLoading: loading, mutate } = useNightsBadges(scoutId)
   // Stored dates per milestone, and the user's unsaved edits on top of them.
@@ -39,6 +41,9 @@ export function NightsBadgesEditor({ scoutId, canEdit }: Props) {
   const [submitting, setSubmitting] = useState(false)
 
   const dirty = NIGHTS_BADGE_COUNTS.some((c) => values[c] !== saved[c])
+  // Milestones SIIE says were reached but have no date here yet. Filling them is
+  // an unsaved edit: the leader reviews, then saves.
+  const fillable = NIGHTS_BADGE_COUNTS.filter((c) => suggested?.[c] && !values[c])
 
   const handleSave = async () => {
     setSubmitting(true)
@@ -58,6 +63,8 @@ export function NightsBadgesEditor({ scoutId, canEdit }: Props) {
         showToast('Insígnias guardadas', 'success')
         await mutate()
         setEdits({})
+        // The SIIE milestones show which badges are recorded.
+        void refreshCached(campNightsKey(scoutId))
       } else {
         const data = await res.json().catch(() => ({}))
         showToast(data.error || 'Erro ao guardar', 'error')
@@ -105,7 +112,22 @@ export function NightsBadgesEditor({ scoutId, canEdit }: Props) {
         ))}
       </div>
       {canEdit && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {fillable.length > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setValues((prev) => {
+                  const next = { ...prev }
+                  for (const c of fillable) next[c] = suggested?.[c] ?? ''
+                  return next
+                })
+              }
+              className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:text-blue-300 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-lg"
+            >
+              Usar datas do SIIE ({fillable.length})
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSave}

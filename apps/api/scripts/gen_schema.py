@@ -1,8 +1,10 @@
 """Print the D1/SQLite schema generated from the SQLAlchemy models.
 
-    uv run python scripts/gen_schema.py > d1/migrations/0001_init.sql
+    uv run python scripts/gen_schema.py
 
-The models are the source of truth for tables/indexes; the FTS5 search table
+Prints the full schema from the models (0001_init.sql was generated this way;
+later tables get their own numbered migration, so compare rather than
+overwrite). The models are the source of truth for tables/indexes; the FTS5 search table
 (src/app/core/meeting_search.py) is appended here since it has no model. Later
 schema changes are new numbered files in d1/migrations/ (`wrangler d1
 migrations create`), applied with `wrangler d1 migrations apply`.

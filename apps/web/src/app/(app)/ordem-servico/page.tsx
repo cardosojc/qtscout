@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast'
 import { useLoading } from '@/components/ui/loading-overlay'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { ItemForm } from '@/components/ordem-servico/item-form'
+import { SiieExportHelp } from '@/components/siie-export-help'
 import {
   CATEGORY_MAP,
   ORDEM_CATEGORIES,
@@ -408,6 +409,8 @@ export default function OrdemServicoPage() {
           </div>
         )}
       </div>
+
+      {profile?.role === 'ADMIN' && <SiieExportHelp exports={['atividades']} />}
 
       {importSummary && (
         <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg shadow-sm p-4">

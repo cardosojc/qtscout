@@ -34,14 +34,15 @@ export interface Scout {
 export const NOITES_CAMPO_SNAPSHOT_DATE = '2025-10-01'
 
 /**
- * Total noites de campo for a scout. Currently returns the manual snapshot;
- * once activity participation is tracked, add the delta from activities the
- * scout attended after NOITES_CAMPO_SNAPSHOT_DATE.
+ * Total noites de campo for a scout. SIIE's activity history ("Atividades por
+ * Elemento", imported) is complete, so its total wins; the manual snapshot is
+ * only the fallback for scouts with no imported SIIE data.
  */
-export function computeNoitesCampoAtual(scout: Pick<Scout, 'noitesCampoInicial'>): number {
-  // TODO: + sum of nights from activities the scout participated in after
-  // NOITES_CAMPO_SNAPSHOT_DATE (waiting on participation data model).
-  return scout.noitesCampoInicial
+export function computeNoitesCampoAtual(
+  scout: Pick<Scout, 'noitesCampoInicial'>,
+  siieTotal?: number | null,
+): number {
+  return siieTotal ?? scout.noitesCampoInicial
 }
 
 export function scoutDisplayName(s: Pick<Scout, 'firstName' | 'lastName'>): string {

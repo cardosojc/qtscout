@@ -19,7 +19,12 @@ from app.models.document import (  # noqa: E402,F401
 )
 from app.models.meeting import Meeting, MeetingAttendee, MeetingType  # noqa: E402,F401
 from app.models.profile import Profile  # noqa: E402,F401
-from app.models.scout import Scout, ScoutLeader, ScoutNightsBadge  # noqa: E402,F401
+from app.models.scout import (  # noqa: E402,F401
+    Scout,
+    ScoutCampNight,
+    ScoutLeader,
+    ScoutNightsBadge,
+)
 
 __all__ = [
     "Base",
@@ -30,6 +35,7 @@ __all__ = [
     "Scout",
     "ScoutNightsBadge",
     "ScoutLeader",
+    "ScoutCampNight",
     "Document",
     "DocumentSequence",
     "DocumentSettings",
