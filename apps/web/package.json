@@ -14,7 +14,7 @@
     "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.20.2",
+    "@opennextjs/cloudflare": "^1.20.13",
     "@qtscout/types": "*",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
@@ -22,9 +22,9 @@
     "@tiptap/pm": "^3.4.2",
     "@tiptap/react": "^3.4.2",
     "@tiptap/starter-kit": "^3.4.2",
-    "next": "15.5.21",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "next": "16.4.3",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
     "swr": "^2.4.1"
   },
   "devDependencies": {
@@ -35,7 +35,7 @@
     "@types/react-dom": "^19",
     "esbuild": "^0.27.0",
     "eslint": "^9",
-    "eslint-config-next": "15.5.3",
+    "eslint-config-next": "16.4.3",
     "openapi-typescript": "^7.5.0",
     "tailwindcss": "^4",
     "typescript": "^5",
